@@ -1,0 +1,20 @@
+name: quartz
+version: 0.1.0
+description: |
+  A retained-mode, declarative GUI framework for Crystal.
+  Self-drawn rendering, isolated UI execution context, zero-allocation steady-state frames.
+
+authors:
+  - ShiningRay
+
+crystal: ">= 1.21.0"
+
+license: MIT
+
+targets:
+  quartz:
+    main: src/quartz.cr
+
+development_dependencies:
+  # ameba:
+  #   github: crystal-ameba/ameba
