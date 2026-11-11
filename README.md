@@ -1,8 +1,8 @@
-# Quartz
+# Tessell
 
 A retained-mode, declarative GUI framework for **Crystal**.
 
-Quartz 的设计目标：用 Crystal 的表达力做可控渲染的原生桌面 UI，而不是再做一层 C toolkit 绑定。
+Tessell 的设计目标：用 Crystal 的表达力做可控渲染的原生桌面 UI，而不是再做一层 C toolkit 绑定。
 
 ## 为什么是这条路
 

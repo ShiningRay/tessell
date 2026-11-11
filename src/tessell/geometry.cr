@@ -1,7 +1,7 @@
 # 几何与约束全部用 struct：栈分配、按值传递。
 # 布局与绘制热路径的零堆分配指标依赖这一层。
 
-module Quartz
+module Tessell
   struct Point
     getter x : Float32
     getter y : Float32

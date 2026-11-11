@@ -1,9 +1,9 @@
 require "spec"
-require "../src/quartz/geometry"
+require "../src/tessell/geometry"
 
-include Quartz
+include Tessell
 
-describe Quartz::Rect do
+describe Tessell::Rect do
   it "detects containment" do
     r = Rect.new(10.0_f32, 10.0_f32, 100.0_f32, 50.0_f32)
     r.contains?(Point.new(20.0_f32, 20.0_f32)).should be_true
@@ -20,7 +20,7 @@ describe Quartz::Rect do
   end
 end
 
-describe Quartz::Constraints do
+describe Tessell::Constraints do
   it "clamps size" do
     c = Constraints.new(0.0_f32, 100.0_f32, 0.0_f32, 100.0_f32)
     c.constrain(Size.new(250.0_f32, 50.0_f32)).width.should eq 100.0_f32
@@ -32,7 +32,7 @@ describe Quartz::Constraints do
   end
 end
 
-describe Quartz::Insets do
+describe Tessell::Insets do
   it "sums axes" do
     i = Insets.all(4.0_f32)
     i.horizontal.should eq 8.0_f32
@@ -40,7 +40,7 @@ describe Quartz::Insets do
   end
 end
 
-describe Quartz::Point do
+describe Tessell::Point do
   it "is a value type" do
     a = Point.new(1.0_f32, 2.0_f32)
     b = a

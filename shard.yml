@@ -1,4 +1,4 @@
-name: quartz
+name: tessell
 version: 0.1.0
 description: |
   A retained-mode, declarative GUI framework for Crystal.
@@ -12,8 +12,8 @@ crystal: ">= 1.21.0"
 license: MIT
 
 targets:
-  quartz:
-    main: src/quartz.cr
+  tessell:
+    main: src/tessell.cr
 
 development_dependencies:
   # ameba:
