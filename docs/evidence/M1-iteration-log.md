@@ -93,5 +93,5 @@ M0 门禁已裁定 PASS-WITH-CONDITIONS，M1-WP1 GO（docs/evidence/M0-gate.md�
 
 ## 提交 hash
 
-- 主提交：（回填）
+- 主提交：615d510ce0f168e152c9a8a3ee2d613de8c09185（feat(m1): retained 树三级失效、DrawList 批处理与稳态零分配（M1-WP3/4/5））
 - 回填提交：（回填）
