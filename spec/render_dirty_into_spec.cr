@@ -1,0 +1,84 @@
+# M1-WP5 稳态零分配：Render::Dirty.merge_into 复用调用方缓冲（spec）。
+#
+# 覆盖：
+#   1) merge_into 与 merge 在 6 组输入上结果相等（含顺序）；
+#   2) sink 预分配后重复调用不增长（size 不超 max_regions、重复调用不抛）；
+#   3) 不产空矩形；
+#   4) GC 零分配探针兜底（bytes_since_gc 差值 0）。
+
+require "spec"
+require "../src/tessell/render/dirty"
+
+include Tessell
+
+def r(x, y, w, h)
+  Rect.new(x.to_f32, y.to_f32, w.to_f32, h.to_f32)
+end
+
+describe "Render::Dirty.merge_into (M1-WP5 zero-alloc path)" do
+  cases = {
+    "empty"            => [] of Rect,
+    "single"           => [r(0, 0, 10, 10)],
+    "overlap"          => [r(0, 0, 10, 10), r(5, 5, 10, 10)],
+    "adjacent"         => [r(0, 0, 10, 10), r(10, 0, 10, 10)],
+    "disjoint"         => [r(0, 0, 10, 10), r(100, 100, 5, 5)],
+    "degenerate+valid" => [r(0, 0, 0, 0), r(1, 1, 5, 5), r(2, 2, 0, 3)],
+  }
+
+  cases.each do |name, input|
+    it "#{name}: merge_into equals merge (order included)" do
+      sink = [] of Rect
+      Render::Dirty.merge_into(input, sink)
+      sink.should eq Render::Dirty.merge(input)
+    end
+  end
+
+  it "honors max_regions greedily like merge" do
+    input = [r(0, 0, 1, 1), r(10, 0, 1, 1), r(20, 0, 1, 1), r(30, 0, 1, 1),
+             r(40, 0, 1, 1), r(50, 0, 1, 1), r(60, 0, 1, 1), r(70, 0, 1, 1)] of Rect
+    sink = [] of Rect
+    Render::Dirty.merge_into(input, sink, 4)
+    sink.should eq Render::Dirty.merge(input, 4)
+    sink.size.should be <= 4
+  end
+
+  it "produces no empty rectangles" do
+    input = [r(0, 0, 0, 0), r(1, 1, 5, 5), r(2, 2, 0, 3), r(3, 3, 4, 0)] of Rect
+    sink = [] of Rect
+    Render::Dirty.merge_into(input, sink)
+    sink.each do |rect|
+      rect.size.width.should be > 0.0_f32
+      rect.size.height.should be > 0.0_f32
+    end
+  end
+
+  it "repeated calls on a pre-sized sink do not raise and size stays bounded" do
+    input = [r(0, 0, 10, 10), r(5, 5, 10, 10)] of Rect
+    sink = [] of Rect
+    64.times { sink << Rect.new }
+    sink.clear
+
+    5.times do
+      Render::Dirty.merge_into(input, sink)
+      sink.size.should be <= 8
+    end
+    sink.size.should eq 1
+  end
+
+  it "allocates zero bytes across repeated calls with a pre-sized sink (GC probe)" do
+    input = [r(0, 0, 10, 10), r(5, 5, 10, 10), r(20, 20, 4, 4)] of Rect
+    sink = [] of Rect
+    64.times { sink << Rect.new }
+    sink.clear
+
+    10.times { Render::Dirty.merge_into(input, sink) } # warmup
+    GC.collect
+    GC.disable
+    before = GC.stats.bytes_since_gc
+    1000.times { Render::Dirty.merge_into(input, sink) }
+    after = GC.stats.bytes_since_gc
+    GC.enable
+
+    (after - before).should eq 0
+  end
+end

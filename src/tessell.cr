@@ -8,6 +8,9 @@ require "./tessell/version"
 require "./tessell/geometry"
 require "./tessell/layout"
 require "./tessell/text/measurer"
+require "./tessell/core/node"
+require "./tessell/render/draw_list"
+require "./tessell/render/dirty"
 
 module Tessell
   # UI 主循环必须运行在独占系统线程的执行上下文中。
