@@ -4,9 +4,9 @@
 - 记录人：工部尚书（gongbu-shangshu），task-24 收口
 - 记录时间：2026-11-12 18:30:09 +08:00（收口会话时间，非全部任务精确时间戳）
 - 基线 HEAD（W2 收口后）：`602a52533592a12db6a8b1058768003be604e1ca`
-- W3 主提交（task-24）：`<TBD-W3>`（`docs(m0): M0 证据汇总、门禁终审与条件补证（负例/迁移/度量 ensure）`，待 push）
-- hash 回填提交（task-24，第二提交）：`<TBD-W3-backfill>`（`docs: 回填 W3 提交 hash`，待 push；创建后可能本地 amend 修正文案再普通 push，未改写已推送历史）
-- 推送结果：待执行（主提交 + 回填提交均普通 push，禁止无 --force-with-lease 强推）
+- W3 主提交（task-24）：`8836d01219baf381a383a4b02dc58e31417f23fc`（`docs(m0): M0 证据汇总、门禁终审与条件补证（负例/迁移/度量 ensure）`，已推送 origin/main）
+- hash 回填提交（task-24，第二提交）：`（本回填提交，hash 见下方“提交与回填”及回报）`（`docs: 回填 W3 提交 hash`，本地 amend 修正文案后普通 push，未改写已推送历史）
+- 推送结果：主提交 `602a525..8836d01 main -> main` 已推送；回填提交待推送（普通 push）
 - 环境参考：Windows NT 10.0.26300.0 AMD64；`Crystal 1.22.1 [23828b0a40] (2026-10-23), LLVM 23.1.3, Default target: x86_64-w64-windows-gnu`；PATH 含 `C:\msys64\ucrt64\bin`。
 
 ## 本轮任务状态表（T16/T21/T22/T23）
@@ -66,8 +66,8 @@
 
 ## 提交与回填
 
-- 主提交：`docs(m0): M0 证据汇总、门禁终审与条件补证（负例/迁移/度量 ensure)`（范围：`examples/`、`docs/evidence/`、`docs/research/`、`tools/`；`bin/` 不入库），hash 待回填。
-- 回填提交：`docs: 回填 W3 提交 hash`（第二小提交，普通 push；不 amend 已推送历史，与 W1/W2 同策），hash 待回填。
+- 主提交：`8836d01219baf381a383a4b02dc58e31417f23fc` `docs(m0): M0 证据汇总、门禁终审与条件补证（负例/迁移/度量 ensure)`（范围：`examples/`、`docs/evidence/`、`docs/research/`、`tools/`；`bin/` 不入库），已推送。
+- 回填提交：`（本回填提交）` `docs: 回填 W3 提交 hash`（第二小提交，普通 push；不 amend 已推送历史，与 W1/W2 同策；本地 amend 修正文案后 push）。
 - 约束：禁止 `git add -A`；禁止无 `--force-with-lease` 强推；未改 `src/`、`spec/`、`shard.yml`、`README`、`docs/plan*`、`docs/roadmap.md`。提交前 `git status --short` 仅含上述允许路径（含已存在的 docs/evidence/docs/research/tools/examples 变更与本日志）。
 
 ## 备注
