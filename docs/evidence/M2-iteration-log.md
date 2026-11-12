@@ -93,7 +93,7 @@
   - 字节级取证（`git log --format=%s -1 17814ca` 重定向后 `[IO.File]::ReadAllBytes`）：`len=87 first16=EF BB BF 66 65 61 74 28 6D 32 29 3A 20 E8 BE 93`（首字节 `EF BB BF` 确认 UTF-8 BOM）。
 
 ### 提交信息（M2-iter2）
-- 提交 1（feat）hash：待回填（docs: 回填 M2 迭代 2 提交 hash）
-- 提交 1（feat）短 hash：待回填
-- 提交 2（docs 回填）hash：待回填
-- 提交 2（docs 回填）短 hash：待回填
+- 提交 1（feat）hash：10253733405e9f936abab8b43103e9e56198d22e
+- 提交 1（feat）短 hash：1025373
+- 提交 2（docs 回填）hash：见本次收口回报（HEAD / origin/main）
+- 提交 2（docs 回填）短 hash：见本次收口回报
