@@ -44,5 +44,5 @@ M0 门禁已裁定 PASS-WITH-CONDITIONS，M1-WP1 GO（docs/evidence/M0-gate.md�
 
 ## 提交 hash
 
-- 主提交：（回填）
+- 主提交：bedc80b（feat(m1): 两遍布局内核与文本测量缓存（M1-WP1/WP2））
 - 回填提交：（回填）
