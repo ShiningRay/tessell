@@ -140,48 +140,52 @@ warmup.times do |f|
 end
 
 # Allocation sampling protocol (M1-WP5): warmup -> GC.collect (gc_stable_start) ->
-# GC.disable -> before=bytes_since_gc -> N frames -> after -> GC.enable.
+# GC.disable -> before=bytes_since_gc -> N frames -> after -> GC.enable (in ensure).
 GC.collect
 gc_stable_start = "collected"
 GC.disable
 before_bytes = GC.stats.bytes_since_gc
+after_bytes = before_bytes
 
-frames.times do |f|
-  t0 = Time.instant
-  total_w = 0.0
-  if steady
-    nodes.each_with_index do |nd, idx|
-      # simple "layout" update + "draw record" generation into preallocated buffer
-      x = nd.x + (f & 1).to_f64
-      y = nd.y + ((f + idx) % 7).to_f64 * 0.5
-      w = nd.w
-      h = nd.h
-      base = idx * 2
-      cmds_buf[base] = DrawCmd.new(1_u8, x, y, w, h, nd.color ^ (f.to_u32 & 0xFF_u32))
-      cmds_buf[base + 1] = DrawCmd.new(2_u8, x + 2.0, y + 2.0, w - 4.0, h - 4.0, 0xFF000000_u32 | (idx.to_u32 * 13_u32))
-      total_w += w + h + x + y
+begin
+  frames.times do |f|
+    t0 = Time.instant
+    total_w = 0.0
+    if steady
+      nodes.each_with_index do |nd, idx|
+        # simple "layout" update + "draw record" generation into preallocated buffer
+        x = nd.x + (f & 1).to_f64
+        y = nd.y + ((f + idx) % 7).to_f64 * 0.5
+        w = nd.w
+        h = nd.h
+        base = idx * 2
+        cmds_buf[base] = DrawCmd.new(1_u8, x, y, w, h, nd.color ^ (f.to_u32 & 0xFF_u32))
+        cmds_buf[base + 1] = DrawCmd.new(2_u8, x + 2.0, y + 2.0, w - 4.0, h - 4.0, 0xFF000000_u32 | (idx.to_u32 * 13_u32))
+        total_w += w + h + x + y
+      end
+      work_sink &+= cmds_buf.size.to_u64 + total_w.to_i64.to_u64
+    else
+      cmds = Array(DrawCmd).new(cmds_cap)
+      nodes.each_with_index do |nd, idx|
+        # simple "layout" update + "draw record" generation
+        x = nd.x + (f & 1).to_f64
+        y = nd.y + ((f + idx) % 7).to_f64 * 0.5
+        w = nd.w
+        h = nd.h
+        cmds << DrawCmd.new(1_u8, x, y, w, h, nd.color ^ (f.to_u32 & 0xFF_u32))
+        cmds << DrawCmd.new(2_u8, x + 2.0, y + 2.0, w - 4.0, h - 4.0, 0xFF000000_u32 | (idx.to_u32 * 13_u32))
+        total_w += w + h + x + y
+      end
+      work_sink &+= cmds.size.to_u64 + total_w.to_i64.to_u64
     end
-    work_sink &+= cmds_buf.size.to_u64 + total_w.to_i64.to_u64
-  else
-    cmds = Array(DrawCmd).new(cmds_cap)
-    nodes.each_with_index do |nd, idx|
-      # simple "layout" update + "draw record" generation
-      x = nd.x + (f & 1).to_f64
-      y = nd.y + ((f + idx) % 7).to_f64 * 0.5
-      w = nd.w
-      h = nd.h
-      cmds << DrawCmd.new(1_u8, x, y, w, h, nd.color ^ (f.to_u32 & 0xFF_u32))
-      cmds << DrawCmd.new(2_u8, x + 2.0, y + 2.0, w - 4.0, h - 4.0, 0xFF000000_u32 | (idx.to_u32 * 13_u32))
-      total_w += w + h + x + y
-    end
-    work_sink &+= cmds.size.to_u64 + total_w.to_i64.to_u64
+    t1 = Time.instant
+    durations_us[f] = (t1 - t0).total_microseconds
   end
-  t1 = Time.instant
-  durations_us[f] = (t1 - t0).total_microseconds
-end
 
-after_bytes = GC.stats.bytes_since_gc
-GC.enable
+  after_bytes = GC.stats.bytes_since_gc
+ensure
+  GC.enable
+end
 
 # Prevent dead-code elimination / keep sink observable
 if work_sink == 0xFFFFFFFFFFFFFFFF_u64

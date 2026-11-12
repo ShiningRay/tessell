@@ -48,4 +48,82 @@ main_fid=2061926027008 main_tid=2061926022816 iso_fid=2061926026208 iso_tid=2061
 ## 总结
 
 - M0-WP2 仓内探针：**通过（本机实测）**。输出含全部要求 token，`diff_from_main=true`、`cross_iso=42`、`mutex_val=4`，退出码 0，自然退出。
-- 与 research 既有实测结论无冲突；未复测项已标 `[未验证]`。
+- 与 research 既有实测结论无冲突；原未复测项中“`Parallel.new(name,size,&)` 负例”与“Parallel 迁移观测”已于 task-23（W3-3）补充样本证据（见下节）；其余仍 `[未验证]`。
+
+## 负例与迁移观测（task-23 / W3-3，C1 补证）
+
+- 采集时间（本地）：2026-11-12 18:11:27 +08:00（会话记录）；HEAD（工作区基线）：`602a52533592a12db6a8b1058768003be604e1ca`
+- 环境：`Crystal 1.22.1 [23828b0a40] (2026-10-23), LLVM 23.1.3, Default target x86_64-w64-windows-gnu`，`C:\msys64\ucrt64\bin\crystal.exe`，PATH 含 `C:\msys64\ucrt64\bin`
+
+### A) `Parallel.new(name,size,&)` 编译期负例（API 形状）
+
+- 探针：`examples/m0_parallel_block_neg.cr`（文件头注明“本文件预期编译失败，仅作负例证据”，故意不可编译）
+
+命令：
+
+```powershell
+$env:PATH = "C:\msys64\ucrt64\bin;" + $env:PATH
+Push-Location "C:\Users\ShiningRay\projects\ShiningRay\tessell"
+& "C:\msys64\ucrt64\bin\crystal.exe" build examples/m0_parallel_block_neg.cr 2>&1
+"BUILD_EXIT=$LASTEXITCODE"
+Pop-Location
+```
+
+原始输出（含 stderr）：
+
+```text
+BUILD_EXIT=1
+[stderr]
+crystal.exe : Showing last frame. Use --error-trace for full trace.
+所在位置 行:1 字符: 225
++ ... $env:PATH"; & "C:\msys64\ucrt64\bin\crystal.exe" build examples/m0_pa ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Showing last fr...for full trace.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+In examples\m0_parallel_block_neg.cr:5:41
+
+ 5 | par = Fiber::ExecutionContext::Parallel.new("w", 4) { }
+                                             ^--
+Error: 'Fiber::ExecutionContext::Parallel.new' is not expected to be invoked with a block, but a block was given
+```
+
+- 关键错误原文行：`Error: 'Fiber::ExecutionContext::Parallel.new' is not expected to be invoked with a block, but a block was given`（`examples\m0_parallel_block_neg.cr:5:41`）
+- EXITCODE：`1`（非 0，符合预期）
+
+### B) Parallel 迁移观测样本
+
+- 探针：`examples/m0_parallel_migrate.cr`（8 fibers × 3 次 yield，记录每 fiber 的 tid 序列并汇总）
+
+命令：
+
+```powershell
+$env:PATH = "C:\msys64\ucrt64\bin;" + $env:PATH
+Push-Location "C:\Users\ShiningRay\projects\ShiningRay\tessell"
+& "C:\msys64\ucrt64\bin\crystal.exe" run examples/m0_parallel_migrate.cr 2>&1
+"EXIT=$LASTEXITCODE"
+Pop-Location
+```
+
+原始输出：
+
+```text
+fiber=0 tids=2213146606640,2213146606224,2213146606640 migrated=true
+fiber=1 tids=2213146606640,2213146606224,2213146606640 migrated=true
+fiber=2 tids=2213146606640,2213146606224,2213146606224 migrated=true
+fiber=3 tids=2213146606224,2213146606224,2213146606640 migrated=true
+fiber=4 tids=2213146606640,2213146606640,2213146606224 migrated=true
+fiber=5 tids=2213146606640,2213146606640,2213146606224 migrated=true
+fiber=6 tids=2213146606640,2213146606640,2213146606224 migrated=true
+fiber=7 tids=2213146606224,2213146606640,2213146606224 migrated=true
+migrated_any=true fibers=8 migrated_fibers=8 yields=3
+EXIT=0
+```
+
+- 结论：`migrated_any=true`（fibers=8, migrated_fibers=8, yields=3）。
+
+### 说明与边界
+
+- **编译期 API 形状已证**：`Fiber::ExecutionContext::Parallel.new(name, size, &block)` 形式在当前环境（Crystal 1.22.1）下被编译器拒绝，错误原文与 capabilities.md 记录一致。
+- **迁移观测为单次样本**：本次运行观察到 fiber 在不同系统线程间迁移（`migrated_any=true`），但**仅为单次样本**，不得据此写成“总会迁移”或反向写成“不会迁移”；迁移行为受调度器/负载/版本影响。[未验证：多次/长时/不同负载下分布]
+- 负例文件 `examples/m0_parallel_block_neg.cr` 故意不可编译，属证据文件；`crystal spec` 不编译 `examples/`（task-23 验证：`crystal spec` 仍 `6 examples, 0 failures, 0 errors, 0 pending`，SPEC_EXIT=0）。

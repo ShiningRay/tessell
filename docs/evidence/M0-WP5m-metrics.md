@@ -273,3 +273,56 @@ frame_us = (Time.instant - t0).total_microseconds; durations << frame_us
 - default 场景（task-12，3 次中位数）：`scenario=default`，`p50_us=17.5`，`p95_us=23.0`，`p99_us=28.8`，`alloc_bytes=5779056`，`gc_disabled=true`。**该场景含每帧分配，不得用于 M1-WP5 零分配判据。**
 - steady 场景（task-19，3 次）：`scenario=steady`，`gc_stable_start=collected`，`alloc_bytes_steady=0`，`alloc_delta_zero=true`（3/3），`gc_disabled=true`；中位数 `p50_us=14.6`，`p95_us=17.2`，`p99_us=22.4`。在本环境下满足 M1-WP5 协议化的“稳态 alloc delta == 0”观测（非声称全环境恒成立；若非 0 须如实记录）。
 - M-3 目标“建立可复用采集工具链 spike + M1-WP5 判据协议”已达成（纯逻辑）；与真实窗口帧集成待后续嵌入验证（见 §7/§8）。
+
+## 10) task-23（W3-3）P2-2 补证：`GC.enable` ensure + 重跑（2026-11-12 18:11:27 +08:00）
+
+- 目标：保证采样窗口内异常路径也能恢复 GC（`GC.disable` 后必定 `GC.enable`）。
+- 代码改动：`tools/bench_frame_time.cr` 将采样循环包裹 `begin ... ensure GC.enable end`，`after_bytes` 初始化为 `before_bytes`，在循环成功后更新；`GC.collect/GC.disable/before` 仍在 `begin` 前按协议执行（warmup→collect→disable→before→N frames→after→enable）。
+
+命令（PATH 含 `C:\msys64\ucrt64\bin`，CWD tessell）：
+
+```powershell
+& "C:\msys64\ucrt64\bin\crystal.exe" run tools/bench_frame_time.cr -- --frames=120 --steady 2>&1; "EXIT=$LASTEXITCODE"
+& "C:\msys64\ucrt64\bin\crystal.exe" run tools/bench_frame_time.cr -- --frames=120 2>&1; "EXIT=$LASTEXITCODE"
+```
+
+### 重跑输出（steady, --frames=120）
+
+```text
+scenario=steady
+frames=120
+warmup=30
+p50_us=17.7
+p95_us=26.5
+p99_us=29.4
+mean_us=20.0
+min_us=14.3
+max_us=34.7
+alloc_bytes=0
+alloc_bytes_steady=0
+alloc_delta_zero=true
+gc_disabled=true
+gc_stable_start=collected
+EXIT=0
+```
+
+### 重跑输出（default, --frames=120）
+
+```text
+scenario=default
+frames=120
+warmup=30
+p50_us=22.6
+p95_us=36.4
+p99_us=45.8
+mean_us=24.1
+min_us=17.2
+max_us=48.4
+alloc_bytes=2313632
+gc_disabled=true
+gc_stable_start=collected
+EXIT=0
+```
+
+- 结论：改后 steady/default 各 1 次均 EXITCODE=0；steady 仍 `alloc_bytes_steady=0`、`alloc_delta_zero=true`、`gc_stable_start=collected`（与改前判据 token 一致）；default 仍为分配场景（本次 120 帧实测 `alloc_bytes=2313632`，非 0）。
+- 补充说明：default alloc 字节数随 revision/场景微差（5776576–5779056），steady=0 稳定。前述区间对应 task-12/task-19 300 帧观测（5779056/5776576）；本次 `--frames=120` 因帧数减半，alloc 体量按比例缩小（2313632），属预期的场景/帧数相关差异，**default 场景仍不得用于 M1-WP5「稳态差值=0」判据**。
