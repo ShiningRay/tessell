@@ -38,8 +38,8 @@
 - M2-WP4 虚拟列表
 - M2-WP5 a11y
 
-## 提交信息（待回填）
-- 提交 1（feat）hash：待回填
-- 提交 1（feat）短 hash：待回填
-- 提交 2（docs 回填）hash：待回填
-- 提交 2（docs 回填）短 hash：待回填
+## 提交信息
+- 提交 1（feat）hash：17814ca9465eb1f3353bc689797392449fc7215d
+- 提交 1（feat）短 hash：17814ca
+- 提交 2（docs 回填）hash：见本次收口回报（HEAD / origin/main）
+- 提交 2（docs 回填）短 hash：见本次收口回报
