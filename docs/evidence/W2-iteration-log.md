@@ -4,9 +4,9 @@
 - 记录人：工部尚书（gongbu-shangshu），task-15 收口
 - 记录时间：2026-11-12 17:36:49 +08:00（收口会话时间，非全部任务精确时间戳）
 - 基线 HEAD（W1 收口后）：`1b0d832220f3017e9efd6f42d59b5d7fab6b09f3`
-- W2 主提交（task-15）：`<TBD-W2>`（`feat(m0): W2 文本/IME/度量探针与布局预研`，待 push）
-- hash 回填提交（task-15，第二提交）：`<TBD-W2-backfill>`（`docs: 回填 W2 提交 hash`，待 push）
-- 推送结果：待执行（主提交 + 回填提交均普通 push，禁止无 --force-with-lease 强推）
+- W2 主提交（task-15）：`564cb172656ac840fd5310fd9e833c7f5b6bf4f3`（`feat(m0): W2 文本/IME/度量探针与布局预研`，已推送 origin/main）
+- hash 回填提交（task-15，第二提交）：`（本提交，hash 见 git log/回报）`（`docs: 回填 W2 提交 hash`，创建后本地 amend 修正文案再普通 push，未改写已推送历史）
+- 推送结果：主提交 `1b0d832..564cb17 main -> main` 已推送；回填提交待推送（普通 push）
 
 ## 本轮任务状态表（T8–T12，T13–T14，T17–T20）
 
@@ -47,6 +47,6 @@
 
 ## 提交与回填
 
-- 主提交：`feat(m0): W2 文本/IME/度量探针与布局预研`（范围：`examples/`、`docs/evidence/`、`docs/research/layout-two-pass.md`、`tools/`），hash 待回填。
-- 回填提交：`docs: 回填 W2 提交 hash`（第二小提交，普通 push；不 amend 已推送历史，与 W1 同策），hash 待回填。
+- 主提交：`564cb172656ac840fd5310fd9e833c7f5b6bf4f3` `feat(m0): W2 文本/IME/度量探针与布局预研`（范围：`examples/`、`docs/evidence/`、`docs/research/layout-two-pass.md`、`tools/`），已推送。
+- 回填提交：`（本提交，hash 见 git log/回报）` `docs: 回填 W2 提交 hash`（第二小提交，普通 push；不 amend 已推送历史，与 W1 同策；创建后本地 amend 修正文案再 push）。
 - 约束：禁止 `git add -A`；`bin/` 受 .gitignore 不入库；禁止无 `--force-with-lease` 强推；未改 `src/`、`spec/`、`shard.yml`、`README`、`docs/plan*`、`docs/roadmap.md`。
