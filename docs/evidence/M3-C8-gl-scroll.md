@@ -213,7 +213,7 @@ rows=10000 viewport=800x600 row_h=20 dy=20 visible_avg=30.0000 pool_size=32 quad
 - in-situ 修复前：`INSITU prepare=16 full=0 scroll=0 blit=368 dirty=0 rdirty=92576 present=80 total=93040 residual=0 n=200`；主因 `rdirty`（shaped-run cache miss/evict）。
 - 修复：`Rasterizer.new(..., rows+64)` + init 全量 `shape_run_into` 预热 + `sync_atlas`。
 - in-situ 修复后：`INSITU prepare=0 full=48 scroll=0 blit=352 dirty=0 rdirty=32 present=48 total=480 residual=0 n=200`。
-- 上述两次 verify：`alloc_windows=[0,0,0]`、`verify=pass`、EXIT 0；但均 `retried=true attempt=2`（首窗失败证据未打印，见 §16）。
+- 上述两次 verify：`alloc_windows=[0,0,0]`、`verify=pass`、EXIT 0；但均 `retried=true attempt=2`（首窗失败证据未打印，见 §16）。prime pass 会吸收首窗一次性分配，故 attempt1 打印的是 prime 之后的测量窗；且该 `[0,0,0]` 仅为这两次观测值，非普适结论——合法判据是 A `delta<1000`、B `delta<=256`（3 窗 max），本机存在 16–96B 量级 Boehm/GC 簿记噪声，可落在任意测量窗。
 
 ## 15. 连续滚动（task-112, 2026-11-13T18:49:14+08:00）
 
@@ -306,8 +306,7 @@ EXIT=0
 - 额外 `Rasterizer` run cache 容量：`rows + 64`（task-110 变更保留）+ init 全量
   `shape_run_into` 预热；用于消除连续滚动/verify 路径 miss/evict 分配。RSS/进程峰值未在
   进程内单独采样（未添加采样工具），仅报告可直接实测项 `label_bytes_total`。
-- 不可清零项/waiver：未提出（实测 `steady_continuous max=0`，5 连跑及 steady 连跑
-  `alloc_windows=[0,0,0]`、`retried=false attempt=1`、`verify=pass`）。
+- 不可清零项/waiver：未提出（本轮观测 `steady_continuous max=0`，5 连跑及 steady 连跑示例 `alloc_windows=[0,0,0]`、`retried=false attempt=1`、`verify=pass`，非普适保证；合法判据 A `delta<1000`、B `delta<=256`，本机 16–96B 量级 Boehm 簿记噪声可落任意窗）。
 
 ## 19. task-118：P3 修复（full_redraw 判据 + --blit-off 反证 + 行数口径）
 
@@ -327,12 +326,18 @@ EXIT=0
 diff_pixels=0 diff_A_vs_C=3415 quads_dirty=150 quads_full=150 culled=0 alloc_windows=[0,0,0] ... verify=fail
 EXIT=1
 ```
-修复后（`bin/m3_scroll_window.exe --frames=120 --dy=600 --verify`）：
+修复后（同一 `--dy=600` 场景，四组观测并列，如实记录）：
+- 执行者首跑（task-118 修复后，本节原始记录）：`alloc_windows=[0,0,0]`，`diff_pixels=0 diff_A_vs_C=3415 quads_dirty=150 quads_full=150 culled=0 full_redraw=true ... verify=pass`（见下原始行）
+- task-120 定向复核：`alloc_windows=[96,80,0]`，`diff_pixels=0 diff_A_vs_C=3415 quads_dirty=150 quads_full=150 culled=0 full_redraw=true verify=pass`
+- task-124 门禁复跑：`alloc_windows=[80,80,80]`，`diff_pixels=0 diff_A_vs_C=3415 quads_dirty=150 quads_full=150 culled=0 full_redraw=true verify=pass`
+- task-123 门禁跑（`tools/gate.ps1` 门禁跑，20:2x）：`alloc_windows=[96,48,64]`、`diff_pixels=0 diff_A_vs_C=3415 quads_full=150 quads_dirty=150 verify=pass`
+
 ```text
 ALLOC_ATTEMPT1 alloc_windows=[0,0,0] delta_max=0 attempt1=1 pass=true fail_reason=none
 rows=10000 viewport=800x600 row_h=20 dy=600 visible_avg=30.0000 pool_size=32 quads_full=150 quads_dirty=150 culled=0 batches=30 diff_pixels=0 diff_A_vs_C=3415 full_redraw=true dirty_area=480000 viewport_area=480000 scroll_offset=104400 label_bytes_total=78890 frame_full_p50_us=626 frame_full_p95_us=3745 frame_full_p99_us=21468 frame_dirty_p50_us=668 frame_dirty_p95_us=4423 frame_dirty_p99_us=16593 alloc_windows=[0,0,0] retried=false attempt=1 frames=120 verify=pass GL_SCROLL_WINDOW=done
 EXIT=0
 ```
+结论：`[0,0,0]` 非普适；合法判据 A `delta<1000`、B `delta<=256`；本机 16–96B 量级 Boehm 簿记噪声可落任意窗。dy20 在门禁跑里也是 `[0,0,0]`（不代表保证）。
 
 ### 19.3 dy=20 正常路径（局部脏区）
 首次运行（出现一次 attempt1 窗口噪声，attempt2 通过）：

@@ -60,10 +60,10 @@
 ### 3.1 零分配探针稳定性举证（lead 追加要求）
 
 - 执行：`crystal spec spec/backend_protocol_spec.cr` 连续 **12 次（≥10）**。
-- 结果：**12/12 = 8 examples, 0 failures**；12/12 探针输出一致：
+- 结果：**12/12 = 8 examples, 0 failures**；探针输出示例（单次打印，完整分布见下条与 §6）：
   - `zero-alloc probe(backend): delta_prime=0 delta_calib=0 delta_work=0 N=1000 windows=[0,0,0] retried=false attempt=1`
-- 各次 windows 分布：均为 `[0,0,0]`（`delta_prime=0 delta_calib=0 delta_work=0`，`retried=false`）。
-- 另一执行者 13:56 观测（lead 转述）：`spec/backend_protocol_spec.cr:297` 曾报 `delta_work=127888 windows=[101088,0,127888] retried=true attempt=2`。本轮 **未能复现**（12/12 全零，且修复后全量多次均绿）。已知实现细节：`RecordingBackend` 在零分配探针前关闭调用序列记录 `record_calls=false` 并 `calls.clear`，避免每帧 `"begin_frame"/"draw_text"` 字符串 append 造成分配；探针测量区仅 `begin_frame(dirty)+draw_text` 且 dirty/顶点/批次复用。该 127888 现象无法在当前实现与本机条件下定位到稳定首次分配路径（12/12 未触发），记录为未复现瞬态/外部并发干扰待观察（见 §5）。
+- 各次结果：12/12 均通过 A/B 判据（其中 3 次出现单窗 16B 噪声，见 §6）。
+- 另一执行者 13:56 观测（lead 转述）：`spec/backend_protocol_spec.cr:297` 曾报 `delta_work=127888 windows=[101088,0,127888] retried=true attempt=2`。本轮 **未能复现**（12/12 均通过 A/B 判据，其中 3 次单窗 16B 噪声见 §6；且修复后全量多次均绿）。已知实现细节：`RecordingBackend` 在零分配探针前关闭调用序列记录 `record_calls=false` 并 `calls.clear`，避免每帧 `"begin_frame"/"draw_text"` 字符串 append 造成分配；探针测量区仅 `begin_frame(dirty)+draw_text` 且 dirty/顶点/批次复用。该 127888 现象无法在当前实现与本机条件下定位到稳定首次分配路径（12/12 未触发），记录为未复现瞬态/外部并发干扰待观察（见 §5）。
 - lead 记录：13:56 自行连跑两次全量均 **194/0**、backend 探针 0（与本轮结果一致）。
 
 ## 4. 阶段 B 证据（脏矩形部分提交像素等价）
@@ -119,7 +119,7 @@ diff_pixels=0 dirty_area_ratio=0.012568 submitted_quads_dirty=4 submitted_quads_
 
 ## 5. 未验证 / 限制（[未验证] 必附验证所需）
 
-- [未验证] **零分配探针 127888 瞬态未复现**：另一执行者 13:56 单次观测 `delta_work=127888 windows=[101088,0,127888]`，本轮 12/12 为 `[0,0,0]` 且 lead 两次全量复现 194/0。**验证所需**：在观测到非零的同机/同负载条件下获取失败现场并对 `begin_frame`/`draw_text`/`stats`/`resolved_texture`/`@calls` 路径做分段 bisect（逐步禁用各段后测 `GC.stats.bytes_since_gc`）以定位首分配行；或增加更细粒度的 probe 变体纳入 CI/重复跑。
+- [未验证] **零分配探针 127888 瞬态未复现**：另一执行者 13:56 单次观测 `delta_work=127888 windows=[101088,0,127888]`，本轮 12/12 均通过 A/B 判据（分布见 §6.2）且 lead 两次全量复现 194/0。**验证所需**：在观测到非零的同机/同负载条件下获取失败现场并对 `begin_frame`/`draw_text`/`stats`/`resolved_texture`/`@calls` 路径做分段 bisect（逐步禁用各段后测 `GC.stats.bytes_since_gc`）以定位首分配行；或增加更细粒度的 probe 变体纳入 CI/重复跑。
 - [未验证] **跨 `SwapBuffers` 的持久脏区增量链路**：阶段 B 证明在“单 back buffer、比较阶段不 swap”前提下脏区局部重绘与整帧等价。WGL 双缓冲下若每帧 swap，前后缓冲内容不同，严格增量需 damage 历史/双缓冲跟踪或复制前帧内容。**验证所需**：在 swap-every-frame 主循环中实现并验证 damage region / front-back 一致策略（或显式保留并同步两缓冲），再做多帧连续脏区更新的逐像素对照。
 - [未验证] **多重叠脏区/复杂裁剪的窗口级像素证明**：示例为单个合并脏区（`dirty_rects=1`）；scissor+CPU 裁剪的重叠去重与多 rect 行为已由 `spec/backend_protocol_spec.cr` 的 RecordingBackend 算术覆盖，未在真实 GL 窗口做多矩形像素对照。**验证所需**：构造 ≥2 个非相邻/相接/重叠 dirty rect 的场景并对每种输出 `diff_pixels==0` 证据。
 - [未验证] **跨 GPU/驱动/平台一致性**：仅在当前 Windows + WGL/GL 1.1 + `msyh.ttc` 环境实测。**验证所需**：在其他 GPU 驱动及（若移植后）macOS/Linux 后端路径重复 `m3_dirty_window` 像素等价与 spec。

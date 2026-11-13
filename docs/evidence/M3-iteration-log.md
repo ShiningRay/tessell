@@ -223,6 +223,9 @@
   ≤1 次重试且必须打印 `attempt=1`。
 - 本轮 ui_apply/ui_consume/ui_builder 三探针全 `[0,0,0]`（偶发 `[0,0,16]` 仍在
   判据内）；负例对抗 `NEG_RESULT=CAUGHT`（两轮）。
+- 口径声明（task-125 增补）：「零分配」在本仓库的唯一合法口径是判据 A `delta_work < N(=1000)` 与 B `delta_work <= 256`（定义见 `docs/evidence/M2-WP2c-zero-alloc-criterion.md`），**不是** `delta == 0`。
+- 本机实测存在 16B（偶发 64–96B）级 GC/allocator 簿记噪声，可落入任意测量窗；任何文档不得把单次 `[0,0,0]` 写成普适保证。
+- C6 waiver 只覆盖 M3-WP5 自身主张，不覆盖 M3 全域（引 `docs/evidence/M2-summary.md:52`）。
 
 ## E. 门禁条件台账（逐条）
 | 条件 | 状态 | 说明 |
