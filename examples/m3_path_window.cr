@@ -17,6 +17,7 @@
 require "../src/tessell"
 require "../src/tessell/render/gl/gl_backend"
 require "../src/tessell/render/polygon"
+require "./lib/shot"
 
 @[Link("kernel32")]
 lib LibKernel32
@@ -274,6 +275,7 @@ height = 600
 frames_target = 30
 verify = false
 no_stencil = false
+screenshot_path = ""
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--frames=")
     frames_target = arg.split("=", 2)[1].to_i
@@ -283,6 +285,10 @@ ARGV.each_with_index do |arg, i|
     verify = true
   elsif arg == "--no-stencil"
     no_stencil = true
+  elsif arg.starts_with?("--screenshot=")
+    screenshot_path = arg.split("=", 2)[1]
+  elsif arg == "--screenshot" && i + 1 < ARGV.size
+    screenshot_path = ARGV[i + 1]
   end
 end
 
@@ -541,6 +547,7 @@ iso_ctx = Fiber::ExecutionContext::Isolated.new("tessell-m3-path") do
 
     # Present the final frame for visual sanity (not part of the comparison).
     LibGdi32.SwapBuffers(hdc)
+    TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
 
     line = String.build do |s|
       s << "mode=#{mode}"

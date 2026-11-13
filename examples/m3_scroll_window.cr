@@ -14,6 +14,7 @@
 
 require "../src/tessell"
 require "../src/tessell/render/gl/gl_backend"
+require "./lib/shot"
 
 @[Link("kernel32")]
 lib M3SKernel32
@@ -402,6 +403,7 @@ dy = 20
 verify = false
 steady = false
 blit_off = false
+screenshot_path = ""
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--frames=")
     frames_target = arg.split("=", 2)[1].to_i
@@ -417,6 +419,10 @@ ARGV.each_with_index do |arg, i|
     steady = true
   elsif arg == "--blit-off"
     blit_off = true
+  elsif arg.starts_with?("--screenshot=")
+    screenshot_path = arg.split("=", 2)[1]
+  elsif arg == "--screenshot" && i + 1 < ARGV.size
+    screenshot_path = ARGV[i + 1]
   end
 end
 
@@ -621,6 +627,7 @@ iso_ctx = Fiber::ExecutionContext::Isolated.new("tessell-m3-scroll") do
       pixels_c = m3s_capture_pixels(width, height)
 
       M3SGdi32.SwapBuffers(hdc)
+      TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
 
       diff_pixels = m3s_pixel_diff(pixels_b, pixels_c)
       diff_a_vs_c = m3s_pixel_diff(pixels_a, pixels_c)

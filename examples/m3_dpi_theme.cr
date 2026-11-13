@@ -13,6 +13,7 @@
 
 require "../src/tessell"
 require "../src/tessell/render/gl/gl_backend"
+require "./lib/shot"
 
 @[Link("kernel32")]
 lib M3DTKernel32
@@ -337,6 +338,7 @@ theme_arg = "light"
 frames_target = 20
 verify_mode = false
 dpi_aware = false
+screenshot_path = ""
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--dpi=")
     dpi_arg = arg.split("=", 2)[1].to_f64
@@ -354,6 +356,10 @@ ARGV.each_with_index do |arg, i|
     verify_mode = true
   elsif arg == "--dpi-aware"
     dpi_aware = true
+  elsif arg.starts_with?("--screenshot=")
+    screenshot_path = arg.split("=", 2)[1]
+  elsif arg == "--screenshot" && i + 1 < ARGV.size
+    screenshot_path = ARGV[i + 1]
   end
 end
 
@@ -485,6 +491,9 @@ iso_ctx = Fiber::ExecutionContext::Isolated.new("tessell-m3-dpi-theme") do
       frame_buf = capture_pixels(width, height)
       nonbg = count_text_pixels_nonbg(frame_buf, er, eg, eb, ea)
       M3DTGdi32.SwapBuffers(hdc)
+      unless verify_mode
+        TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
+      end
 
       # text_advance via measurer (device px at size_px)
       text = "Hello DPI"
@@ -634,6 +643,7 @@ iso_ctx = Fiber::ExecutionContext::Isolated.new("tessell-m3-dpi-theme") do
       pixels_c = capture_pixels(width, height)
       corner_j5 = capture_corner_topleft(width, height)
       M3DTGdi32.SwapBuffers(hdc)
+      TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
 
       j5_diff_pixels = pixel_diff(pixels_b, pixels_c)
       j5_diff_a_vs_c = pixel_diff(pixels_a, pixels_c)

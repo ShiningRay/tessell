@@ -22,6 +22,7 @@
 
 require "../src/tessell"
 require "../src/tessell/render/gl/gl_backend"
+require "./lib/shot"
 
 @[Link("kernel32")]
 lib M4DKernel32
@@ -265,8 +266,13 @@ class M4DApp
   @a11y_sink : Array(Tessell::A11y::Node)
   @row_name : Proc(Int32, String)
   @a11y_count : Int32
+  @screenshot_path : String
 
-  def initialize(@hdc : Void*, @initial_dark : Bool, @scale : Float32, @dpi_label : String)
+  getter width : Int32
+  getter height : Int32
+
+  def initialize(@hdc : Void*, @initial_dark : Bool, @scale : Float32, @dpi_label : String, screenshot_path : String = "")
+    @screenshot_path = screenshot_path
     @width = WIDTH
     @text_size = Render::Dpi.size_px(16.0_f32, @scale).to_i32
     @top_h = @text_size + 32
@@ -724,6 +730,7 @@ class M4DApp
     @status = status_text
     settle_render_full
     M4DGdi32.SwapBuffers(@hdc)
+    TessellShot.save(@screenshot_path, @width, @height) unless @screenshot_path.empty?
 
     visible_avg = @vis_frames > 0 ? (@vis_sum.to_f64 / @vis_frames.to_f64) : 0.0
     pass_alloc = alloc[:delta_max] < 1000 && alloc[:delta_max] <= 256
@@ -836,6 +843,7 @@ verify = false
 dark = false
 dpi_label = "1.0"
 scale = 1.0_f32
+screenshot_path = ""
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--frames=")
     frames_target = arg.split("=", 2)[1].to_i
@@ -848,6 +856,10 @@ ARGV.each_with_index do |arg, i|
   elsif arg.starts_with?("--dpi=")
     dpi_label = arg.split("=", 2)[1]
     scale = dpi_label.to_f32
+  elsif arg.starts_with?("--screenshot=")
+    screenshot_path = arg.split("=", 2)[1]
+  elsif arg == "--screenshot" && i + 1 < ARGV.size
+    screenshot_path = ARGV[i + 1]
   end
 end
 
@@ -923,7 +935,7 @@ iso_ctx = Fiber::ExecutionContext::Isolated.new("tessell-app-demo") do
       next
     end
 
-    app = M4DApp.new(hdc, dark, scale, dpi_label)
+    app = M4DApp.new(hdc, dark, scale, dpi_label, screenshot_path)
 
     if verify
       pass, line = app.run_verify(frames_target)
@@ -933,6 +945,7 @@ iso_ctx = Fiber::ExecutionContext::Isolated.new("tessell-app-demo") do
         break if M4DState.quit_requested
         app.run_frame
       end
+      TessellShot.save(screenshot_path, app.width, app.height) unless screenshot_path.empty?
       result_ch.send({true, "frames=#{frames_target} mode=interactive theme=#{dark ? "dark" : "light"} dpi=#{dpi_label} verify=n/a"})
     end
 

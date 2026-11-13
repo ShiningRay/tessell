@@ -13,6 +13,7 @@ require "../src/tessell/text/glyph_atlas"
 require "../src/tessell/text/rasterizer"
 require "../src/tessell/render/text_renderer"
 require "../src/tessell/render/gl/gl_renderer"
+require "./lib/shot"
 
 @[Link("kernel32")]
 lib LibKernel32
@@ -276,6 +277,7 @@ frames_target = 120
 verify_mode = false
 emoji_mode = false
 emoji_color_mode = false
+screenshot_path = ""
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--frames=")
     frames_target = arg.split("=", 2)[1].to_i
@@ -287,6 +289,10 @@ ARGV.each_with_index do |arg, i|
     emoji_mode = true
   elsif arg == "--emoji-color"
     emoji_color_mode = true
+  elsif arg.starts_with?("--screenshot=")
+    screenshot_path = arg.split("=", 2)[1]
+  elsif arg == "--screenshot" && i + 1 < ARGV.size
+    screenshot_path = ARGV[i + 1]
   end
 end
 
@@ -470,6 +476,7 @@ begin
     p95 = percentile(sorted, 95.0)
     p99 = percentile(sorted, 99.0)
 
+    TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
     ge.delete_textures
     glr_c.delete_textures
     LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
@@ -560,6 +567,7 @@ begin
     p95 = percentile(sorted, 95.0)
     p99 = percentile(sorted, 99.0)
 
+    TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
     ge.delete_textures
     glr_c.delete_textures
     LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
@@ -632,6 +640,7 @@ begin
     p95 = percentile(sorted, 95.0)
     p99 = percentile(sorted, 99.0)
 
+    TessellShot.save(screenshot_path, width, height) unless screenshot_path.empty?
     glr_c.delete_textures
     LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
     LibWGL.wglDeleteContext(hglrc)
