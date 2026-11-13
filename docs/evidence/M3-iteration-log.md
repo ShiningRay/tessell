@@ -176,7 +176,8 @@
 - 迭代：M3-iter3（C8 真实 GL 万行滚动 + M4-WP1 S1 声明层）
 - 日期：2026-11-13（Asia/Shanghai）
 - 仓库：C:\Users\ShiningRay\projects\ShiningRay\tessell
-- HEAD 基线：1f238b273990300382e946ef43e4a28715850769（工作区改动未 commit）
+- HEAD 基线：1f238b273990300382e946ef43e4a28715850769
+- 提交：2397dc3（C8/M4-WP1 S1）、4a3e9d7（M4-WP2）、f498099（docs/证据）
 - 执行/收口：gongbu-shangshu-4；task-117（仅改本文件，禁 commit）
 
 ## A. C8 真实 GL 万行滚动
