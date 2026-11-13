@@ -138,3 +138,9 @@ GATE_RESULT=PASS
   （C7 人工 IME、C9 法务、macOS、Linux、UIA、安装器/签名/干净 VM、跨机基线、
   C6 waiver 仅覆盖 M3-WP5、真实窗口人工目视）。
 - 提交：feat `98360f2`（M3-WP4 代码/规格/工具/example）；docs `26dddf5`（证据/核验/迭代日志/README/final-gate）。
+
+## r4 复核（截图证据）
+
+- 截图证据：`M2-WP5-visual-check.md`（75 行）+ `docs/evidence/shots/` 6 PNG（合计 107,195 B）；像素统计复核见该报告 `## lead 复核（像素统计）`；**无人眼 QA 签字，也不存在人眼观察记录**。
+- 未关闭项仍 **9** 条，其中「真实窗口人工目视」改写为「人工 QA 签字未做（已有 6 张截图 + 像素统计复核，见 `docs/evidence/M2-WP5-visual-check.md`）」；其余 8 项原样。
+- spec 数不变：**263**（截图开关/转换不增删用例）；本轮提交 hash 待回填。
