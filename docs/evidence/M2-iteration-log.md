@@ -158,7 +158,7 @@
 - `spec/text_renderer_spec.cr`：8 examples（含稳态零分配探针，判据 A `delta_work<N` & B `<=256`，3 窗口 max，GC.enable in ensure，失败整套重试 1 次）。
 - `examples/m2_text_window.cr`：窗口+GL 上屏与像素回读验证（`--frames`/`--verify`，输出 text_pixels_nonbg/cpu_coverage_sum/ratio/pixel_match/p50/p95/p99 等）。
 - `examples/m2_ime_probe.cr`：IMM32 程序化注入与回读探针（焦点/HKL 枚举激活、ImmSetCompositionStringW(SCS_SETSTR)+PostMessageW(WM_IME_COMPOSITION) 回读、候选探测，标签区分 `ime_injection_available`/`ime_hkl_is_ime` 与期望/实测长度）。
-- `docs/research/gl-text-renderer.md`（120 行）：GL 1.1 路径与对齐/上传/兼容性调研。
+- `docs/research/gl-text-renderer.md`（188 行，提交时实际值；feat 6520dca 提交时文档后续经 hanlin 扩写落盘，本次 docs 提交同步为最新稿）：GL 1.1 路径与对齐/上传/兼容性调研。
 - `docs/evidence/M2-WP3-ime.md`：IME 已证/未证/手测证据（含修正后输出与渲染管线关联）。
 - `docs/evidence/M2-WP3-p3-arabic-msyh.md`：`"لا"` msyh vs arial/times 定性与处置。
 - `docs/evidence/verify-M2-WP2d.md`、`docs/evidence/verify-M2-iteration4.md`：独立核验报告。
@@ -186,7 +186,7 @@
 - B 门盲区：≤256B 稀疏分配可放过（dalisi PASSED_BLIND：1 次/1000→`delta_work=32`，5 次/1000→`delta_work=160`）；1536B 级 GC/簿记尖峰靠整套重试 1 次缓解，不改 A 门强度。
 
 ### 提交信息（M2-iter4）
-- 提交 1（feat）hash：待回填（本次 task-67）
-- 提交 1（feat）短 hash：待回填
-- 提交 2（docs 回填）hash：待回填（本次 task-67）
+- 提交 1（feat）hash：6520dcafebad5cf6507198cafc400d7851249c43
+- 提交 1（feat）短 hash：6520dca
+- 提交 2（docs 回填）hash：待回填（本次 task-67 docs 提交后）
 - 提交 2（docs 回填）短 hash：待回填
