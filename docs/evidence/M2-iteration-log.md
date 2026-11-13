@@ -269,4 +269,6 @@ BENCH_SCROLL_EXIT=0
 - **1000 帧 delta 序列探针（同文本同 size，31 行/帧，预热后 cache hit）**：`PROBE73 frames=1000 total_delta=128 nonzero_frames=8 nz_min=16 nz_max=16 calls_est=31000 bytes_per_call_est=0.004129032258064516`；`first60=[0,0,0,0,0,0,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]`；`nz_indices_first40=[10,92,226,375,532,645,722,891]`；`nz_values_first40=[16,16,16,16,16,16,16,16]`；`shaped_run_cache_size=1 run_in_frame=false`。非每帧分配（~每百余帧一次 16B 事件），与 HB buffer 增长无正比；HB/FT 重整形在命中路径未调用。临时探针已删除。
 
 ### 提交信息（M2-iter6 / task-73）
-- 提交 hash：待首辅裁收口（禁 commit）
+- 提交 1（feat）：9159f35ce0d329a194e182f37dc2448c51ad9a86（`feat(m2): Emoji 样例与字体回退、shaped-run 缓存清除真实帧分配（C1/C6 证据）`）
+- 提交 2（docs）：581439349b42a879231fde05d6c665af51f3339f（`docs: M2 门禁终审与 M3 后端预研入库`）
+- 提交 3（docs 回填）：见本迭代收口提交 `docs: 回填 M2 迭代 6 提交 hash`
