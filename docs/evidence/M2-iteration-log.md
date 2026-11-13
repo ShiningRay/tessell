@@ -145,5 +145,48 @@
 ### 提交信息（M2-iter3）
 - 提交 1（feat）hash：77f42d80a2f8be448dffcbd8f4838ff2ca893114
 - 提交 1（feat）短 hash：77f42d8
-- 提交 2（docs 回填）hash：待回填（本次收口第二次提交后，见 task-61 回报）
-- 提交 2（docs 回填）短 hash：待回填（本次收口第二次提交后，见 task-61 回报）
+- 提交 2（docs 回填）hash：fdb797c11e7c52bb73a8b68d1f22d883b1f2b464
+- 提交 2（docs 回填）短 hash：fdb797c
+
+---
+
+## M2 迭代 4：文本上屏（M2-WP2d）+ IME 探针（M2-WP3 部分）
+
+### 交付清单
+- `src/tessell/render/text_renderer.cr`：CPU 四边形/批次生成（Vertex/TextRenderer，按 atlas 页分段，build_text 复用缓冲，零位图字形不产 quad 但推进 pen，UV∈[0,1]）。
+- `src/tessell/render/gl/gl_renderer.cr`：GL 1.1 兼容后端（纯 FFI `opengl32`，R8→GL_ALPHA，`glPixelStorei(GL_UNPACK_ALIGNMENT,1)`，GL_LINEAR+GL_CLAMP，GL_QUADS immediate）。
+- `spec/text_renderer_spec.cr`：8 examples（含稳态零分配探针，判据 A `delta_work<N` & B `<=256`，3 窗口 max，GC.enable in ensure，失败整套重试 1 次）。
+- `examples/m2_text_window.cr`：窗口+GL 上屏与像素回读验证（`--frames`/`--verify`，输出 text_pixels_nonbg/cpu_coverage_sum/ratio/pixel_match/p50/p95/p99 等）。
+- `examples/m2_ime_probe.cr`：IMM32 程序化注入与回读探针（焦点/HKL 枚举激活、ImmSetCompositionStringW(SCS_SETSTR)+PostMessageW(WM_IME_COMPOSITION) 回读、候选探测，标签区分 `ime_injection_available`/`ime_hkl_is_ime` 与期望/实测长度）。
+- `docs/research/gl-text-renderer.md`（120 行）：GL 1.1 路径与对齐/上传/兼容性调研。
+- `docs/evidence/M2-WP3-ime.md`：IME 已证/未证/手测证据（含修正后输出与渲染管线关联）。
+- `docs/evidence/M2-WP3-p3-arabic-msyh.md`：`"لا"` msyh vs arial/times 定性与处置。
+- `docs/evidence/verify-M2-WP2d.md`、`docs/evidence/verify-M2-iteration4.md`：独立核验报告。
+- `docs/evidence/M2-WP2c-zero-alloc-criterion.md`：判据 B 升级至 256、噪声分布取证、探针重试缓解及「能证明什么/不能证明什么」补充（dalisi PASSED_BLIND 实证）。
+- `docs/research/text-acceptance.md`：S-AR-LA 样例字体改为 `arial.ttf` 并注明 msyh gid=0 证据/理由。
+- `src/tessell.cr`：追加 `require "./tessell/render/text_renderer"`（GL 后端不进根入口，仅样例按需 require）。
+- `tools/zero_alloc_frame.cr` 与 4 既有零分配探针 spec：同步判据 B<=256 与失败整套三窗重试 1 次（`retried/attempt` 诊断）。
+
+### 实测数字（迭代 4 收口口径）
+- `crystal spec`：`149 examples, 0 failures, 0 errors, 0 pending`（EXIT=0）。
+- 窗口/上屏验证（`m2_text_window --frames=60 --verify`，核验记录）：`text_pixels_nonbg=2801 cpu_coverage_sum=2638 ratio=1.0618 pixel_match=true frames=60 swapbuffers=60 p50=1.81 p95=8.16 p99=9.00 quads=14 batches=1`（GL1.1 R8→GL_ALPHA，`glPixelStorei(GL_UNPACK_ALIGNMENT,1)`）。
+- IME 探针（本机修正后实测）：`ime_injection=blocked ime_injection_reason=imm_set_composition_rejected ime_injection_available=false ime_hkl_is_ime=true ... kl_count=2 kl_ids=0x8040804,0x4090409 ... candidate_list_bytes=144 candidate_list_entries=0 preedit_roundtrip=false result_roundtrip=false preedit_got_len=-1 result_got_len=-1 IMM_ERR=ImmSetCompositionStringW_rejected_preedit_ret=0_result_ret=0_win32_error=0`，`IME_PROBE_EXIT=0`（程序化注入被拒，非伪造；渲染管线 CPU 侧证据：nihao→5 quads, 你好→2 quads）。
+- `"لا"`（U+0644 U+0627）：`msyh.ttc` 16/24/32px HB `glyph_ids=[0,0]`（placements w=h=0，不可绘制，advance/measure 正确；gid=0 FT 可得 .notdef 位图但非目标字形）；`arial.ttf`/`times.ttf` 对应字号 `glyph_id=1019` 1 glyph，drawable 可绘制且 advance/measure 一致（S-AR-LA 样例改用 arial）。
+
+### 核验裁定
+- **WP2d 独立核验：PASS-WITH-DEFECTS**（`docs/evidence/verify-M2-WP2d.md`）：P1 竞态为执行中途编辑所致，独立复跑确认 `149/0f`；探针重试实现认定“无放水”（整套重测且 A/B/断言不跳过）。缺陷项按报告记录（P3 级）。
+- **迭代 4 证据集核验：PASS-WITH-DEFECTS**（`docs/evidence/verify-M2-iteration4.md`）：**未发现伪造**；`expected/got` 分离、`candidate_list_bytes` vs `candidate_list_entries` 拆分、Arabic 定性均被独立复算证实。缺陷项按报告记录。
+
+### 未验证清单（逐条）
+- 真实键盘 IME 手测未完成（C2 开放）：`WM_IME_STARTCOMPOSITION → COMPOSITION(GCS_COMPSTR)×n` 不丢字 → `COMPOSITION(GCS_RESULTSTR)` → `ENDCOMPOSITION`、候选窗真实定位、多 IME 切换，程序化注入本机被拒无法替代。
+- Emoji 彩色（COLR/CPAL 等）未实现（当前 R8/GL_ALPHA 灰度路径）。
+- GL 着色器路径未做（GL 1.1 immediate 模式兼容路径）。
+- `GlRenderer#delete_textures` 生命周期/泄漏未深验。
+- `ratio`（text_pixels_nonbg / cpu_coverage_sum）判据非逐像素等价，受线性滤波/混合/采样差异影响（容差 [0.5,1.5]）。
+- B 门盲区：≤256B 稀疏分配可放过（dalisi PASSED_BLIND：1 次/1000→`delta_work=32`，5 次/1000→`delta_work=160`）；1536B 级 GC/簿记尖峰靠整套重试 1 次缓解，不改 A 门强度。
+
+### 提交信息（M2-iter4）
+- 提交 1（feat）hash：待回填（本次 task-67）
+- 提交 1（feat）短 hash：待回填
+- 提交 2（docs 回填）hash：待回填（本次 task-67）
+- 提交 2（docs 回填）短 hash：待回填

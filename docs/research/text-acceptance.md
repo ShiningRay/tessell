@@ -44,6 +44,7 @@
 ### 1.4 复杂脚本：阿拉伯文 "لا"（lam-alef，已测字体差异）
 - 字符串：`"لا"`（U+0644 LAM + U+0627 ALEF）；对照 `"سلام"`（U+0633,0644,0627,0645，4 codepoints，segoeui 形如 4 glyphs，`ar_glyphs=4 ar_codepoints=4 ar_shaping_diff=false`，`docs/evidence/M0-WP4-text.md:71-77,110-114,139`）。
 - 字体（已实测）：tahoma.ttf / arial.ttf / segoeui.ttf / times.ttf（`docs/evidence/M0-WP4-text.md:78-97,122-123,140-147`）。
+- **S-AR-LA 验收样例字体（P3 定性，2026-11-13）**：`arial.ttf`（`C:/Windows/Fonts/arial.ttf`），**1 glyph**（`glyph_id=1019`，16/24/32px 均 `drawable=true`，advance 与 measure 一致）。`msyh.ttc`（`C:/Windows/Fonts/msyh.ttc`）在 16/24/32px 下 HB 输出 `glyph_ids=[0,0]`（.notdef，`hb_glyphs=2`），rasterizer 保留 advance 但 placement `w=h=0`、`drawable=false` 无法上屏；同次 FT `FT_Load_Glyph(LOAD_RENDER)` 对 gid=0 在 16px 返回 `bitmap_w=9 bitmap_h=12 pitch=9 pixel_mode=2 load_err=0` 且 `advance_x26/metrics` 非零（24px 13x18，32px 18x24），说明非绑定/像素模式 bug，而是 **msyh 对该序列的 shaping/字形映射落到 gid=0（字体覆盖/映射问题）且当前渲染策略对 gid=0 不产可见位图**。故 S-AR-LA 验收不以 msyh 为样例字体；证据见 `docs/evidence/M2-WP3-p3-arabic-msyh.md`。
 - 期望字形（按字体差异断言，不跨字体强制一致）：
   - tahoma/arial/times：`glyph_count=1`，`glyph_ids=1019`，`isolated_lam_alef_ids=989,909`，`ids_differ_from_isolated=true`，`ligature_candidate=true`（`docs/evidence/M0-WP4-text.md:78-87,93-97,141-142,144-145`）。
   - segoeui：`glyph_count=2`，`glyph_ids=3941,3980`，`isolated_lam_alef_ids=2341,2317`，`ids_differ_from_isolated=true`，`ligature_candidate=false`（`docs/evidence/M0-WP4-text.md:88-92,143,146`）。
