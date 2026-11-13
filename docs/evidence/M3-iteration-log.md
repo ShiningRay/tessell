@@ -81,6 +81,9 @@
 - C6 waiver 见 docs/evidence/M2-summary.md §3.1
 
 ## 提交信息（M3-iter1）
-- 提交 1（feat）hash：提交待回填
-- 提交 1（feat）短 hash：提交待回填
+- 提交 1（feat）hash：e4ed14b354ba15b832a755568fc36c968856d91e
+- 提交 1（feat）短 hash：e4ed14b
+- 提交 2（docs）hash：7ea94594d04fd06258372f2408aebcfa68ce76d3
+- 提交 2（docs）短 hash：7ea9459
+- 提交 3（docs）hash：本提交
 
