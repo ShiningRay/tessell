@@ -239,3 +239,34 @@
 - 提交 1（feat）短 hash：a280169
 - 提交 2（docs 回填）hash：待回填（本次 task-76 docs 提交后）
 - 提交 2（docs 回填）短 hash：待回填
+
+---
+
+## M2 迭代 6：M2-WP4 真实帧路径收尾（task-73 shaped-run 跨帧缓存）
+
+### 任务与状态
+| 任务 | 状态 | 说明/产出 |
+|---|---|---|
+| task-73（M2-WP4 收尾） | 完成（A/B 判据达成；严格 `[0,0,0]` 未达成，给出机制性证据） | `src/tessell/text/rasterizer.cr`（`ShapedRunKey`、`shape_run_into`、shaped-run LRU 缓存 256、`begin_frame/end_frame` 帧内禁淘汰/`FrameEvictionError`、`evict_run_lru`；`rasterize_into` 保持 per-glyph 语义/统计）、`src/tessell/render/text_renderer.cr`（`build_text_cached` + `build_text_from_placements`）、`tools/bench_scroll.cr`（帧路径改用 `build_text_cached`）、`spec/shaped_run_spec.cr`（4 examples）、`docs/evidence/M2-WP4-virtual-list.md`（结论更新） |
+
+### Spec 数字
+- `crystal spec spec/shaped_run_spec.cr`：**4 examples, 0 failures, 0 errors, 0 pending**
+- `crystal spec spec/rasterizer_spec.cr`：**11 examples, 0 failures**；`spec/text_renderer_spec.cr`：**8 examples, 0 failures**（含 shaped-run 变更后回归确认）
+- `crystal spec`（全量）：**186 examples, 0 failures, 0 errors, 0 pending**（基线 182 + 新增 4）
+
+### Bench 原始行（`crystal run tools/bench_scroll.cr`，2026-11-13）
+```
+bench_scroll config row_count=10000 row_h=20 viewport_h=600 viewport_w=800 frames=2000 n_alloc=1000 font=C:/Windows/Fonts/msyh.ttc label="row 12345"
+scenario=scroll_plus1px visible_avg=30.95 fetched_per_frame_avg=30.95 cmds_avg=61.9 batches_avg=1.0 quads_avg=247.6 alloc_bytes=112 frame_cpu_p50_us=102 frame_cpu_p95_us=190 frame_cpu_p99_us=202 frames=2000 alloc_windows=[112,112,112] delta_prime=112 delta_calib=0 retried=false attempt=1 pool_size=32 created=32
+scenario=jump_fixed_seed seed=12345 visible_avg=30.9555 fetched_per_frame_avg=30.9555 cmds_avg=61.911 batches_avg=1.0 quads_avg=247.644 alloc_bytes=144 frame_cpu_p50_us=101 frame_cpu_p95_us=175 frame_cpu_p99_us=192 frames=2000 alloc_windows=[96,128,144] delta_prime=112 delta_calib=0 retried=false attempt=1 pool_size=32 created=32
+GL_SCROLL_WINDOW=not_done reason=optional_not_implemented_in_task70
+BENCH_SCROLL_EXIT=0
+```
+
+### 判据与机制性证据（结论）
+- **A/B 判据**：两场景 `alloc_bytes` 112/144，`alloc_windows=[112,112,112]/[96,128,144]`，`delta_work < N(1000)` 且 `<=256`，`retried=false`；`frame_cpu_p50_us` 102/101µs ≪ 1775µs×1.5。**严格字面 `alloc_windows=[0,0,0]` 未达成**。
+- **定性（二选一）**：机制性不可清零（至严格 `[0,0,0]`）+ 证据。HB/FT 每帧重整形由 shaped-run 缓存命中消除（`build_text_cached`），应用层 per-frame 结构性分配已清零；残余为 Boehm `GC.stats.bytes_since_gc` 在 `GC.disable` 下间歇簿记噪声（~16B 簇，非每帧）。
+- **1000 帧 delta 序列探针（同文本同 size，31 行/帧，预热后 cache hit）**：`PROBE73 frames=1000 total_delta=128 nonzero_frames=8 nz_min=16 nz_max=16 calls_est=31000 bytes_per_call_est=0.004129032258064516`；`first60=[0,0,0,0,0,0,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]`；`nz_indices_first40=[10,92,226,375,532,645,722,891]`；`nz_values_first40=[16,16,16,16,16,16,16,16]`；`shaped_run_cache_size=1 run_in_frame=false`。非每帧分配（~每百余帧一次 16B 事件），与 HB buffer 增长无正比；HB/FT 重整形在命中路径未调用。临时探针已删除。
+
+### 提交信息（M2-iter6 / task-73）
+- 提交 hash：待首辅裁收口（禁 commit）

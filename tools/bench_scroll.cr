@@ -85,7 +85,7 @@ module BenchScroll
           Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32),
           0xFFD0D0D0_u32, -1, nil))
         text_y = oy + 14.0_f32
-        renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+        renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
         i += 1
       end
       draw_list.build_batches_into(batch_sink)
@@ -124,7 +124,7 @@ module BenchScroll
           Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32),
           0xFFD0D0D0_u32, -1, nil))
         text_y = oy + 14.0_f32
-        renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+        renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
         total_quads += renderer.stats[:quads]
         i += 1
       end
@@ -167,7 +167,7 @@ module BenchScroll
         draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
           Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
         text_y = oy + 14.0_f32
-        renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+        renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
         i += 1
       end
       draw_list.build_batches_into(batch_sink)
@@ -200,7 +200,7 @@ module BenchScroll
           draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
             Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
           text_y = oy + 14.0_f32
-          renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+          renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
           i += 1
         end
         draw_list.build_batches_into(batch_sink)
@@ -258,7 +258,7 @@ module BenchScroll
               draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
                 Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
               text_y = oy + 14.0_f32
-              renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+              renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
               i += 1
             end
             draw_list.build_batches_into(batch_sink)
@@ -307,7 +307,7 @@ module BenchScroll
         draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
           Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
         text_y = oy + 14.0_f32
-        renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+        renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
         i += 1
       end
       draw_list.build_batches_into(batch_sink)
@@ -340,7 +340,7 @@ module BenchScroll
         draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
           Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
         text_y = oy + 14.0_f32
-        renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+        renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
         total_quads += renderer.stats[:quads]
         i += 1
       end
@@ -380,7 +380,7 @@ module BenchScroll
         draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
           Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
         text_y = oy + 14.0_f32
-        renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+        renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
         i += 1
       end
       draw_list.build_batches_into(batch_sink)
@@ -410,7 +410,7 @@ module BenchScroll
           draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
             Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
           text_y = oy + 14.0_f32
-          renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+          renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
           i += 1
         end
         draw_list.build_batches_into(batch_sink)
@@ -470,7 +470,7 @@ module BenchScroll
               draw_list.push(Tessell::Render::DrawCmd.new(Tessell::Render::CmdKind::Rect,
                 Tessell::Rect.new(0.0_f32, sep_y, VIEWPORT_W.to_f32, 1.0_f32), 0xFFD0D0D0_u32, -1, nil))
               text_y = oy + 14.0_f32
-              renderer.build_text(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
+              renderer.build_text_cached(placement_sink, LABEL, 8.0_f32, text_y, TEXT_SIZE, VIEWPORT_W, 10_000_000, page_tex_ids)
               i += 1
             end
             draw_list.build_batches_into(batch_sink)

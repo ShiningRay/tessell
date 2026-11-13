@@ -1,9 +1,9 @@
 # M2-WP4 虚拟列表 — 证据报告
 
-- 任务：task-68（M2-WP4 虚拟列表实现与实测）/ task-71（稳态分配查清与修复）
-- 实现：`src/tessell/widgets/virtual_list.cr`，`spec/virtual_list_spec.cr`，`tools/bench_scroll.cr`
-- 根入口：`src/tessell.cr` 末尾 `require "./tessell/widgets/virtual_list"`
-- 约束遵守：未改 `src/tessell/input/*`、`src/tessell/render/*` 以外仅为 task-71 零分配修复所需的 `src/tessell/render/draw_list.cr`、`src/tessell/render/text_renderer.cr`、`src/tessell/text/glyph_atlas.cr`、`src/tessell/text/rasterizer.cr`（见下）；未 commit；未引入 FFI。
+- 任务：task-68（M2-WP4 虚拟列表实现与实测）/ task-71（稳态分配查清与修复）/ task-73（shaped-run 跨帧缓存收尾）
+- 实现：`src/tessell/widgets/virtual_list.cr`，`spec/virtual_list_spec.cr`，`tools/bench_scroll.cr`，`spec/shaped_run_spec.cr`
+- 根入口：`src/tessell.cr` 末尾 `require "./tessell/widgets/virtual_list"`（text/render 由既有入口提供）
+- 约束遵守：未改 `src/tessell/input/*`、`core/node.cr`、`font_fallback.cr`；task-71/task-73 仅改 `src/tessell/render/draw_list.cr`、`src/tessell/render/text_renderer.cr`、`src/tessell/text/glyph_atlas.cr`、`src/tessell/text/rasterizer.cr` 及授权 bench/spec/docs；未 commit；未引入 FFI。
 
 ## 1. 规范与实现要点
 
@@ -54,11 +54,13 @@
 
 组件探针补充（同等 N=1000, 3 窗 max）：`atlas.lookup` ×279（9 glyph×31 行，命中路径）`delta_work=80 windows=[80,64,64]`；单次 HB shape/FT 设尺寸/遍历读 glyph 等拆分在多组探针中呈现 0–数百 B 级小簇与偶发尖峰，但 `rasterize_into` 完整热路径在 ×31 规模下仍出现 `~3KB/1000 帧` 级稳态窗（示例 `p_rasterize_into_x31_now delta_work=2864 windows=[0,0,2864]`、`r_original_x31 delta_work=3104 windows=[0,3104,0]`），未收敛到可在不改公共 API/不引入 native profiling 的前提下单点消除的 Crystal 侧根因；候选包括 HarfBuzz/FreeType 每帧重整形调用的内部行为或 FFI/GC 交互下的簇状分配（证据不足以断言单一来源）。
 
-## 5. Bench（C+D，真实 CPU 帧，task-71 最终）
+## 5. Bench（C+D，真实 CPU 帧）
+
+### 5.1 task-71 最终（修复前 task-73，HB/FT 每帧重整形基线）
 
 帧内容：每帧 `scroll/dirty` + `prepare_visible` + 逐可见行无块构建 `DrawList`（行背景 + 1px 分隔线 `Rect` Cmd）+ `Rasterizer#rasterize_into` + `TextRenderer#build_text` 绘制固定标签 `"row 12345"`（16px，`C:/Windows/Fonts/msyh.ttc`，预热后 glyph/atlas/page/缓冲稳定）+ `DrawList#build_batches_into`。无 `String` 插值/`Array#each` 新建/块闭包捕获于帧循环内。
 
-`crystal run tools/bench_scroll.cr` 原始输出：
+`crystal run tools/bench_scroll.cr` 原始输出（task-71）：
 
 ```
 bench_scroll config row_count=10000 row_h=20 viewport_h=600 viewport_w=800 frames=2000 n_alloc=1000 font=C:/Windows/Fonts/msyh.ttc label="row 12345"
@@ -68,12 +70,41 @@ GL_SCROLL_WINDOW=not_done reason=optional_not_implemented_in_task70
 BENCH_SCROLL_EXIT=0
 ```
 
-## 6. “稳态分配”最终措辞（结论，按 lead task-71 裁断）
+### 5.2 task-73（shaped-run 缓存命中路径，`build_text_cached`）实测
 
-- **已清零/显著改善部分（有证据）**：批数组每帧分配由 `build_batches_into(sink)` 复用消除（初始 e `delta_work=64064` → 修复后 e `delta_work=0`）；bench 块闭包/`Range#each` 热路径遍历消除；`build_text` 逐字形 `atlas.lookup` 改走 `GlyphPlacement.page`；`GlyphAtlas` 命中不回写 Hash 且 `Entry` struct→class 去装箱/值写回；`Rasterizer` 热路径 union 装箱消除；`VirtualList` 提供无块 API（`visible_first/visible_last`、`prepare_visible`、`node_offset`）。帧时间 p50 1765→1269µs（scroll）可解释且无性能倒退；`visible/fetched/pool/created` 达标。
-- **量级定性（必须写清）**：`alloc_bytes=3920/4000` 是 **1000 帧合计**，即 ~3.9 B/帧均摊、且集中在个别窗口（`[3920,0,3712]` / `[0,4000,0]`），**不是每帧固定分配**（若是每帧 31 行分配，量级应是 MB）。因此正确定性是「**低频重复分配事件**（约每几百帧一次 ~4KB）」，而非「每帧分配未清零」。
-- **判据裁定（不可混同）**：**A 门**（`delta_work < N`）在真实 CPU 帧路径**未通过**（3920>1000），所以 M2-WP4 的零分配主张**只覆盖 VirtualList 簿记路径**（`delta_work=0 windows=[0,0,0]`，有对抗 CAUGHT 证据）；真实 CPU 帧路径标注「**未达零分配，残余 ~4KB/1000 帧，根因定位 text 整形/build_text 命中路径，后续专项**」。两者不混为一句，禁止写「已零分配」，禁止写「每帧 4B」。
-- **根因与证据**：bisect 定位残余落在 `rasterize_into`/`build_text` 文本整形与顶点生成的缓存命中路径（修复后 c/d/f 段 `delta_work≈2.9–4.0KB/1000帧` 窗口仍出现，e 已归零）。已排除 draw list 批构建分配、bench 块闭包/遍历分配、atlas 命中回写与 build_text 内显式 atlas 查找；剩余疑为 `FtMeasurer/Rasterizer` 每帧重复 `FT_Set_Pixel_Sizes`+HB reset/shape+逐 glyph 组装及/或 HB/FT/FFI+GC 交互下的簇状分配（证据不足断言单一来源），在不改变 `text/*` 契约与不引入更深原生剖析的范围内未稳定清零。M2-WP4 真实帧残余由 task-73（shaped-run 跨帧缓存，专门清理）承接，不在本轮处理。
+帧内容同上，但文本绘制改为 `TextRenderer#build_text_cached`（`Rasterizer#shape_run_into`：键 `(font_id,size_px,text_hash)` 命中后跳过 HB/FT shaping，仅将缓存 placements 拷贝入复用 sink 并生成顶点/批次；run 缓存 256 LRU + 帧内禁淘汰）。
+
+`crystal run tools/bench_scroll.cr` 原始输出（task-73，2026-11-13 本机）：
+
+```
+bench_scroll config row_count=10000 row_h=20 viewport_h=600 viewport_w=800 frames=2000 n_alloc=1000 font=C:/Windows/Fonts/msyh.ttc label="row 12345"
+scenario=scroll_plus1px visible_avg=30.95 fetched_per_frame_avg=30.95 cmds_avg=61.9 batches_avg=1.0 quads_avg=247.6 alloc_bytes=112 frame_cpu_p50_us=102 frame_cpu_p95_us=190 frame_cpu_p99_us=202 frames=2000 alloc_windows=[112,112,112] delta_prime=112 delta_calib=0 retried=false attempt=1 pool_size=32 created=32
+scenario=jump_fixed_seed seed=12345 visible_avg=30.9555 fetched_per_frame_avg=30.9555 cmds_avg=61.911 batches_avg=1.0 quads_avg=247.644 alloc_bytes=144 frame_cpu_p50_us=101 frame_cpu_p95_us=175 frame_cpu_p99_us=192 frames=2000 alloc_windows=[96,128,144] delta_prime=112 delta_calib=0 retried=false attempt=1 pool_size=32 created=32
+GL_SCROLL_WINDOW=not_done reason=optional_not_implemented_in_task70
+BENCH_SCROLL_EXIT=0
+```
+
+## 6. task-73 结构与新增 spec（A）
+
+- `src/tessell/text/rasterizer.cr`：引入 shaped-run 缓存（键 `ShapedRunKey(font_id,size_px,text_hash)`，FNV 混合）；`shape_run_into(text,size_px,sink):Int32` 命中时跳过 HB reset/shape/FT raster 逐字形流程，仅从缓存拷贝 placements 到复用 sink（tick 更新）；miss 时执行 `shape_and_rasterize_into` 并快照 `store_run`（快照分配仅 miss/warmup）。容量上界 256（`run_cache_capacity`），LRU 淘汰；`begin_frame/end_frame` 帧内禁淘汰（`FrameEvictionError`，与 `GlyphAtlas` 纪律对齐）；`evict_run_lru` 帧内禁止。为保持既有 spec 语义，`rasterize_into` 仍走 per-glyph `shape_and_rasterize_into` 路径并累计 hits/misses/rasters；`build_text_cached` 使用 `shape_run_into` 的缓存命中路径。
+- `src/tessell/render/text_renderer.cr`：抽出 `build_text_from_placements`；`build_text` 保持原语义；新增 `build_text_cached`（`shape_run_into` + 顶点/批次生成）。
+- `tools/bench_scroll.cr`：帧热路径全部切换为 `renderer.build_text_cached`（固定标签/字号/同 font_id，预热后 run cache 命中）。
+- `spec/shaped_run_spec.cr`（新增 4 examples）：缓存命中与未缓存/独立基线逐字段相等（glyph_id/advance/offset/w/h/uv/page/key）；LRU 上界（cap=3，持续插入/触碰后 `run_cache_size<=3`）；帧内禁淘汰（begin_frame 内触发驱逐抛 `FrameEvictionError`，end_frame 后可逐出）；`evict_run_lru` 帧内抛/帧外成功。
+
+Spec 数字（`$env:PATH="C:\msys64\ucrt64\bin;$env:PATH"`）：`spec/shaped_run_spec.cr` **4 examples, 0 failures**；`spec/rasterizer_spec.cr` **11 examples, 0 failures**；`spec/text_renderer_spec.cr` **8 examples, 0 failures**；全量 `crystal spec` **186 examples, 0 failures, 0 errors, 0 pending**（基线 182 + 新增 4）。
+
+## 7. “稳态分配”最终措辞（结论，task-73 收口）
+
+- **已清零/显著改善部分（有证据）**：task-71 已消除批数组分配（`build_batches_into`）、bench 块闭包/遍历分配、atlas 命中回写与 build_text 内逐字形 lookup、GlyphAtlas Entry 装箱与 Rasterizer union 装箱。task-73 进一步在真实帧文本路径引入 shaped-run 跨帧缓存与 `build_text_cached`，使固定文本+字号在预热后不再每帧执行 HB buffer reset/add/guess/shape 与 FT/HB 驱动的逐字形重整形循环；frame p50 显著下降（scroll 1269µs→102µs，jump 1775µs→101µs，均 ≪ 1775µs×1.5）。
+- **量级定性（必须写清）**：task-71 残余 `alloc_bytes=3920/4000` 为 1000 帧合计、簇状窗口（~4KB/1000 帧，非每帧固定）。task-73 后 bench 为 `alloc_bytes=112 alloc_windows=[112,112,112]`（scroll）/ `alloc_bytes=144 alloc_windows=[96,128,144]`（jump），`delta_prime=112 delta_calib=0 retried=false attempt=1`，判据 **A**（`delta_work < N`，112/144 < 1000）与 **B**（`delta_work <= 256`）**均满足**，但**严格字面** `alloc_windows=[0,0,0]` **未达成**。
+- **判据裁定（二选一，不含糊）**：**机制性不可清零（至严格 `[0,0,0]`）+ 证据**。应用层热路径的结构性 per-frame 分配已清零（HB/FT 整形/光栅逐帧调用由 shaped-run 缓存命中消除；placements/顶点/批次缓冲复用；VirtualList/DrawList 簿记路径保持零分配）；残余为 **Boehm `GC.stats.bytes_since_gc` 在 `GC.disable` 下的间歇簿记噪声**（与 M2-WP2c 零分配判据文档中已记录的 +16B 间歇噪声一致），非“每帧应用分配未清零”。
+- **机制性证据（B）**：临时探针（同 bench_scroll 真实 CPU 帧：scroll+DrawList+rasterize_into(cache-hit via build_text_cached)+build_text_cached+build_batches_into，31 行/帧、同文本同 size `"row 12345"` 16px、预热 300 帧、GC.collect/GC.disable、单帧 delta 序列 1000 帧）结果：`PROBE73 frames=1000 total_delta=128 nonzero_frames=8 nz_min=16 nz_max=16 calls_est=31000 bytes_per_call_est=0.004129032258064516`；`first60=[0,0,0,0,0,0,0,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]`；`nz_indices_first40=[10,92,226,375,532,645,722,891]`；`nz_values_first40=[16,16,16,16,16,16,16,16]`；`shaped_run_cache_size=1 run_in_frame=false`。结论：1000 帧仅 8 次 16B 事件（~每 111 帧一次簇/单事件），**不是每帧分配**；按 31 次 `build_text_cached`/帧估算 ≈0.00413B/调用。排查记录：HB buffer/FT 重整形在缓存命中路径不再调用（`shape_run_into` 直接返回缓存 placements）；剩余 16B 与调用次数无正比关系、与 Boehm 段/簿记噪声模式一致（`delta_calib=0`），判定为探针计数器/GC 内部簿记在禁用下的已知间歇噪声，而非 HB buffer 容量增长或应用侧每帧堆分配。临时探针脚本已删除。
+
+## 8. 未验证 / 备注
+
+- `GL_SCROLL_WINDOW=not_done reason=optional_not_implemented_in_task70`（可选项未做）。
+- 帧时间为 CPU 侧（含顶点与批构建；文本整形在 shaped-run 命中路径已跳过），不含实际 GPU present；环境依赖本机 `C:/Windows/Fonts/msyh.ttc` 与 msys64 Crystal 工具链。
+- 严格 `[0,0,0]` 窗口在本机/本 GC 实现下受 16B 间歇簿记噪声限制，已以 A/B 判据与 delta 序列证据证明“非每帧应用分配”。若需硬性字面全零，需更换/绕过 `bytes_since_gc` 探针或在无 GC 噪声环境复测（本轮未做）。
 
 ## 7. 未验证 / 备注
 

@@ -2,8 +2,9 @@
 # Reuses m0 window probe WGL/window pattern.
 # Usage:
 #   crystal run examples/m2_text_window.cr -- --frames=120 --verify
-# Outputs: text_pixels_nonbg, cpu_coverage_sum, ratio, pixel_match, frame times p50/p95/p99
-# Criterion: text_pixels_nonbg > 0 and ratio in [0.5,1.5] (tolerance for GL linear sampling/blend/raster differences)
+#   crystal run examples/m2_text_window.cr -- --emoji --frames=120 --verify
+# Outputs (default): text_pixels_nonbg, cpu_coverage_sum, ratio, pixel_match, frame times p50/p95/p99
+# Outputs (--emoji): emoji_quads, emoji_pixels_nonbg, emoji_pixel_match, frame_p50_ms (plus full mixed render evidence)
 # If window/GL unavailable: records blocking error and exits 1 without faking pixel_match.
 
 require "../src/tessell/text/ft_measurer"
@@ -129,9 +130,59 @@ def to_wstr(s : String) : Slice(UInt16)
   buf
 end
 
-def cstr_to_string(ptr : UInt8*) : String
-  return "" if ptr.null?
-  String.new(ptr)
+def percentile(sorted : Array(Float64), p : Float64) : Float64
+  return 0.0 if sorted.empty?
+  idx = ((p / 100.0) * (sorted.size - 1)).round.to_i
+  idx = 0 if idx < 0
+  idx = sorted.size - 1 if idx >= sorted.size
+  sorted[idx]
+end
+
+# cpu_coverage_sum: sum of nonzero alpha bytes in atlas page regions referenced by emitted drawable placements.
+def compute_cpu_coverage_sum(atlas : Tessell::Text::GlyphAtlas, sink : Array(Tessell::Text::GlyphPlacement)) : Int64
+  sum = 0_i64
+  sink.each do |p|
+    next if p.w <= 0 || p.h <= 0
+    slot = atlas.lookup(p.key)
+    next unless slot
+    data = atlas.page_data(slot.page)
+    ps = atlas.page_size
+    y = 0
+    while y < slot.h
+      x = 0
+      base = (slot.y + y) * ps + slot.x
+      while x < slot.w
+        v = data[base + x]
+        sum += 1 if v > 0_u8
+        x += 1
+      end
+      y += 1
+    end
+  end
+  sum
+end
+
+def count_nonbg(readback : Bytes, width : Int32, height : Int32, bg_r : Float32, bg_g : Float32, bg_b : Float32) : Int64
+  text_pixels_nonbg = 0_i64
+  total_px = width * height
+  bg_ri = (bg_r * 255.0_f32).round.to_i
+  bg_gi = (bg_g * 255.0_f32).round.to_i
+  bg_bi = (bg_b * 255.0_f32).round.to_i
+  i = 0
+  while i < total_px
+    off = i * 4
+    r = readback[off].to_i
+    g = readback[off + 1].to_i
+    b = readback[off + 2].to_i
+    dr = (r - bg_ri).abs
+    dg = (g - bg_gi).abs
+    db = (b - bg_bi).abs
+    if dr > 8 || dg > 8 || db > 8
+      text_pixels_nonbg += 1
+    end
+    i += 1
+  end
+  text_pixels_nonbg
 end
 
 WS_OVERLAPPEDWINDOW = 0x00CF0000_u32
@@ -173,6 +224,7 @@ end
 
 frames_target = 120
 verify_mode = false
+emoji_mode = false
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--frames=")
     frames_target = arg.split("=", 2)[1].to_i
@@ -180,73 +232,58 @@ ARGV.each_with_index do |arg, i|
     frames_target = ARGV[i + 1].to_i
   elsif arg == "--verify"
     verify_mode = true
+  elsif arg == "--emoji"
+    emoji_mode = true
   end
 end
 
 FONT_PATH = "C:/Windows/Fonts/msyh.ttc"
+EMOJI_FONT_PATH = "C:/Windows/Fonts/seguiemj.ttf"
 width = 800
 height = 600
-text_str = "Hello 你好 Tessell"
 text_size = 32
 text_x = 40.0_f32
 text_y = 120.0_f32
 bg_r = 1.0_f32; bg_g = 1.0_f32; bg_b = 1.0_f32
-
-def percentile(sorted : Array(Float64), p : Float64) : Float64
-  return 0.0 if sorted.empty?
-  idx = ((p / 100.0) * (sorted.size - 1)).round.to_i
-  idx = 0 if idx < 0
-  idx = sorted.size - 1 if idx >= sorted.size
-  sorted[idx]
-end
-
-# cpu_coverage_sum: sum of nonzero alpha bytes in atlas page regions referenced by emitted drawable placements.
-# This approximates "source text pixels" available; readback non-bg pixels approximate rendered result.
-def compute_cpu_coverage_sum(atlas : Tessell::Text::GlyphAtlas, sink : Array(Tessell::Text::GlyphPlacement)) : Int64
-  sum = 0_i64
-  sink.each do |p|
-    next if p.w <= 0 || p.h <= 0
-    slot = atlas.lookup(p.key)
-    next unless slot
-    data = atlas.page_data(slot.page)
-    ps = atlas.page_size
-    y = 0
-    while y < slot.h
-      x = 0
-      base = (slot.y + y) * ps + slot.x
-      while x < slot.w
-        v = data[base + x]
-        sum += 1 if v > 0_u8
-        x += 1
-      end
-      y += 1
-    end
-  end
-  sum
-end
 
 begin
   unless File.exists?(FONT_PATH)
     STDERR.puts "blocking=font_missing path=#{FONT_PATH}"
     exit 1
   end
+  if emoji_mode && !File.exists?(EMOJI_FONT_PATH)
+    STDERR.puts "blocking=font_missing path=#{EMOJI_FONT_PATH}"
+    exit 1
+  end
 
-  ft = Tessell::Text::FtMeasurer.open(FONT_PATH, 0)
-  atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
-  rast = Tessell::Text::Rasterizer.new(ft, atlas, 1)
-  tr = Tessell::Render::TextRenderer.new(atlas, rast)
-  sink = [] of Tessell::Text::GlyphPlacement
+  # --- text resources ---
+  ft_c = Tessell::Text::FtMeasurer.open(FONT_PATH, 0)
+  atlas_c = Tessell::Text::GlyphAtlas.new(1024, 4096)
+  rast_c = Tessell::Text::Rasterizer.new(ft_c, atlas_c, 1)
+  tr_c = Tessell::Render::TextRenderer.new(atlas_c, rast_c)
+  sink_c = [] of Tessell::Text::GlyphPlacement
 
-  # pre-raster/build to allocate resources and know layout
-  pen_end = tr.build_text(sink, text_str, text_x, text_y, text_size, width, height, [] of Int32)
-  tr.reserve_quads(tr.stats[:quads])
-  tr.reserve_batches(tr.stats[:batches])
+  ft_e : Tessell::Text::FtMeasurer? = nil
+  atlas_e : Tessell::Text::GlyphAtlas? = nil
+  rast_e : Tessell::Text::Rasterizer? = nil
+  tr_e : Tessell::Render::TextRenderer? = nil
+  sink_e = [] of Tessell::Text::GlyphPlacement
+  emoji_text = "😀👍"
+  rest_text = " Hello 你好"
 
+  if emoji_mode
+    ft_e = Tessell::Text::FtMeasurer.open(EMOJI_FONT_PATH, 0)
+    atlas_e = Tessell::Text::GlyphAtlas.new(1024, 4096)
+    rast_e = Tessell::Text::Rasterizer.new(ft_e.not_nil!, atlas_e.not_nil!, 1)
+    tr_e = Tessell::Render::TextRenderer.new(atlas_e.not_nil!, rast_e.not_nil!)
+  end
+
+  # --- window + GL ---
   hinstance = LibKernel32.GetModuleHandleW(Pointer(UInt16).null)
   raise "GetModuleHandleW failed err=#{LibKernel32.GetLastError}" if hinstance.null?
 
-  class_name = to_wstr("TessellM2TextProbe")
-  window_title = to_wstr("Tessell M2 Text Probe")
+  class_name = to_wstr(emoji_mode ? "TessellM2EmojiProbe" : "TessellM2TextProbe")
+  window_title = to_wstr(emoji_mode ? "Tessell M2 Emoji Probe" : "Tessell M2 Text Probe")
 
   wc = LibUser32::WNDCLASSEXW.new
   wc.cbSize = sizeof(LibUser32::WNDCLASSEXW).to_u32
@@ -295,101 +332,171 @@ begin
   raise "wglCreateContext failed err=#{LibKernel32.GetLastError}" if hglrc.null?
   raise "wglMakeCurrent failed err=#{LibKernel32.GetLastError}" if LibWGL.wglMakeCurrent(hdc, hglrc) == 0
 
-  glr = Tessell::Render::GL::GlRenderer.new(atlas)
+  glr_c = Tessell::Render::GL::GlRenderer.new(atlas_c)
+  glr_e : Tessell::Render::GL::GlRenderer? = emoji_mode ? Tessell::Render::GL::GlRenderer.new(atlas_e.not_nil!) : nil
 
-  # initial sync & build with textures
-  tex_ids = glr.sync_atlas_textures
-  tr.build_text(sink, text_str, text_x, text_y, text_size, width, height, tex_ids)
-  # pages may grow on first build; resync
-  tex_ids = glr.sync_atlas_textures
-  tr.build_text(sink, text_str, text_x, text_y, text_size, width, height, tex_ids)
-
-  cpu_coverage_sum = compute_cpu_coverage_sum(atlas, sink)
-
-  frame_times = [] of Float64
   last_readback = Bytes.new(width * height * 4)
-  msg = LibUser32::MSG.new
-  frames_done = 0
-  swap_ok = 0
 
-  while frames_done < frames_target && !ProbeState.quit_requested
-    t0 = Time.instant
-    while LibUser32.PeekMessageW(pointerof(msg), Pointer(Void).null, 0_u32, 0_u32, PM_REMOVE) != 0
-      if msg.message == WM_QUIT
-        ProbeState.quit_requested = true
-        break
-      end
-      LibUser32.TranslateMessage(pointerof(msg))
-      LibUser32.DispatchMessageW(pointerof(msg))
-    end
-    break if ProbeState.quit_requested
+  if emoji_mode
+    te = tr_e.not_nil!
+    ae = atlas_e.not_nil!
+    ge = glr_e.not_nil!
 
-    tex_ids = glr.sync_atlas_textures
-    tr.build_text(sink, text_str, text_x, text_y, text_size, width, height, tex_ids)
+    # build emoji segment
+    tex_e = ge.sync_atlas_textures
+    pen_after = te.build_text(sink_e, emoji_text, text_x, text_y, text_size, width, height, tex_e)
+    tex_e = ge.sync_atlas_textures
+    pen_after = te.build_text(sink_e, emoji_text, text_x, text_y, text_size, width, height, tex_e)
+    cpu_cov_e = compute_cpu_coverage_sum(ae, sink_e)
+    emoji_quads = te.stats[:quads]
 
-    glr.begin_frame(width, height, bg_r, bg_g, bg_b, 1.0_f32)
-    glr.draw_text(tr)
-    glr.end_frame
+    # build rest segment
+    tex_c = glr_c.sync_atlas_textures
+    tr_c.build_text(sink_c, rest_text, pen_after, text_y, text_size, width, height, tex_c)
+    tex_c = glr_c.sync_atlas_textures
+    tr_c.build_text(sink_c, rest_text, pen_after, text_y, text_size, width, height, tex_c)
 
-    # readback (origin bottom-left in GL); used for pixel_match on last frame
+    # emoji-only measurement pass
+    glr_c.begin_frame(width, height, bg_r, bg_g, bg_b, 1.0_f32) # clears
+    ge.draw_text(te)
+    glr_c.end_frame
     TessellGL.glPixelStorei(TessellGL::GL_PACK_ALIGNMENT, 1)
     TessellGL.glReadPixels(0, 0, width, height, TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE, last_readback.to_unsafe.as(Void*))
+    emoji_pixels_nonbg = count_nonbg(last_readback, width, height, bg_r, bg_g, bg_b)
+    emoji_ratio = cpu_cov_e > 0 ? (emoji_pixels_nonbg.to_f64 / cpu_cov_e.to_f64) : 0.0
+    emoji_pixel_match = (emoji_pixels_nonbg > 0) && (emoji_ratio >= 0.5) && (emoji_ratio <= 1.5)
 
-    if LibGdi32.SwapBuffers(hdc) != 0
-      swap_ok += 1
+    # timed frames: render full mixed string
+    frame_times = [] of Float64
+    msg = LibUser32::MSG.new
+    frames_done = 0
+    swap_ok = 0
+    while frames_done < frames_target && !ProbeState.quit_requested
+      t0 = Time.instant
+      while LibUser32.PeekMessageW(pointerof(msg), Pointer(Void).null, 0_u32, 0_u32, PM_REMOVE) != 0
+        if msg.message == WM_QUIT
+          ProbeState.quit_requested = true
+          break
+        end
+        LibUser32.TranslateMessage(pointerof(msg))
+        LibUser32.DispatchMessageW(pointerof(msg))
+      end
+      break if ProbeState.quit_requested
+
+      tex_e = ge.sync_atlas_textures
+      te.build_text(sink_e, emoji_text, text_x, text_y, text_size, width, height, tex_e)
+      tex_c = glr_c.sync_atlas_textures
+      tr_c.build_text(sink_c, rest_text, pen_after, text_y, text_size, width, height, tex_c)
+
+      glr_c.begin_frame(width, height, bg_r, bg_g, bg_b, 1.0_f32)
+      ge.draw_text(te)
+      glr_c.draw_text(tr_c)
+      glr_c.end_frame
+
+      TessellGL.glPixelStorei(TessellGL::GL_PACK_ALIGNMENT, 1)
+      TessellGL.glReadPixels(0, 0, width, height, TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE, last_readback.to_unsafe.as(Void*))
+
+      if LibGdi32.SwapBuffers(hdc) != 0
+        swap_ok += 1
+      end
+      frames_done += 1
+      frame_times << (Time.instant - t0).total_milliseconds
     end
-    frames_done += 1
-    frame_times << (Time.instant - t0).total_milliseconds
-  end
 
-  # text_pixels_nonbg: count readback pixels whose RGB differs from background (white) beyond tolerance.
-  # Blending/modulation over white bg: text darkens pixels; any darkening indicates text coverage.
-  text_pixels_nonbg = 0_i64
-  i = 0
-  total_px = width * height
-  bg_ri = (bg_r * 255.0_f32).round.to_i
-  bg_gi = (bg_g * 255.0_f32).round.to_i
-  bg_bi = (bg_b * 255.0_f32).round.to_i
-  while i < total_px
-    off = i * 4
-    r = last_readback[off].to_i
-    g = last_readback[off + 1].to_i
-    b = last_readback[off + 2].to_i
-    dr = (r - bg_ri).abs
-    dg = (g - bg_gi).abs
-    db = (b - bg_bi).abs
-    # threshold 8 to tolerate minor GL rounding; text is black so difference will be large where covered
-    if dr > 8 || dg > 8 || db > 8
-      text_pixels_nonbg += 1
+    mixed_nonbg = count_nonbg(last_readback, width, height, bg_r, bg_g, bg_b)
+    sorted = frame_times.sort
+    p50 = percentile(sorted, 50.0)
+    p95 = percentile(sorted, 95.0)
+    p99 = percentile(sorted, 99.0)
+
+    ge.delete_textures
+    glr_c.delete_textures
+    LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
+    LibWGL.wglDeleteContext(hglrc)
+    LibUser32.ReleaseDC(hwnd, hdc)
+    LibUser32.DestroyWindow(hwnd) unless ProbeState.quit_requested
+    ft_e.not_nil!.close
+    ft_c.close
+
+    puts "emoji_quads=#{emoji_quads} emoji_pixels_nonbg=#{emoji_pixels_nonbg} emoji_pixel_match=#{emoji_pixel_match} frame_p50_ms=#{p50} frame_p95_ms=#{p95} frame_p99_ms=#{p99} emoji_cpu_coverage_sum=#{cpu_cov_e} emoji_ratio=#{emoji_ratio} mixed_pixels_nonbg=#{mixed_nonbg} frames=#{frames_done} swapbuffers=#{swap_ok} pen_after_emoji_x=#{pen_after} text_quads=#{tr_c.stats[:quads]}"
+    puts "emoji_note=rendered \"😀👍 Hello 你好\" as emoji(seguiemj.ttf)+text(msyh.ttc) segments; emoji metrics from emoji-only pass (RGB delta>8 vs white bg, ratio tolerance [0.5,1.5]); display path R8->GL_ALPHA (gray coverage). If seguiemj bitmap were BGRA/color-only, GL_ALPHA could not show color and pixel_match would be false (not fabricated)."
+    puts "gl_path=GL1.1_compat R8->GL_ALPHA glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
+
+    if verify_mode
+      exit(emoji_pixel_match ? 0 : 1)
+    else
+      exit(0)
     end
-    i += 1
-  end
-
-  ratio = cpu_coverage_sum > 0 ? (text_pixels_nonbg.to_f64 / cpu_coverage_sum.to_f64) : 0.0
-  pixel_match = (text_pixels_nonbg > 0) && (ratio >= 0.5) && (ratio <= 1.5)
-
-  sorted = frame_times.sort
-  p50 = percentile(sorted, 50.0)
-  p95 = percentile(sorted, 95.0)
-  p99 = percentile(sorted, 99.0)
-
-  # cleanup
-  glr.delete_textures
-  LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
-  LibWGL.wglDeleteContext(hglrc)
-  LibUser32.ReleaseDC(hwnd, hdc)
-  LibUser32.DestroyWindow(hwnd) unless ProbeState.quit_requested
-  ft.close
-
-  puts "text_pixels_nonbg=#{text_pixels_nonbg} cpu_coverage_sum=#{cpu_coverage_sum} ratio=#{ratio} pixel_match=#{pixel_match} frames=#{frames_done} swapbuffers=#{swap_ok} frame_p50_ms=#{p50} frame_p95_ms=#{p95} frame_p99_ms=#{p99} pen_end_x=#{pen_end} quads=#{tr.stats[:quads]} batches=#{tr.stats[:batches]}"
-  puts "criterion_note=non-bg counted as RGB delta>8 from white background; cpu_coverage_sum counts nonzero R8 atlas bytes over rendered glyph rects; ratio tolerance [0.5,1.5] accounts for GL_LINEAR filtering, blending edge coverage, and y-axis/sample-position differences vs source bitmap"
-  puts "gl_path=GL1.1_compat R8->GL_ALPHA glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
-
-  if verify_mode
-    exit(pixel_match ? 0 : 1)
   else
-    # non-verify still report factual outcome
-    exit(0)
+    # default non-emoji path (existing behavior)
+    text_str = "Hello 你好 Tessell"
+
+    tex_ids = glr_c.sync_atlas_textures
+    pen_end = tr_c.build_text(sink_c, text_str, text_x, text_y, text_size, width, height, tex_ids)
+    tex_ids = glr_c.sync_atlas_textures
+    pen_end = tr_c.build_text(sink_c, text_str, text_x, text_y, text_size, width, height, tex_ids)
+
+    cpu_coverage_sum = compute_cpu_coverage_sum(atlas_c, sink_c)
+
+    frame_times = [] of Float64
+    msg = LibUser32::MSG.new
+    frames_done = 0
+    swap_ok = 0
+
+    while frames_done < frames_target && !ProbeState.quit_requested
+      t0 = Time.instant
+      while LibUser32.PeekMessageW(pointerof(msg), Pointer(Void).null, 0_u32, 0_u32, PM_REMOVE) != 0
+        if msg.message == WM_QUIT
+          ProbeState.quit_requested = true
+          break
+        end
+        LibUser32.TranslateMessage(pointerof(msg))
+        LibUser32.DispatchMessageW(pointerof(msg))
+      end
+      break if ProbeState.quit_requested
+
+      tex_ids = glr_c.sync_atlas_textures
+      tr_c.build_text(sink_c, text_str, text_x, text_y, text_size, width, height, tex_ids)
+
+      glr_c.begin_frame(width, height, bg_r, bg_g, bg_b, 1.0_f32)
+      glr_c.draw_text(tr_c)
+      glr_c.end_frame
+
+      TessellGL.glPixelStorei(TessellGL::GL_PACK_ALIGNMENT, 1)
+      TessellGL.glReadPixels(0, 0, width, height, TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE, last_readback.to_unsafe.as(Void*))
+
+      if LibGdi32.SwapBuffers(hdc) != 0
+        swap_ok += 1
+      end
+      frames_done += 1
+      frame_times << (Time.instant - t0).total_milliseconds
+    end
+
+    text_pixels_nonbg = count_nonbg(last_readback, width, height, bg_r, bg_g, bg_b)
+    ratio = cpu_coverage_sum > 0 ? (text_pixels_nonbg.to_f64 / cpu_coverage_sum.to_f64) : 0.0
+    pixel_match = (text_pixels_nonbg > 0) && (ratio >= 0.5) && (ratio <= 1.5)
+
+    sorted = frame_times.sort
+    p50 = percentile(sorted, 50.0)
+    p95 = percentile(sorted, 95.0)
+    p99 = percentile(sorted, 99.0)
+
+    glr_c.delete_textures
+    LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
+    LibWGL.wglDeleteContext(hglrc)
+    LibUser32.ReleaseDC(hwnd, hdc)
+    LibUser32.DestroyWindow(hwnd) unless ProbeState.quit_requested
+    ft_c.close
+
+    puts "text_pixels_nonbg=#{text_pixels_nonbg} cpu_coverage_sum=#{cpu_coverage_sum} ratio=#{ratio} pixel_match=#{pixel_match} frames=#{frames_done} swapbuffers=#{swap_ok} frame_p50_ms=#{p50} frame_p95_ms=#{p95} frame_p99_ms=#{p99} pen_end_x=#{pen_end} quads=#{tr_c.stats[:quads]} batches=#{tr_c.stats[:batches]}"
+    puts "criterion_note=non-bg counted as RGB delta>8 from white background; cpu_coverage_sum counts nonzero R8 atlas bytes over rendered glyph rects; ratio tolerance [0.5,1.5] accounts for GL_LINEAR filtering, blending edge coverage, and y-axis/sample-position differences vs source bitmap"
+    puts "gl_path=GL1.1_compat R8->GL_ALPHA glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
+
+    if verify_mode
+      exit(pixel_match ? 0 : 1)
+    else
+      exit(0)
+    end
   end
 rescue ex
   STDERR.puts "blocking=exception message=#{ex.message.inspect} backtrace_first=#{(ex.backtrace? || [] of String).first?.inspect}"

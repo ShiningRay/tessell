@@ -97,6 +97,7 @@ module Tessell
       # text/x/y: baseline 起点（y-down）。size_px: 字号。viewport_w/h: 视口尺寸（当前用于边界安全，顶点仍为屏幕坐标）。
       # page_texture_ids: 按 atlas page index 索引的 GL 纹理 id。
       # 返回 pen 末端 x（Float32）。
+      # Uses per-call HB/FT shaping path (rasterize_into) to preserve existing behavior/stats.
       def build_text(placement_sink : Array(Text::GlyphPlacement), text : String,
                      x : Float32, y : Float32, size_px : Int32,
                      viewport_w : Int32, viewport_h : Int32,
@@ -106,7 +107,27 @@ module Tessell
         @batch_count = 0
 
         @rasterizer.rasterize_into(text, size_px, placement_sink)
+        build_text_from_placements(placement_sink, x, y, page_texture_ids, rgba)
+      end
 
+      # M2-WP4/task-73: uses Rasterizer shaped-run cache (shape_run_into) to skip HB/FT shaping on hit.
+      # placement_sink is still reused; on cache hit only placement copy + vertex emission occur.
+      def build_text_cached(placement_sink : Array(Text::GlyphPlacement), text : String,
+                            x : Float32, y : Float32, size_px : Int32,
+                            viewport_w : Int32, viewport_h : Int32,
+                            page_texture_ids : Array(Int32),
+                            rgba : UInt32 = 0xffffffff_u32) : Float32
+        @vertex_count = 0
+        @batch_count = 0
+
+        @rasterizer.shape_run_into(text, size_px, placement_sink)
+        build_text_from_placements(placement_sink, x, y, page_texture_ids, rgba)
+      end
+
+      private def build_text_from_placements(placement_sink : Array(Text::GlyphPlacement),
+                                             x : Float32, y : Float32,
+                                             page_texture_ids : Array(Int32),
+                                             rgba : UInt32) : Float32
         pen_x = x
         pen_y = y
         current_page = -1

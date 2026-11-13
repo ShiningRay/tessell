@@ -1,6 +1,8 @@
-# Tessell::Text::Rasterizer (M2-WP2c)
+# Tessell::Text::Rasterizer (M2-WP2c, M2-WP4 shaped-run cache task-73)
 # FT rasterization -> glyph atlas. FFI calls go through FT::Lib / FtMeasurer; no new lib declarations.
 # Requires FtMeasurer (face/font) and GlyphAtlas. Steady-state hit path does not rasterize again.
+# M2-WP4: shaped-run cache keyed by (font_id, size_px, text_hash) caches whole shaped placement runs;
+# frame-guarded LRU (no eviction inside begin_frame/end_frame), bounded capacity.
 
 require "./ffi/freetype"
 require "./ffi/harfbuzz"
@@ -34,7 +36,61 @@ module Tessell
       end
     end
 
+    struct ShapedRunKey
+      getter font_id : Int32
+      getter size_px : Int32
+      getter text_hash : UInt64
+      getter key_hash : UInt64
+
+      def initialize(@font_id : Int32, @size_px : Int32, @text_hash : UInt64)
+        h = 0xcbf29ce484222325_u64
+        v = @font_id.to_u32!
+        4.times do
+          h ^= (v & 0xFF_u32).to_u64
+          h &*= 0x100000001b3_u64
+          v >>= 8
+        end
+        v = @size_px.to_u32!
+        4.times do
+          h ^= (v & 0xFF_u32).to_u64
+          h &*= 0x100000001b3_u64
+          v >>= 8
+        end
+        v = @text_hash
+        8.times do
+          h ^= (v & 0xFF_u64).to_u64
+          h &*= 0x100000001b3_u64
+          v >>= 8
+        end
+        @key_hash = h
+      end
+
+      def ==(other : ShapedRunKey) : Bool
+        font_id == other.font_id && size_px == other.size_px && text_hash == other.text_hash
+      end
+
+      def hash : UInt64
+        @key_hash
+      end
+
+      def hash(hasher)
+        hasher.int(@key_hash.to_i64!)
+        hasher
+      end
+    end
+
     class Rasterizer
+      class FrameEvictionError < Exception
+      end
+
+      private class ShapedRunEntry
+        property placements : Array(GlyphPlacement)
+        property tick : UInt64
+
+        def initialize(@placements : Array(GlyphPlacement), @tick : UInt64)
+        end
+      end
+
       getter hits : Int32
       getter misses : Int32
       getter rasters : Int32
@@ -42,11 +98,19 @@ module Tessell
       @measurer : FtMeasurer
       @atlas : GlyphAtlas
       @font_id : Int32
+      @run_cache : Hash(ShapedRunKey, ShapedRunEntry)
+      @run_cache_capacity : Int32
+      @run_tick : UInt64
+      @run_in_frame : Int32
 
-      def initialize(@measurer : FtMeasurer, @atlas : GlyphAtlas, @font_id : Int32 = 0)
+      def initialize(@measurer : FtMeasurer, @atlas : GlyphAtlas, @font_id : Int32 = 0, run_cache_capacity : Int32 = 256)
         @hits = 0
         @misses = 0
         @rasters = 0
+        @run_cache = Hash(ShapedRunKey, ShapedRunEntry).new
+        @run_cache_capacity = run_cache_capacity
+        @run_tick = 0_u64
+        @run_in_frame = 0
       end
 
       def atlas : GlyphAtlas
@@ -55,6 +119,22 @@ module Tessell
 
       def stats : NamedTuple(hits: Int32, misses: Int32, rasters: Int32)
         {hits: @hits, misses: @misses, rasters: @rasters}
+      end
+
+      def run_cache_size : Int32
+        @run_cache.size
+      end
+
+      def begin_frame : Nil
+        @run_in_frame += 1
+      end
+
+      def end_frame : Nil
+        @run_in_frame -= 1 if @run_in_frame > 0
+      end
+
+      def in_run_frame? : Bool
+        @run_in_frame > 0
       end
 
       # Alpha coverage of a placement: number of pixels with value > 0 in the atlas slot.
@@ -83,9 +163,41 @@ module Tessell
         sink
       end
 
+      # Zero-allocation entry for shaped run reuse. On hit: copies cached placements into sink (no HB/FT shaping).
+      # Returns number of placements written.
+      def shape_run_into(text : String, size_px : Int32, sink : Array(GlyphPlacement)) : Int32
+        sink.clear
+        return 0 if text.empty?
+
+        key = ShapedRunKey.new(@font_id, size_px, text.hash.to_u64!)
+        if entry = @run_cache[key]?
+          entry.tick = @run_tick
+          @run_tick += 1_u64
+          cached = entry.placements
+          i = 0
+          n = cached.size
+          while i < n
+            sink << cached[i]
+            i += 1
+          end
+          return n
+        end
+
+        # miss: shape+rasterize into sink, then cache a snapshot
+        shape_and_rasterize_into(text, size_px, sink)
+        store_run(key, sink)
+        sink.size
+      end
+
       # Non-allocating w.r.t. Array object: reuses sink (clear + push). Caller should
       # pre-size/capacity-reuse sink across calls for zero-allocation steady path.
+      # Preserves per-glyph atlas hit/miss/raster stats semantics (HB/FT path each call).
       def rasterize_into(text : String, size_px : Int32, sink : Array(GlyphPlacement)) : Nil
+        shape_and_rasterize_into(text, size_px, sink)
+        nil
+      end
+
+      private def shape_and_rasterize_into(text : String, size_px : Int32, sink : Array(GlyphPlacement)) : Nil
         sink.clear
         return if text.empty?
 
@@ -123,6 +235,53 @@ module Tessell
           sink << placement
           i += 1
         end
+      end
+
+      private def store_run(key : ShapedRunKey, sink : Array(GlyphPlacement)) : Nil
+        ensure_run_capacity_for_insert
+        # snapshot placements (allocates on miss/warmup only)
+        cached = Array(GlyphPlacement).new(sink.size)
+        i = 0
+        n = sink.size
+        while i < n
+          cached << sink[i]
+          i += 1
+        end
+        @run_cache[key] = ShapedRunEntry.new(cached, @run_tick)
+        @run_tick += 1_u64
+      end
+
+      private def ensure_run_capacity_for_insert : Nil
+        return if @run_cache.size < @run_cache_capacity
+        if @run_in_frame > 0
+          raise FrameEvictionError.new("shaped-run LRU eviction during frame is forbidden")
+        end
+        evict_run_lru(1)
+      end
+
+      def evict_run_lru(count : Int32 = 1) : Int32
+        raise FrameEvictionError.new("shaped-run evict_lru called inside frame") if @run_in_frame > 0
+        evicted = 0
+        count.times do
+          break if @run_cache.empty?
+          victim = find_run_lru_key
+          break unless victim
+          @run_cache.delete(victim)
+          evicted += 1
+        end
+        evicted
+      end
+
+      private def find_run_lru_key : ShapedRunKey?
+        min_key : ShapedRunKey? = nil
+        min_tick = UInt64::MAX
+        @run_cache.each do |k, e|
+          if e.tick < min_tick
+            min_tick = e.tick
+            min_key = k
+          end
+        end
+        min_key
       end
 
       private def rasterize_glyph(gid : UInt32, face : FT::Lib::Face, size_px : Int32,
