@@ -108,3 +108,9 @@
 - M4-WP2 安装器/代码签名/干净 VM 未做（M4-WP2-packaging.md [未验证]）。
 - C7 需人工键盘手测；C9 需 lead 决策许可策略。
 - M3-WP3 Linux 验证、M3-WP4 stencil/cover（可选）。
+## 8. 提交（M4 迭代 4）
+
+- 4e061c6 feat(m4): 真实示例应用与一键质量门禁（M4-WP3/M4-WP4）
+- f06cb3f docs: M3 收口门禁终审、独立核验与零分配口径修正
+- （见提交 3 本身）docs: 回填 M4 迭代 4 提交 hash
+- 推送：已 push 到 origin/main（HEAD == origin/main，见验证）
