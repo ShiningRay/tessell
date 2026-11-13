@@ -10,7 +10,7 @@
 
 | 项 | 命令/对象 | 判据(关键) | 耗时ms |
 |---|---|---|---:|
-| spec | crystal spec | 221 ex,0 fail | 5044 |
+| spec | crystal spec | 233 ex,0 fail | 5044 |
 | build | crystal build src/tessell.cr | EXIT 0 | 2105 |
 | m2_text | m2_text_window --verify | pixel_match=true | 2957 |
 | m2_emoji | m2_text_window --emoji --verify | emoji_pixel_match=true | 3083 |
@@ -41,6 +41,7 @@
 ## 3. 指标清单（本次实测）
 
 - spec: 221 examples, 0 failures, 0 errors, 0 pending
+  （M4 迭代 5 起全量为 233 examples，见 PROJECT-final-gate.md）
 - bench(CPU,us): p50=97 p95=175 p99=218 alloc_bytes=112
 - bench alloc_windows: [112,96,112] delta_prime=112 delta_calib=0
 - zero_alloc: criterion_ok=true_count=2 false_count=0 (--json,200帧)
