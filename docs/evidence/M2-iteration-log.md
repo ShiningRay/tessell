@@ -188,8 +188,8 @@
 ### 提交信息（M2-iter4）
 - 提交 1（feat）hash：6520dcafebad5cf6507198cafc400d7851249c43
 - 提交 1（feat）短 hash：6520dca
-- 提交 2（docs 回填）hash：待回填（本次 task-67 docs 提交后）
-- 提交 2（docs 回填）短 hash：待回填
+- 提交 2（docs 回填）hash：7cfb44f（task-67 产出，后续补记）
+- 提交 2（docs 回填）短 hash：7cfb44f
 ---
 
 ## M2 迭代 5：虚拟列表（M2-WP4）+ 无障碍最小树（M2-WP5）
@@ -237,8 +237,8 @@
 ### 提交信息（M2-iter5）
 - 提交 1（feat）hash：a280169edd0c1526b83ff51dc30cdcd47c7ee98f
 - 提交 1（feat）短 hash：a280169
-- 提交 2（docs 回填）hash：待回填（本次 task-76 docs 提交后）
-- 提交 2（docs 回填）短 hash：待回填
+- 提交 2（docs 回填）hash：2a2b620（task-76 产出，后续补记）
+- 提交 2（docs 回填）短 hash：2a2b620
 
 ---
 
@@ -296,4 +296,4 @@ BENCH_SCROLL_EXIT=0
 
 ### 提交信息（M2-iter7 / task-89）
 - 提交 1（chore）：991b663abba607f7da7ab5772aba105d78419938（`chore(m2): 门禁整改收口（C2 探针/证据重写、C3 修正、C6 waiver、复评报告）`）
-- 提交 2（docs 回填）：待回填（`docs: 回填 M2 迭代 7 提交 hash`）
+- 提交 2（docs 回填）：b4f91fb（`docs: 回填 M2 迭代 7 提交 hash`）
