@@ -177,3 +177,10 @@
 ## 7. 下一步
 
 - 最终项目门禁（全量 gate + 法务复核 + C7 手测 + 跨机器基线）。
+
+## 8. 提交（M4 迭代 5）
+
+- d1407a3 feat(m4): DSL 无障碍同步与事件单一入口（M4-WP1 S3）
+- d258207 docs: README 重写、C9 字体许可决策与 S3 独立核验
+- （见提交 3 本身）docs: 回填 M4 迭代 5 提交 hash
+- 推送：已 push 到 origin/main（HEAD == origin/main，见验证）
