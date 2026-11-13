@@ -295,5 +295,5 @@ BENCH_SCROLL_EXIT=0
 - **门禁复评裁定**：`docs/evidence/M2-gate-r2.md` 裁定 **Go-with-conditions**；本迭代落盘 C2/C3 关闭与 C6 waiver，供首辅据此放行 M3 开工（C6 仍阻断 M3-WP5）。
 
 ### 提交信息（M2-iter7 / task-89）
-- 提交 1（chore）：待回填（`chore(m2): 门禁整改收口（C2 探针/证据重写、C3 修正、C6 waiver、复评报告）`）
+- 提交 1（chore）：991b663abba607f7da7ab5772aba105d78419938（`chore(m2): 门禁整改收口（C2 探针/证据重写、C3 修正、C6 waiver、复评报告）`）
 - 提交 2（docs 回填）：待回填（`docs: 回填 M2 迭代 7 提交 hash`）
