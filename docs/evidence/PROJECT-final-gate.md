@@ -137,4 +137,4 @@ GATE_RESULT=PASS
 - 未关闭清单 10 → **9**：删除「M3-WP4 stencil/cover」；其余 9 项原样保留
   （C7 人工 IME、C9 法务、macOS、Linux、UIA、安装器/签名/干净 VM、跨机基线、
   C6 waiver 仅覆盖 M3-WP5、真实窗口人工目视）。
-- 提交 hash 待回填。
+- 提交：feat `98360f2`（M3-WP4 代码/规格/工具/example）；docs `26dddf5`（证据/核验/迭代日志/README/final-gate）。

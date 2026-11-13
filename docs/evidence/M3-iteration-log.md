@@ -7,7 +7,7 @@
 - 执行：gongbu-shangshu-3（工部尚书副手）
 - 核验：dalisi-qing-2（大理寺卿）
 - 收口任务：task-97「编写 M3 迭代 1 迭代记录」
-- 提交位置：提交待回填
+- 提交位置：ef8903a（M3-iter1）；M3-WP4 feat `98360f2` / docs `26dddf5`
 
 ## 本机环境
 - Crystal：1.22.1 [23828b0a40]
