@@ -235,7 +235,7 @@
 - 沿用迭代 4 未验证：真实键盘 IME 手测 C2 开放（程序化注入本机被拒）、Emoji COLR/CPAL、GL 着色器、`GlRenderer#delete_textures` 泄漏、`ratio` 非逐像素等价、B 门盲区与 1536B GC 尖峰 flake 风险。
 
 ### 提交信息（M2-iter5）
-- 提交 1（feat）hash：待回填（本次 task-76 提交后）
-- 提交 1（feat）短 hash：待回填
+- 提交 1（feat）hash：a280169edd0c1526b83ff51dc30cdcd47c7ee98f
+- 提交 1（feat）短 hash：a280169
 - 提交 2（docs 回填）hash：待回填（本次 task-76 docs 提交后）
 - 提交 2（docs 回填）短 hash：待回填
