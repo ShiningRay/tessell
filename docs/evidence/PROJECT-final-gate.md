@@ -143,4 +143,4 @@ GATE_RESULT=PASS
 
 - 截图证据：`M2-WP5-visual-check.md`（75 行）+ `docs/evidence/shots/` 6 PNG（合计 107,195 B）；像素统计复核见该报告 `## lead 复核（像素统计）`；**无人眼 QA 签字，也不存在人眼观察记录**。
 - 未关闭项仍 **9** 条，其中「真实窗口人工目视」改写为「人工 QA 签字未做（已有 6 张截图 + 像素统计复核，见 `docs/evidence/M2-WP5-visual-check.md`）」；其余 8 项原样。
-- spec 数不变：**263**（截图开关/转换不增删用例）；本轮提交 hash 待回填。
+- spec 数不变：**263**（截图开关/转换不增删用例）；本轮提交 hash：feat `c57ebdc`、docs `6f1e5ff`。
