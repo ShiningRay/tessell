@@ -11,6 +11,7 @@ module Tessell
   module Text
     # Placement of one shaped glyph in atlas space.
     # uv in [0,1] over atlas page: (u0,v0)=top-left, (u1,v1)=bottom-right of glyph rect.
+    # page: atlas page index for drawable glyphs, -1 for zero-bitmap/non-atlas placements.
     struct GlyphPlacement
       getter key : GlyphKey
       getter glyph_id : UInt32
@@ -23,11 +24,13 @@ module Tessell
       getter v0 : Float32
       getter u1 : Float32
       getter v1 : Float32
+      getter page : Int32
 
       def initialize(@key : GlyphKey, @glyph_id : UInt32, @advance_px : Float32,
                      @offset_x : Int32, @offset_y : Int32,
                      @w : Int32, @h : Int32,
-                     @u0 : Float32, @v0 : Float32, @u1 : Float32, @v1 : Float32)
+                     @u0 : Float32, @v0 : Float32, @u1 : Float32, @v1 : Float32,
+                     @page : Int32 = -1)
       end
     end
 
@@ -117,13 +120,13 @@ module Tessell
           adv_px = (pos.x_advance.to_f64 * scale / 64.0).to_f32
 
           placement = rasterize_glyph(gid, face, size_px, adv_px, page_size_f)
-          sink << placement if placement
+          sink << placement
           i += 1
         end
       end
 
       private def rasterize_glyph(gid : UInt32, face : FT::Lib::Face, size_px : Int32,
-                                  advance_px : Float32, page_size_f : Float32) : GlyphPlacement?
+                                  advance_px : Float32, page_size_f : Float32) : GlyphPlacement
         key = GlyphKey.new(@font_id, gid, size_px, 0_u8, 0_u8)
         if slot = @atlas.lookup(key)
           @hits += 1
@@ -135,7 +138,7 @@ module Tessell
         # stays == HB glyph count and HB advance is preserved. Drawable area is empty.
         if gid == 0
           return GlyphPlacement.new(key, gid, advance_px, 0, 0, 0, 0,
-                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32)
+                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1)
         end
 
         @misses += 1
@@ -159,7 +162,7 @@ module Tessell
         # correct HB advance so text layout/advance accumulation remains correct.
         if w <= 0 || h <= 0
           return GlyphPlacement.new(key, gid, advance_px, bearing_x, bearing_y, 0, 0,
-                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32)
+                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1)
         end
 
         atlas_slot = @atlas.insert(key, w, h, bearing_x, bearing_y, advance_px)
@@ -208,7 +211,7 @@ module Tessell
           v1 = (slot.y + slot.h).to_f32 / page_size_f
         end
         GlyphPlacement.new(key, gid, advance_px, slot.bearing_x, slot.bearing_y,
-                           slot.w, slot.h, u0, v0, u1, v1)
+                           slot.w, slot.h, u0, v0, u1, v1, slot.page)
       end
     end
 

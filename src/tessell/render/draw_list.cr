@@ -50,6 +50,8 @@ module Tessell
       def initialize
         @commands = [] of DrawCmd
         @size = 0
+        @batches = [] of Batch
+        @batch_result_count = 0
       end
 
       # 逻辑清零；底层容量保留（复用缓冲，不释放）。
@@ -86,26 +88,39 @@ module Tessell
         end
       end
 
-      # 相邻同 atlas_id 且同 clip 的命令合并为一批；返回批区间列表。
-      # 空列表返回空数组；batch_count 与 build_batches 同步。
-      def build_batches : Array(Batch)
-        batches = [] of Batch
+      # 零分配热路径：将批区间写入 sink（复用容量），返回批数。逻辑大小为返回值。
+      def build_batches_into(sink : Array(Batch)) : Int32
+        count = 0
         i = 0
         while i < @size
           start = i
-          count = 1
-          while i + count < @size &&
-                same_batch_key?(@commands[i], @commands[i + count])
-            count += 1
+          n = 1
+          while i + n < @size && same_batch_key?(@commands[i], @commands[i + n])
+            n += 1
           end
-          batches << Batch.new(start, count)
-          i += count
+          b = Batch.new(start, n)
+          if count < sink.size
+            sink[count] = b
+          else
+            sink << b
+          end
+          count += 1
+          i += n
         end
-        batches
+        @batch_result_count = count
+        count
+      end
+
+      # 兼容接口：返回新数组（分配）。热路径请用 build_batches_into。
+      def build_batches : Array(Batch)
+        tmp = [] of Batch
+        build_batches_into(tmp)
+        tmp
       end
 
       def batch_count : Int32
-        build_batches.size
+        build_batches_into(@batches)
+        @batch_result_count
       end
 
       # capacity 前后对比用（复用证据）。

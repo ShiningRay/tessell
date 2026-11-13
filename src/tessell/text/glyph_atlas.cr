@@ -116,7 +116,7 @@ module Tessell
         end
       end
 
-      private struct Entry
+      private class Entry
         property slot : GlyphSlot
         property tick : UInt64
         property font_id : Int32
@@ -176,7 +176,6 @@ module Tessell
         return nil unless e
         e.tick = @tick
         @tick += 1_u64
-        @cache[key] = e
         e.slot
       end
 

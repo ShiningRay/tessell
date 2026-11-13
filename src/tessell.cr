@@ -19,6 +19,8 @@ require "./tessell/text/ft_measurer"
 require "./tessell/text/glyph_atlas"
 require "./tessell/text/rasterizer"
 require "./tessell/render/text_renderer"
+require "./tessell/widgets/virtual_list"
+require "./tessell/a11y/tree"
 
 module Tessell
   # UI 主循环必须运行在独占系统线程的执行上下文中。

@@ -121,32 +121,29 @@ module Tessell
 
           # w==0||h==0 零位图字形：不产四边形，但推进 pen
           if p.w > 0 && p.h > 0
-            slot = @atlas.lookup(p.key)
-            if slot
-              page = slot.page
-              tex = page < page_texture_ids.size ? page_texture_ids[page] : 0
+            page = p.page
+            tex = page >= 0 && page < page_texture_ids.size ? page_texture_ids[page] : 0
 
-              if current_page != -1 && page != current_page
-                # flush batch on page change
-                write_batch(batch_start, batch_vertices, batch_tex)
-                batch_start = @vertex_count
-                batch_vertices = 0
-              end
-              if current_page == -1
-                batch_start = @vertex_count
-                batch_vertices = 0
-              end
-              current_page = page
-              batch_tex = tex
-
-              left = pen_x + p.offset_x.to_f32
-              top = pen_y - p.offset_y.to_f32
-              right = left + p.w.to_f32
-              bottom = top + p.h.to_f32
-
-              push_quad(left, top, right, bottom, p.u0, p.v0, p.u1, p.v1, rgba)
-              batch_vertices += 4
+            if current_page != -1 && page != current_page
+              # flush batch on page change
+              write_batch(batch_start, batch_vertices, batch_tex)
+              batch_start = @vertex_count
+              batch_vertices = 0
             end
+            if current_page == -1
+              batch_start = @vertex_count
+              batch_vertices = 0
+            end
+            current_page = page
+            batch_tex = tex
+
+            left = pen_x + p.offset_x.to_f32
+            top = pen_y - p.offset_y.to_f32
+            right = left + p.w.to_f32
+            bottom = top + p.h.to_f32
+
+            push_quad(left, top, right, bottom, p.u0, p.v0, p.u1, p.v1, rgba)
+            batch_vertices += 4
           end
 
           pen_x += p.advance_px

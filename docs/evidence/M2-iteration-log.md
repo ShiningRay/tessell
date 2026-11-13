@@ -190,3 +190,52 @@
 - 提交 1（feat）短 hash：6520dca
 - 提交 2（docs 回填）hash：待回填（本次 task-67 docs 提交后）
 - 提交 2（docs 回填）短 hash：待回填
+---
+
+## M2 迭代 5：虚拟列表（M2-WP4）+ 无障碍最小树（M2-WP5）
+
+### 任务与状态
+| 任务 | 状态 | 说明/产出 |
+|---|---|---|
+| task-68（M2-WP4 A/B/C/D） | 完成 | `src/tessell/widgets/virtual_list.cr`、`spec/virtual_list_spec.cr`、`tools/bench_scroll.cr`、`docs/evidence/M2-WP4-virtual-list.md`；`src/tessell.cr` 追加 require；VirtualList 固定/变高行高+prefix-sum+二分、`visible_range`/`prepare_visible` 仅可见行绑定、回收池、`Dirty.merge_into` 脏条带；spec 12 examples 全绿，簿记路径零分配探针 `delta_work=0 windows=[0,0,0]` |
+| task-70（bench 补强） | 完成（并入 task-71 裁断） | bench 由簿记帧改为真实 CPU 帧（DrawList 背景/分隔线 + Rasterizer/TextRenderer 固定标签 "row 12345" + `build_batches`）；发现帧时间可解释但稳态分配未清零，转 task-71 专项 |
+| task-71（稳态分配查清与修复） | 完成（部分达成 + 残余已证据化） | bisect a–f + 组件探针；修复/改造：`VirtualList` 无块 API（`visible_first/visible_last`、`prepare_visible`、`node_offset`）、`DrawList#build_batches_into(sink)` 复用、`GlyphPlacement.page` 避免 build_text 逐字形 lookup、`GlyphAtlas::Entry` struct→class 且命中不回写 Hash、`Rasterizer` 去 `GlyphPlacement?` union 装箱；bench 热路径去块/闭包；批数组分配 64064→0、scroll p50 1765→1269µs；真实 CPU 帧残余未清零（见下） |
+| task-72（M2-WP5 A11y 最小树） | 完成 | `src/tessell/a11y/tree.cr`、`spec/a11y_tree_spec.cr`、`docs/evidence/M2-WP5-a11y-tree.md`；`src/tessell.cr` 追加 require；`A11y::Role/Meta/Node`、`Builder`(DFS 先序+sink 复用+`focused` 经 `FocusManager` 实时查询不另存)、`VirtualWindow.emit`(万行→容器 List+可见窗口项)；core/input/render/text/widgets 未改 |
+
+### 核验裁定
+- **PASS-WITH-DEFECTS**（`docs/evidence/verify-M2-iteration5.md`，dalisi-qing-2，task-75；62 行；HEAD 7cfb44f + 未提交工作区冻结核验）：**无 P0/P1/P2，P3×2，未发现伪造**。WP4 另有 `docs/evidence/verify-M2-WP4.md`（PASS-WITH-DEFECTS）。
+- 六项硬判定（verify-M2-iteration5 结论，记入核验记录）：
+  1. **a11y 焦点**：`src/tessell/a11y/tree.cr:105` `focused` 实时查询 `FocusManager#focused?`，**符合**（非旁挂缓存）；独立验证 `FOCUSED_SEQ empty=true after_focus_a=true after_focus_b=true`。
+  2. **a11y 万行 emit/DFS/sink**：10000 行 `VirtualWindow#emit` 实际 **31 节点**（1 容器 + 30 可见，`children_count=10000`、scroll 前后 size 均 31）；DFS 先序稳定且随重排改变；`sink.clear` 语义为**清空覆写非追加**（build/emit 预填充被丢弃，`tree.cr:88,94,145`）。Meta 旁挂无删除 API，detach/remove 后残留 → 记为 **P3-2**。
+  3. **atlas**：`Entry` `struct→class` + `lookup` 命中不回写 Hash 后，LRU tick/`evict_lru` 选最旧**正确**、`invalidate_font` 定向驱逐**正确**、**无别名 bug**（返回 `GlyphSlot` 值拷贝，Entry 私有不外泄）。
+  4. **rasterizer/text_renderer 分组**：glyph 数 == placement 数三路成立（空白/notdef/零尺寸）；跨页分组与旧逐字形 lookup **等价**（placement pages `[0,1]` / 纹理 `[101,202]`，`eq_per_glyph=true`）；text_renderer 按 `placement.page` 分组无逐字形 atlas lookup。
+  5. **draw_list**：`build_batches` 与 `build_batches_into` 逐字段**等价**、`batch_count` 一致；sink 预含内容时**覆写逻辑前缀 + 返回逻辑 count，尾部残留不清**（非追加，按 count 消费安全）→ 记为 **P3-1**。
+  6. **virtual_list**：`prepare_visible` 与 `bind_visible` fetch 次数一致（30/30，不重复不漏）；`dirty_rects` 两带语义与 verify-M2-WP4 一致。
+
+### 交付与实测数字
+- `crystal spec spec/virtual_list_spec.cr`：**12 examples, 0 failures**（EXIT=0）；VirtualList 簿记路径零分配探针：`delta_prime=0 delta_calib=0 delta_work=0 N=1000 windows=[0,0,0] retried=false attempt=1`。
+- `crystal spec spec/a11y_tree_spec.cr`：**10 examples, 0 failures**（EXIT=0，J1–J9/J5b）；A11y build 探针：`delta_prime=0 delta_calib=0 delta_work=0 N=1000 windows=[0,0,0] retried=false attempt=1`。
+- `crystal spec`（全量）：**171 examples, 0 failures, 0 errors, 0 pending**（EXIT=0，从迭代 4 的 149 增至 171）。
+- 万行虚拟列表（10000×20px, viewport 600）：`visible_avg=30.95/30.9555`，`fetched_per_frame_avg` 同值 ≤32，`pool_size=32 created=32`；A11y `VirtualWindow.emit` 节点数 **≤32**（容器 1 + 可见窗口项），`children_count==10000`、`scroll_offset` 正确。
+- 真实 CPU 帧 bench（`tools/bench_scroll.cr`，frames=2000, n_alloc=1000，"row 12345" 16px msyh）：scroll_plus1px `cmds_avg=61.9 batches_avg=1.0 quads_avg=247.6 frame_cpu_p50_us=1269 p95=2031 p99=2688 alloc_bytes=3920 alloc_windows=[3920,0,3712] delta_prime=0 delta_calib=0 retried=true attempt=2`；jump_fixed_seed `cmds_avg=61.911 batches_avg=1.0 quads_avg=247.644 frame_cpu_p50_us=1775 p95=3669 p99=4421 alloc_bytes=4000 alloc_windows=[0,4000,0] delta_prime=3888 retried=true attempt=2`。`GL_SCROLL_WINDOW=not_done`。
+
+### 已知缺陷（P3，verify-M2-iteration5）
+- **P3-1** `src/tessell/render/draw_list.cr:92-112`：`build_batches_into` 对传入已含内容的 sink 是「覆写逻辑前缀 + 返回逻辑 count，尾部残留不清（物理尾部未清理）」；按 count 消费安全，调用方须以此语义使用（勿按 `sink.size`/越界读取尾部）。*(verify-M2-iteration5 §5)*
+- **P3-2** `src/tessell/a11y/tree.cr:75-79`：`A11y::Meta` 旁挂无删除 API，节点 detach/remove 后 meta 残留（陈旧/泄漏风险，长生命周期/大量 churn 场景可能无界增长）；列入后续清理（与 task-73 同批）。*(verify-M2-iteration5 §5)*
+
+### 残余与 task-73 承接（关键，按裁断口径）
+- **量级定性**：真实 CPU 帧路径 `alloc_bytes=3920/4000` 为 **1000 帧合计**（~3.9 B/帧均摊），且集中在个别窗口（`[3920,0,3712]` / `[0,4000,0]`），**不是每帧固定分配**；正确定性为「**低频重复分配事件**（约每几百帧一次 ~4KB）」，非「每帧分配未清零/已零分配」。
+- **判据裁定（分离）**：A 门（`delta_work < N`，3920>1000）真实 CPU 帧路径**未通过**；M2-WP4 零分配主张**仅覆盖 VirtualList 簿记路径**（`delta_work=0 windows=[0,0,0]`）。真实 CPU 帧路径标注「**未达零分配，残余 ~4KB/1000 帧，根因定位 text 整形/build_text 命中路径（rasterize_into/build_text 缓存命中路径簇状分配，含 HB/FT 每帧重整形候选），后续专项**」。
+- **承接**：M2-WP4 真实帧残余由 **task-73**（shaped-run 跨帧缓存专项）承接，本轮不解锁门禁放水、不再深挖。
+
+### 未验证清单（迭代 5 补充）
+- 真实帧路径零分配未达成（见上，task-73 承接）；alloc_window 尖峰与 HB/FT/FFI+GC 交互的精确单点根因未以原生剖析证实（证据不足断言单一来源）。
+- GL 滚动上屏基准未做（`--window`/`GL_SCROLL_WINDOW` 未实现）。
+- A11y：屏幕阅读器（NVDA/Narrator）端到端、DPI/高 DPI bounds 解释、retained↔a11y 双树一致性同步时机、UIA COM provider/线程与导出形状、焦点落在被回收虚拟行时回落联动均**未验证**；J9 零分配按 A/B 判据观测通过但不能证明绝对零分配（≤256B 稀疏/簇状盲区，见判据文档）。
+- 沿用迭代 4 未验证：真实键盘 IME 手测 C2 开放（程序化注入本机被拒）、Emoji COLR/CPAL、GL 着色器、`GlRenderer#delete_textures` 泄漏、`ratio` 非逐像素等价、B 门盲区与 1536B GC 尖峰 flake 风险。
+
+### 提交信息（M2-iter5）
+- 提交 1（feat）hash：待回填（本次 task-76 提交后）
+- 提交 1（feat）短 hash：待回填
+- 提交 2（docs 回填）hash：待回填（本次 task-76 docs 提交后）
+- 提交 2（docs 回填）短 hash：待回填
