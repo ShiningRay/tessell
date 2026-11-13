@@ -1,7 +1,7 @@
 # 项目终审门禁报告（M0–M4，Windows 本机 S1）
 
 行数：126（实测）
-HEAD：abf1eb3（首版）；595802b（r2 工作区，13 文件未提交）；待回填提交 hash。
+HEAD：abf1eb3（首版）；cffe071（feat）+ 0f86db3（docs）（r2）。
 范围：`docs/plan.md` M0–M4 计划内、Windows 本机；不扩到 macOS/Linux/跨机。
 方法：独立重跑 + 文档对账；未改 src/spec/examples/tools，未 commit。
 
@@ -122,5 +122,5 @@ GATE_RESULT=PASS
   安装器/代码签名/干净 VM；跨机基线；C6 waiver 仅 M3-WP5；
   真实窗口人工目视（`M2-WP2-emoji-color.md:53`）。
 - 本轮改动（13 文件 + 核验报告）**尚未提交**；终审结论以回填提交 hash 为准
-  （待回填提交 hash）。P2-1 修文档后再宣称“已完成”；当前可称“已完成（带限定）”。
+  （cffe071 feat + 0f86db3 docs）。P2-1 修文档后再宣称“已完成”；当前可称“已完成（带限定）”。
 - 裁决：可宣布 M2-WP2 关闭（带限定）；不得写成全量/跨平台完成。
