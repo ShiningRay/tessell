@@ -87,3 +87,81 @@
 - 提交 2（docs）短 hash：7ea9459
 - 提交 3（docs）hash：本提交
 
+# M3 迭代 2 收口日志（M3-iter2）
+
+## 迭代概览
+- 迭代：M3-iter2（M3-WP5 DPI 缩放与主题 token、C5 性能区间）
+- 日期：2026-11-13
+- 仓库：C:\Users\ShiningRay\projects\ShiningRay\tessell
+- 执行：gongbu-shangshu-3（工部尚书副手）
+- 核验：dalisi-qing-2（大理寺卿）
+- 收口任务：task-106
+- 提交位置：提交待回填
+
+## 任务与裁定
+| 任务 | 状态 | 说明/产出 |
+|---|---|---|
+| T99 | completed | dpi-theme 设计草案（hanlin） |
+| T100 | completed | C5 性能区间（gongbu） |
+| T101 | completed | M3-WP5 实现（gongbu） |
+| T103 | completed | 混合缺陷修复（gongbu） |
+| T104 | PASS-WITH-DEFECTS | 独立核验（dalisi），P1/P2 无、P3×3 |
+| T105 | A-recheck=PASS | 合成覆盖度梯度补充验证（dalisi） |
+
+## 交付物（行数实跑口径）
+| 路径 | 行数 |
+|---|---|
+| src/tessell/render/theme.cr | 42 |
+| src/tessell/render/dpi.cr | 25 |
+| src/tessell/render/backend.cr | 34 |
+| src/tessell/render/gl/gl_backend.cr | 453 |
+| src/tessell/render/gl/gl_renderer.cr | 73 |
+| src/tessell/render/text_renderer.cr | 243 |
+| src/tessell.cr | 35 |
+| spec/theme_spec.cr | 87 |
+| spec/dpi_spec.cr | 41 |
+| spec/backend_protocol_spec.cr | 396 |
+| examples/m3_dpi_theme.cr | 724 |
+| examples/m2_text_window.cr | 505 |
+| docs/research/dpi-theme.md | 150 |
+| docs/evidence/M3-WP5-dpi-theme.md | 186 |
+| docs/evidence/M3-perf-band.md | 202 |
+| docs/evidence/verify-M3-WP5.md | 89 |
+
+## 实测证据
+- crystal spec（全量，T95 后）：207 examples, 0 failures, 0 errors, 0 pending
+  （EXIT=0，455.18 ms）
+- m3_dpi_theme --verify：px10=1605 px15=3079 px20=5094
+  r15=1.918380 r20=3.173832 j1_pass=true
+  corner_pixel_rgba=0xffffffff expected_bg=0xffffffff；alloc_windows 最大 112
+- --dpi=1.5 --theme=dark --verify：J5 diff_pixels=0 diff_A_vs_C=1180
+  submitted_quads_dirty=4 < submitted_quads_full=31 culled_quads=27
+  corner_pixel_rgba=0x1e1e1eff expected_bg=0x1e1e1eff j5_j3_pass=true
+- C5：bench_scroll alloc ∈[128,176]（5 次）；m3_dirty_window 5 次全
+  diff_pixels=0 diff_A_vs_C=889 verify=pass；zero_alloc_frame alloc∈{0,16}
+  criterion_ok=true → C5 关闭
+- 回归：m2_text_window text_pixels_nonbg=2801 ratio=1.061789；
+  emoji 1171 match=true，与基线一致
+
+## 缺陷与关闭
+| 缺陷 | 状态 | 说明 |
+|---|---|---|
+| D1 I² 双重乘 coverage | 已关闭 | P1；改 GL_ONE,GL_ONE_MINUS_SRC_ALPHA |
+| D1 补充（复现） | 已关闭 | §3A 合成梯度 Δ_linear≤1, Δ_i²=48/64 |
+| P3-2 默认 rgba 0xffffffff→0x000000ff | 记录不关闭 | 无仓内破坏、外部期望风险 |
+| P3-3 close 未显式 disable BLEND | 记录不关闭 | end_frame 已 disable |
+
+## 未验证清单
+- 每显示器 DPI 无法单屏真测
+  验证所需：WM_DPICHANGED 不可编程触发
+- 真实 GPU 帧时间
+  验证所需：GPU timestamp query 或 Present 计数
+- macOS/Linux 后端
+  验证所需：mac 主机或 macOS CI + Linux WSLg/真机
+- UIA 未实现
+  验证所需：UIA COM 输出/读屏器验证
+
+## 门禁关联
+- C5 关闭
+- C6 waiver 仍适用（M3-WP5 验收侧：字面 [0,0,0] 未达，A/B 通过）
+- C7/C8/C9 未动
