@@ -96,7 +96,11 @@
 - 执行：gongbu-shangshu-3（工部尚书副手）
 - 核验：dalisi-qing-2（大理寺卿）
 - 收口任务：task-106
-- 提交位置：提交待回填
+- 提交 1（feat）hash：a57a2f4d5658f6ffcd232c12385009d1c8e3112f
+- 提交 1（feat）短 hash：a57a2f4
+- 提交 2（docs）hash：d5eadd48a30ac7989dbbeafe42a851ccb769f74f
+- 提交 2（docs）短 hash：d5eadd4
+- 提交 3（docs）hash：本提交
 
 ## 任务与裁定
 | 任务 | 状态 | 说明/产出 |
