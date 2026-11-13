@@ -143,7 +143,7 @@
 - P3 观察项（verify-M2-WP2c-fix）：空白 bitmap 路径（rasterizer）累计 `miss/rasters` 但不增 `used_pixels`（统计口径与 gid==0 路径不完全一致，placements/advance 正确且不入图集）；`tools/zero_alloc_frame.cr` paint1 偶发 `alloc_bytes=16`（windows 含 16，仍 `criterion_ok=true`，在 A/B 内）
 
 ### 提交信息（M2-iter3）
-- 提交 1（feat）hash：待回填
-- 提交 1（feat）短 hash：待回填
-- 提交 2（docs 回填）hash：待回填（本次收口第二次提交后）
-- 提交 2（docs 回填）短 hash：待回填（本次收口第二次提交后）
+- 提交 1（feat）hash：77f42d80a2f8be448dffcbd8f4838ff2ca893114
+- 提交 1（feat）短 hash：77f42d8
+- 提交 2（docs 回填）hash：待回填（本次收口第二次提交后，见 task-61 回报）
+- 提交 2（docs 回填）短 hash：待回填（本次收口第二次提交后，见 task-61 回报）
