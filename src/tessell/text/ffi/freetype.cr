@@ -165,6 +165,27 @@ module Tessell
         end
         type Face = FaceRec*
 
+        struct Color
+          blue  : UInt8
+          green : UInt8
+          red   : UInt8
+          alpha : UInt8
+        end
+
+        struct PaletteData
+          num_palettes           : UInt16
+          palette_name_ids       : Void*
+          palette_flags          : Void*
+          num_palette_entries    : UInt16
+          palette_entry_name_ids : Void*
+        end
+
+        struct LayerIterator
+          num_layers  : UInt32
+          layer_index : UInt32
+          p           : UInt8*
+        end
+
         LOAD_DEFAULT    = 0_i32
         LOAD_NO_SCALE   = 1_i32 << 0
         LOAD_NO_HINTING = 1_i32 << 1
@@ -181,7 +202,13 @@ module Tessell
         fun load_glyph = FT_Load_Glyph(face : Face, glyph_index : UInt, load_flags : Int32) : Error
         fun load_char = FT_Load_Char(face : Face, char_code : ULong, load_flags : Int32) : Error
         fun render_glyph = FT_Render_Glyph(slot : GlyphSlot, render_mode : Int32) : Error
+        fun get_color_glyph_layer = FT_Get_Color_Glyph_Layer(face : Face, base_glyph : UInt, aglyph_index : UInt*, acolor_index : UInt*, iterator : LayerIterator*) : Int32
+        fun palette_data_get = FT_Palette_Data_Get(face : Face, apalette_data : PaletteData*) : Error
+        fun palette_select = FT_Palette_Select(face : Face, palette_index : UInt, apalette : Color**) : Error
       end
+
+      FT_FACE_FLAG_COLOR  = 1_u32 << 14
+      FT_COLOR_FOREGROUND = 0xFFFF_u32
 
       # 布局断言（以本机 gcc 探测值为准，失败即 raise）
       def self.assert_layout! : Nil

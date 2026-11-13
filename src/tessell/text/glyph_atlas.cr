@@ -75,9 +75,12 @@ module Tessell
       getter bearing_x : Int32
       getter bearing_y : Int32
       getter advance : Float32
+      # true: slot lives in an RGBA page (color glyph, premultiplied 4B/px); false: R8 page.
+      getter color : Bool
 
       def initialize(@page : Int32, @x : Int32, @y : Int32, @w : Int32, @h : Int32,
-                     @bearing_x : Int32, @bearing_y : Int32, @advance : Float32)
+                     @bearing_x : Int32, @bearing_y : Int32, @advance : Float32,
+                     @color : Bool = false)
       end
     end
 
@@ -100,9 +103,11 @@ module Tessell
         getter shelves : Array(Shelf)
         property used_pixels : Int32
         property live_count : Int32
+        # bytes per pixel: 1 = R8 coverage page, 4 = premultiplied RGBA page.
+        getter bpp : Int32
 
-        def initialize(@size : Int32)
-          @data = Bytes.new(@size * @size)
+        def initialize(@size : Int32, @bpp : Int32 = 1)
+          @data = Bytes.new(@size * @size * @bpp)
           @shelves = [] of Shelf
           @used_pixels = 0
           @live_count = 0
@@ -135,10 +140,19 @@ module Tessell
         @tick = 0_u64
         @in_frame = 0
         @evicted_total = 0
+        # RGBA pages (color glyphs) are counted and packed independently of R8 pages:
+        # page_count/used_pixels/waste_ratio keep R8-only semantics.
+        @rgba_pages = [] of Page
+        @rgba_free_page_indices = [] of Int32
+        @rgba_cache = Hash(GlyphKey, Entry).new
       end
 
       def page_count : Int32
         @pages.size
+      end
+
+      def rgba_page_count : Int32
+        @rgba_pages.size
       end
 
       def used_pixels : Int32
@@ -171,8 +185,8 @@ module Tessell
         @evicted_total
       end
 
-      def lookup(key : GlyphKey) : GlyphSlot?
-        e = @cache[key]?
+      def lookup(key : GlyphKey, color : Bool = false) : GlyphSlot?
+        e = color ? @rgba_cache[key]? : @cache[key]?
         return nil unless e
         e.tick = @tick
         @tick += 1_u64
@@ -204,8 +218,34 @@ module Tessell
         slot
       end
 
+      # Color-glyph insert into an RGBA page. Same duplicate-key/idempotent and
+      # zero-size rules as insert; page indices address @rgba_pages only.
+      def insert_rgba(key : GlyphKey, w : Int32, h : Int32,
+                      bearing_x : Int32 = 0, bearing_y : Int32 = 0, advance : Float32 = 0.0_f32) : GlyphSlot
+        if w <= 0 || h <= 0
+          raise ArgumentError.new("GlyphAtlas.insert_rgba: glyph size must be > 0 (got #{w}x#{h})")
+        end
+        if e = @rgba_cache[key]?
+          e.tick = @tick
+          @tick += 1_u64
+          @rgba_cache[key] = e
+          return e.slot
+        end
+
+        ensure_capacity_for_insert
+
+        slot = place_rgba(key, w, h, bearing_x, bearing_y, advance)
+        @rgba_cache[key] = Entry.new(slot, @tick, key.font_id)
+        @tick += 1_u64
+        slot
+      end
+
       def page_data(page : Int32) : Bytes
         @pages[page].data
+      end
+
+      def rgba_page_data(page : Int32) : Bytes
+        @rgba_pages[page].data
       end
 
       def slot_rect(slot : GlyphSlot) : NamedTuple(x: Int32, y: Int32, w: Int32, h: Int32)
@@ -215,6 +255,9 @@ module Tessell
       def invalidate_font(font_id : Int32) : Int32
         to_remove = [] of GlyphKey
         @cache.each do |k, e|
+          to_remove << k if e.font_id == font_id
+        end
+        @rgba_cache.each do |k, e|
           to_remove << k if e.font_id == font_id
         end
         to_remove.each do |k|
@@ -227,7 +270,7 @@ module Tessell
         raise FrameEvictionError.new("evict_lru called inside frame") if @in_frame > 0
         evicted = 0
         count.times do
-          break if @cache.empty?
+          break if @cache.empty? && @rgba_cache.empty?
           victim = find_lru_key
           break unless victim
           remove_key(victim)
@@ -238,12 +281,20 @@ module Tessell
 
       def clear : Nil
         @cache.clear
+        @rgba_cache.clear
         @pages.each(&.reset!)
+        @rgba_pages.each(&.reset!)
         @free_page_indices.clear
+        @rgba_free_page_indices.clear
         # all pages become reusable
         i = 0
         while i < @pages.size
           @free_page_indices << i
+          i += 1
+        end
+        i = 0
+        while i < @rgba_pages.size
+          @rgba_free_page_indices << i
           i += 1
         end
         @tick = 0_u64
@@ -251,7 +302,7 @@ module Tessell
       end
 
       private def ensure_capacity_for_insert : Nil
-        return if @cache.size < @capacity
+        return if @cache.size + @rgba_cache.size < @capacity
         if @in_frame > 0
           raise FrameEvictionError.new("LRU eviction during frame is forbidden")
         end
@@ -267,20 +318,40 @@ module Tessell
             min_key = k
           end
         end
+        @rgba_cache.each do |k, e|
+          if e.tick < min_tick
+            min_tick = e.tick
+            min_key = k
+          end
+        end
         min_key
       end
 
       private def remove_key(key : GlyphKey) : Nil
         e = @cache.delete(key)
-        return unless e
-        @evicted_total += 1
-        page = @pages[e.slot.page]
-        page.live_count -= 1
-        # used_pixels kept (holes) unless page becomes fully free
-        if page.live_count <= 0
-          page.reset!
-          unless @free_page_indices.includes?(e.slot.page)
-            @free_page_indices << e.slot.page
+        if e
+          @evicted_total += 1
+          page = @pages[e.slot.page]
+          page.live_count -= 1
+          # used_pixels kept (holes) unless page becomes fully free
+          if page.live_count <= 0
+            page.reset!
+            unless @free_page_indices.includes?(e.slot.page)
+              @free_page_indices << e.slot.page
+            end
+          end
+          return
+        end
+        e2 = @rgba_cache.delete(key)
+        if e2
+          @evicted_total += 1
+          page = @rgba_pages[e2.slot.page]
+          page.live_count -= 1
+          if page.live_count <= 0
+            page.reset!
+            unless @rgba_free_page_indices.includes?(e2.slot.page)
+              @rgba_free_page_indices << e2.slot.page
+            end
           end
         end
       end
@@ -312,6 +383,40 @@ module Tessell
         slot
       end
 
+      private def place_rgba(key : GlyphKey, w : Int32, h : Int32,
+                             bearing_x : Int32, bearing_y : Int32, advance : Float32) : GlyphSlot
+        # try existing RGBA pages
+        i = 0
+        while i < @rgba_pages.size
+          p = @rgba_pages[i]
+          if (slot = try_place_in_page(i, p, w, h, bearing_x, bearing_y, advance, true))
+            return slot
+          end
+          i += 1
+        end
+        if w > @page_size || h > @page_size
+          raise "Color glyph (#{w}x#{h}) does not fit in empty RGBA page of size #{@page_size}"
+        end
+        page_index = acquire_rgba_page
+        p = @rgba_pages[page_index]
+        slot = try_place_in_page(page_index, p, w, h, bearing_x, bearing_y, advance, true)
+        unless slot
+          raise "Color glyph (#{w}x#{h}) does not fit in empty RGBA page of size #{@page_size}"
+        end
+        slot
+      end
+
+      private def acquire_rgba_page : Int32
+        if @rgba_free_page_indices.size > 0
+          idx = @rgba_free_page_indices.pop
+          @rgba_pages[idx].reset!
+          return idx
+        end
+        idx = @rgba_pages.size
+        @rgba_pages << Page.new(@page_size, 4)
+        idx
+      end
+
       private def acquire_page : Int32
         if @free_page_indices.size > 0
           idx = @free_page_indices.pop
@@ -324,7 +429,8 @@ module Tessell
       end
 
       private def try_place_in_page(page_index : Int32, page : Page, w : Int32, h : Int32,
-                                    bearing_x : Int32, bearing_y : Int32, advance : Float32) : GlyphSlot?
+                                    bearing_x : Int32, bearing_y : Int32, advance : Float32,
+                                    color : Bool = false) : GlyphSlot?
         # try existing shelves
         si = 0
         while si < page.shelves.size
@@ -336,7 +442,7 @@ module Tessell
             page.shelves[si] = sh
             page.used_pixels += w * h
             page.live_count += 1
-            return GlyphSlot.new(page_index, x, y, w, h, bearing_x, bearing_y, advance)
+            return GlyphSlot.new(page_index, x, y, w, h, bearing_x, bearing_y, advance, color)
           end
           si += 1
         end
@@ -351,7 +457,7 @@ module Tessell
           page.shelves << sh
           page.used_pixels += w * h
           page.live_count += 1
-          return GlyphSlot.new(page_index, 0, y_start, w, h, bearing_x, bearing_y, advance)
+          return GlyphSlot.new(page_index, 0, y_start, w, h, bearing_x, bearing_y, advance, color)
         end
         nil
       end

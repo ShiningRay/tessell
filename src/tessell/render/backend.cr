@@ -29,6 +29,12 @@ module Tessell
       abstract def close : Nil
       abstract def stats : FrameStats
       abstract def resolved_texture(page : Int32) : Int32
+
+      # Color-page resolution: batches carrying color=true read RGBA atlas pages.
+      # Backends without RGBA pages fall back to the R8 resolution (gray semantics).
+      def resolved_texture(page : Int32, color : Bool) : Int32
+        resolved_texture(page)
+      end
     end
   end
 end

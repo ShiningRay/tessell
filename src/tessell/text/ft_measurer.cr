@@ -14,6 +14,14 @@ module Tessell
       getter measure_calls : Int32 = 0
       getter last_error : String?
 
+      def ft_face_handle : FT::Lib::Face
+        @ft_face
+      end
+
+      def upem_value : Int32
+        @upem
+      end
+
       @ft_library : FT::Lib::Library
       @ft_face : FT::Lib::Face
       @hb_blob : HB::Lib::Blob

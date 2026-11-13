@@ -32,13 +32,15 @@ module Tessell
       end
     end
 
-    # 批次：同一图集页（page）的连续顶点段。纹理由后端占有，调用方不再传纹理 id。
+    # 批次：同一图集页（page）且同页面类型（color）的连续顶点段。纹理由后端占有，调用方不再传纹理 id。
+    # color=false: R8 覆盖页（顶点色调制）；color=true: RGBA 预乘页（后端以 glColor4f(1,1,1,1) 提交，不再乘色）。
     struct TextBatch
       getter start : Int32 # vertices 起始下标
       getter count : Int32 # 顶点数（4 的倍数）
       getter page : Int32  # atlas page index（由 Backend#resolved_texture 解析为实际纹理）
+      getter color : Bool  # atlas page type: true=RGBA color page, false=R8 coverage page
 
-      def initialize(@start : Int32, @count : Int32, @page : Int32)
+      def initialize(@start : Int32, @count : Int32, @page : Int32, @color : Bool = false)
       end
     end
 
@@ -161,9 +163,11 @@ module Tessell
         pen_x = x
         pen_y = y
         current_page = -1
+        current_color = false
         batch_start = 0
         batch_vertices = 0
         batch_page = 0
+        batch_color = false
 
         i = 0
         count = placement_sink.size
@@ -173,10 +177,12 @@ module Tessell
           # w==0||h==0 零位图字形：不产四边形，但推进 pen
           if p.w > 0 && p.h > 0
             page = p.page
+            color = p.color
 
-            if current_page != -1 && page != current_page
-              # flush batch on page change
-              write_batch(batch_start, batch_vertices, batch_page)
+            if current_page != -1 && (page != current_page || color != current_color)
+              # flush batch on page or page-type change: gray (R8) and color (RGBA)
+              # glyphs never merge into one batch (different texture target + tint model)
+              write_batch(batch_start, batch_vertices, batch_page, batch_color)
               batch_start = @vertex_count
               batch_vertices = 0
             end
@@ -185,7 +191,9 @@ module Tessell
               batch_vertices = 0
             end
             current_page = page
+            current_color = color
             batch_page = page
+            batch_color = color
 
             left = pen_x + p.offset_x.to_f32
             top = pen_y - p.offset_y.to_f32
@@ -201,17 +209,17 @@ module Tessell
         end
 
         if batch_vertices > 0
-          write_batch(batch_start, batch_vertices, batch_page)
+          write_batch(batch_start, batch_vertices, batch_page, batch_color)
         end
 
         pen_x
       end
 
-      private def write_batch(start : Int32, count : Int32, page : Int32) : Nil
+      private def write_batch(start : Int32, count : Int32, page : Int32, color : Bool = false) : Nil
         if @batch_count < @batches.size
-          @batches[@batch_count] = TextBatch.new(start, count, page)
+          @batches[@batch_count] = TextBatch.new(start, count, page, color)
         else
-          @batches << TextBatch.new(start, count, page)
+          @batches << TextBatch.new(start, count, page, color)
         end
         @batch_count += 1
       end

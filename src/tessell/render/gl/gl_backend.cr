@@ -100,6 +100,7 @@ module Tessell
     module GL
       class GLBackend < Tessell::Render::Backend
         @page_texture_ids_arr : Array(UInt32)
+        @rgba_page_texture_ids_arr : Array(UInt32)
         @viewport_w : Int32
         @viewport_h : Int32
         @dirty : Array(Tessell::Rect)?
@@ -114,6 +115,7 @@ module Tessell
 
         def initialize
           @page_texture_ids_arr = [] of UInt32
+          @rgba_page_texture_ids_arr = [] of UInt32
           @viewport_w = 0
           @viewport_h = 0
           @dirty = nil
@@ -214,11 +216,46 @@ module Tessell
                                    data.to_unsafe.as(Void*))
             i += 1
           end
+          # RGBA pages (color glyphs, premultiplied 4B/px): uploaded as-is. Color batches
+          # draw with glColor4f(1,1,1,1) — the texel is already the final premultiplied
+          # color, so vertex modulation must NOT multiply it again.
+          rpc = atlas.rgba_page_count
+          while @rgba_page_texture_ids_arr.size < rpc
+            id = 0_u32
+            TessellGL.glGenTextures(1, pointerof(id))
+            @rgba_page_texture_ids_arr << id
+          end
+          i = 0
+          while i < rpc
+            data = atlas.rgba_page_data(i)
+            tex = @rgba_page_texture_ids_arr[i]
+            TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex)
+            TessellGL.glPixelStorei(TessellGL::GL_UNPACK_ALIGNMENT, 1)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MIN_FILTER, TessellGL::GL_LINEAR.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MAG_FILTER, TessellGL::GL_LINEAR.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_S, TessellGL::GL_CLAMP.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_T, TessellGL::GL_CLAMP.to_i32)
+            TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_RGBA.to_i32,
+                                   size, size, 0,
+                                   TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
+                                   data.to_unsafe.as(Void*))
+            i += 1
+          end
         end
 
         def resolved_texture(page : Int32) : Int32
           return 0 if page < 0 || page >= @page_texture_ids_arr.size
           @page_texture_ids_arr[page].to_i32
+        end
+
+        # Color batches resolve RGBA pages; gray batches resolve R8 pages.
+        def resolved_texture(page : Int32, color : Bool) : Int32
+          if color
+            return 0 if page < 0 || page >= @rgba_page_texture_ids_arr.size
+            @rgba_page_texture_ids_arr[page].to_i32
+          else
+            resolved_texture(page)
+          end
         end
 
         def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch), batch_count : Int32 = batches.size) : Int32
@@ -257,17 +294,33 @@ module Tessell
           while i < batch_count
             b = batches[i]
             if b.count > 0
-              tex = resolved_texture(b.page)
-              TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
-              TessellGL.glBegin(TessellGL::GL_QUADS)
-              vi = b.start
-              vend = b.start + b.count
-              while vi < vend
-                v = vertices[vi]
-                emit_vertex(v)
-                vi += 1
+              if b.color
+                tex = resolved_texture(b.page, true)
+                TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
+                # premultiplied RGBA texel is final color: submit unmodulated
+                TessellGL.glColor4f(1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32)
+                TessellGL.glBegin(TessellGL::GL_QUADS)
+                vi = b.start
+                vend = b.start + b.count
+                while vi < vend
+                  v = vertices[vi]
+                  emit_vertex_color(v)
+                  vi += 1
+                end
+                TessellGL.glEnd
+              else
+                tex = resolved_texture(b.page)
+                TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
+                TessellGL.glBegin(TessellGL::GL_QUADS)
+                vi = b.start
+                vend = b.start + b.count
+                while vi < vend
+                  v = vertices[vi]
+                  emit_vertex(v)
+                  vi += 1
+                end
+                TessellGL.glEnd
               end
-              TessellGL.glEnd
               @submitted_quads += b.count // 4
             end
             i += 1
@@ -308,30 +361,58 @@ module Tessell
             while bi < batch_count
               b = batches[bi]
               if b.count > 0
-                tex = resolved_texture(b.page)
-                TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
-                TessellGL.glBegin(TessellGL::GL_QUADS)
-                vi = b.start
-                vend = b.start + b.count
-                while vi < vend
-                  v0 = vertices[vi]
-                  v1 = vertices[vi + 1]
-                  v2 = vertices[vi + 2]
-                  v3 = vertices[vi + 3]
-                  ql = min4(v0.x, v1.x, v2.x, v3.x)
-                  qt = min4(v0.y, v1.y, v2.y, v3.y)
-                  qr = max4(v0.x, v1.x, v2.x, v3.x)
-                  qb = max4(v0.y, v1.y, v2.y, v3.y)
-                  if quad_intersects_rect(ql, qt, qr, qb, r)
-                    emit_vertex(v0)
-                    emit_vertex(v1)
-                    emit_vertex(v2)
-                    emit_vertex(v3)
-                    @submitted_quads += 1
+                if b.color
+                  tex = resolved_texture(b.page, true)
+                  TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
+                  TessellGL.glColor4f(1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32)
+                  TessellGL.glBegin(TessellGL::GL_QUADS)
+                  vi = b.start
+                  vend = b.start + b.count
+                  while vi < vend
+                    v0 = vertices[vi]
+                    v1 = vertices[vi + 1]
+                    v2 = vertices[vi + 2]
+                    v3 = vertices[vi + 3]
+                    ql = min4(v0.x, v1.x, v2.x, v3.x)
+                    qt = min4(v0.y, v1.y, v2.y, v3.y)
+                    qr = max4(v0.x, v1.x, v2.x, v3.x)
+                    qb = max4(v0.y, v1.y, v2.y, v3.y)
+                    if quad_intersects_rect(ql, qt, qr, qb, r)
+                      emit_vertex_color(v0)
+                      emit_vertex_color(v1)
+                      emit_vertex_color(v2)
+                      emit_vertex_color(v3)
+                      @submitted_quads += 1
+                    end
+                    vi += 4
                   end
-                  vi += 4
+                  TessellGL.glEnd
+                else
+                  tex = resolved_texture(b.page)
+                  TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
+                  TessellGL.glBegin(TessellGL::GL_QUADS)
+                  vi = b.start
+                  vend = b.start + b.count
+                  while vi < vend
+                    v0 = vertices[vi]
+                    v1 = vertices[vi + 1]
+                    v2 = vertices[vi + 2]
+                    v3 = vertices[vi + 3]
+                    ql = min4(v0.x, v1.x, v2.x, v3.x)
+                    qt = min4(v0.y, v1.y, v2.y, v3.y)
+                    qr = max4(v0.x, v1.x, v2.x, v3.x)
+                    qb = max4(v0.y, v1.y, v2.y, v3.y)
+                    if quad_intersects_rect(ql, qt, qr, qb, r)
+                      emit_vertex(v0)
+                      emit_vertex(v1)
+                      emit_vertex(v2)
+                      emit_vertex(v3)
+                      @submitted_quads += 1
+                    end
+                    vi += 4
+                  end
+                  TessellGL.glEnd
                 end
-                TessellGL.glEnd
               end
               bi += 1
             end
@@ -397,6 +478,13 @@ module Tessell
           TessellGL.glVertex2f(v.x, v.y)
         end
 
+        # Color-page vertex: texture texel is already the final premultiplied RGBA,
+        # so no glColor4f here (batch set glColor4f(1,1,1,1) before glBegin).
+        private def emit_vertex_color(v : Tessell::Render::Vertex) : Nil
+          TessellGL.glTexCoord2f(v.u, v.v)
+          TessellGL.glVertex2f(v.x, v.y)
+        end
+
         private def min4(a : Float32, b : Float32, c : Float32, d : Float32) : Float32
           m = a < b ? a : b
           m = c if c < m
@@ -450,9 +538,14 @@ module Tessell
         end
 
         def delete_textures : Nil
-          return if @page_texture_ids_arr.empty?
-          TessellGL.glDeleteTextures(@page_texture_ids_arr.size, @page_texture_ids_arr.to_unsafe)
-          @page_texture_ids_arr.clear
+          unless @page_texture_ids_arr.empty?
+            TessellGL.glDeleteTextures(@page_texture_ids_arr.size, @page_texture_ids_arr.to_unsafe)
+            @page_texture_ids_arr.clear
+          end
+          unless @rgba_page_texture_ids_arr.empty?
+            TessellGL.glDeleteTextures(@rgba_page_texture_ids_arr.size, @rgba_page_texture_ids_arr.to_unsafe)
+            @rgba_page_texture_ids_arr.clear
+          end
         end
 
         def page_texture_ids : Array(Int32)

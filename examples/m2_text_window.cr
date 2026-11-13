@@ -5,6 +5,7 @@
 #   crystal run examples/m2_text_window.cr -- --emoji --frames=120 --verify
 # Outputs (default): text_pixels_nonbg, cpu_coverage_sum, ratio, pixel_match, frame times p50/p95/p99
 # Outputs (--emoji): emoji_quads, emoji_pixels_nonbg, emoji_pixel_match, frame_p50_ms (plus full mixed render evidence)
+# Outputs (--emoji-color): emoji_color_quads/pixels/pixels_colored/dominant_rgb/batches/verify (COLR/CPAL RGBA path)
 # If window/GL unavailable: records blocking error and exits 1 without faking pixel_match.
 
 require "../src/tessell/text/ft_measurer"
@@ -139,27 +140,76 @@ def percentile(sorted : Array(Float64), p : Float64) : Float64
 end
 
 # cpu_coverage_sum: sum of nonzero alpha bytes in atlas page regions referenced by emitted drawable placements.
+# Color placements read the RGBA page alpha byte (4B/px); gray placements read R8 coverage (1B/px).
 def compute_cpu_coverage_sum(atlas : Tessell::Text::GlyphAtlas, sink : Array(Tessell::Text::GlyphPlacement)) : Int64
   sum = 0_i64
   sink.each do |p|
     next if p.w <= 0 || p.h <= 0
-    slot = atlas.lookup(p.key)
+    slot = atlas.lookup(p.key, p.color)
     next unless slot
-    data = atlas.page_data(slot.page)
     ps = atlas.page_size
     y = 0
     while y < slot.h
       x = 0
-      base = (slot.y + y) * ps + slot.x
       while x < slot.w
-        v = data[base + x]
-        sum += 1 if v > 0_u8
+        if p.color
+          data = atlas.rgba_page_data(slot.page)
+          sum += 1 if data[((slot.y + y) * ps + (slot.x + x)) * 4 + 3] > 0_u8
+        else
+          data = atlas.page_data(slot.page)
+          sum += 1 if data[(slot.y + y) * ps + (slot.x + x)] > 0_u8
+        end
         x += 1
       end
       y += 1
     end
   end
   sum
+end
+
+# Color stats over a readback: colored pixels (max(r,g,b)-min(r,g,b)>30), dominant RGB among
+# them (exact-tuple histogram), and a_opaque_ratio = non-bg pixels with readback alpha==255.
+def count_color_stats(readback : Bytes, width : Int32, height : Int32) : NamedTuple(colored: Int64, dominant: String, a_opaque_ratio: Float64)
+  total_px = width * height
+  colored = 0_i64
+  nonbg = 0_i64
+  a255_nonbg = 0_i64
+  hist = Hash(Tuple(Int32, Int32, Int32), Int32).new(0)
+  i = 0
+  while i < total_px
+    off = i * 4
+    r = readback[off].to_i
+    g = readback[off + 1].to_i
+    b = readback[off + 2].to_i
+    a = readback[off + 3].to_i
+    mx = r > g ? r : g
+    mx = b if b > mx
+    mn = r < g ? r : g
+    mn = b if b < mn
+    if mx - mn > 30
+      colored += 1
+      hist[{r, g, b}] += 1
+    end
+    if (r - 255).abs > 8 || (g - 255).abs > 8 || (b - 255).abs > 8
+      nonbg += 1
+      a255_nonbg += 1 if a == 255
+    end
+    i += 1
+  end
+  dom_r = 0
+  dom_g = 0
+  dom_b = 0
+  dom_n = 0
+  hist.each do |rgb, n|
+    if n > dom_n
+      dom_n = n
+      dom_r = rgb[0]
+      dom_g = rgb[1]
+      dom_b = rgb[2]
+    end
+  end
+  ratio = nonbg > 0 ? a255_nonbg.to_f64 / nonbg.to_f64 : 0.0
+  {colored: colored, dominant: "#{dom_r},#{dom_g},#{dom_b}", a_opaque_ratio: ratio}
 end
 
 def count_nonbg(readback : Bytes, width : Int32, height : Int32, bg_r : Float32, bg_g : Float32, bg_b : Float32) : Int64
@@ -225,6 +275,7 @@ end
 frames_target = 120
 verify_mode = false
 emoji_mode = false
+emoji_color_mode = false
 ARGV.each_with_index do |arg, i|
   if arg.starts_with?("--frames=")
     frames_target = arg.split("=", 2)[1].to_i
@@ -234,6 +285,8 @@ ARGV.each_with_index do |arg, i|
     verify_mode = true
   elsif arg == "--emoji"
     emoji_mode = true
+  elsif arg == "--emoji-color"
+    emoji_color_mode = true
   end
 end
 
@@ -251,7 +304,7 @@ begin
     STDERR.puts "blocking=font_missing path=#{FONT_PATH}"
     exit 1
   end
-  if emoji_mode && !File.exists?(EMOJI_FONT_PATH)
+  if (emoji_mode || emoji_color_mode) && !File.exists?(EMOJI_FONT_PATH)
     STDERR.puts "blocking=font_missing path=#{EMOJI_FONT_PATH}"
     exit 1
   end
@@ -271,10 +324,12 @@ begin
   emoji_text = "😀👍"
   rest_text = " Hello 你好"
 
-  if emoji_mode
+  if emoji_mode || emoji_color_mode
     ft_e = Tessell::Text::FtMeasurer.open(EMOJI_FONT_PATH, 0)
     atlas_e = Tessell::Text::GlyphAtlas.new(1024, 4096)
-    rast_e = Tessell::Text::Rasterizer.new(ft_e.not_nil!, atlas_e.not_nil!, 1)
+    # --emoji-color opts in to the COLR/CPAL path (RGBA atlas pages); --emoji keeps the
+    # pre-task-134 R8 gray-mask path (its 1171-pixel baseline must not move).
+    rast_e = Tessell::Text::Rasterizer.new(ft_e.not_nil!, atlas_e.not_nil!, 1, 256, emoji_color_mode)
     tr_e = Tessell::Render::TextRenderer.new(atlas_e.not_nil!, rast_e.not_nil!)
   end
 
@@ -282,8 +337,8 @@ begin
   hinstance = LibKernel32.GetModuleHandleW(Pointer(UInt16).null)
   raise "GetModuleHandleW failed err=#{LibKernel32.GetLastError}" if hinstance.null?
 
-  class_name = to_wstr(emoji_mode ? "TessellM2EmojiProbe" : "TessellM2TextProbe")
-  window_title = to_wstr(emoji_mode ? "Tessell M2 Emoji Probe" : "Tessell M2 Text Probe")
+  class_name = to_wstr(emoji_color_mode ? "TessellM2EmojiColorProbe" : emoji_mode ? "TessellM2EmojiProbe" : "TessellM2TextProbe")
+  window_title = to_wstr(emoji_color_mode ? "Tessell M2 Emoji Color Probe" : emoji_mode ? "Tessell M2 Emoji Probe" : "Tessell M2 Text Probe")
 
   wc = LibUser32::WNDCLASSEXW.new
   wc.cbSize = sizeof(LibUser32::WNDCLASSEXW).to_u32
@@ -333,11 +388,107 @@ begin
   raise "wglMakeCurrent failed err=#{LibKernel32.GetLastError}" if LibWGL.wglMakeCurrent(hdc, hglrc) == 0
 
   glr_c = Tessell::Render::GL::GlRenderer.new(atlas_c)
-  glr_e : Tessell::Render::GL::GlRenderer? = emoji_mode ? Tessell::Render::GL::GlRenderer.new(atlas_e.not_nil!) : nil
+  glr_e : Tessell::Render::GL::GlRenderer? = (emoji_mode || emoji_color_mode) ? Tessell::Render::GL::GlRenderer.new(atlas_e.not_nil!) : nil
 
   last_readback = Bytes.new(width * height * 4)
 
-  if emoji_mode
+  if emoji_color_mode
+    te = tr_e.not_nil!
+    ae = atlas_e.not_nil!
+    ge = glr_e.not_nil!
+
+    # build emoji-color segment (COLR/CPAL -> RGBA atlas pages, color_enabled=true)
+    tex_e = ge.sync_atlas_textures
+    pen_after = te.build_text(sink_e, emoji_text, text_x, text_y, text_size, width, height, tex_e)
+    tex_e = ge.sync_atlas_textures
+    pen_after = te.build_text(sink_e, emoji_text, text_x, text_y, text_size, width, height, tex_e)
+    cpu_cov_e = compute_cpu_coverage_sum(ae, sink_e)
+    emoji_color_quads = te.stats[:quads]
+    emoji_color_batches = te.stats[:batches]
+
+    # build rest segment (gray)
+    tex_c = glr_c.sync_atlas_textures
+    tr_c.build_text(sink_c, rest_text, pen_after, text_y, text_size, width, height, tex_c)
+    tex_c = glr_c.sync_atlas_textures
+    tr_c.build_text(sink_c, rest_text, pen_after, text_y, text_size, width, height, tex_c)
+
+    # emoji-color-only measurement pass
+    glr_c.begin_frame(width, height, bg_r, bg_g, bg_b, 1.0_f32) # clears
+    ge.draw_text(te)
+    glr_c.end_frame
+    TessellGL.glPixelStorei(TessellGL::GL_PACK_ALIGNMENT, 1)
+    TessellGL.glReadPixels(0, 0, width, height, TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE, last_readback.to_unsafe.as(Void*))
+    emoji_color_pixels = count_nonbg(last_readback, width, height, bg_r, bg_g, bg_b)
+    cs = count_color_stats(last_readback, width, height)
+    emoji_color_pixels_colored = cs[:colored]
+    emoji_color_dominant_rgb = cs[:dominant]
+    a_opaque_ratio = cs[:a_opaque_ratio]
+    emoji_color_ratio = cpu_cov_e > 0 ? (emoji_color_pixels.to_f64 / cpu_cov_e.to_f64) : 0.0
+    emoji_color_verify = (emoji_color_pixels > 0) && (emoji_color_pixels_colored > 0) &&
+                         (a_opaque_ratio > 0.5) && (emoji_color_ratio >= 0.5) && (emoji_color_ratio <= 1.5)
+
+    # timed frames: render full mixed string
+    frame_times = [] of Float64
+    msg = LibUser32::MSG.new
+    frames_done = 0
+    swap_ok = 0
+    while frames_done < frames_target && !ProbeState.quit_requested
+      t0 = Time.instant
+      while LibUser32.PeekMessageW(pointerof(msg), Pointer(Void).null, 0_u32, 0_u32, PM_REMOVE) != 0
+        if msg.message == WM_QUIT
+          ProbeState.quit_requested = true
+          break
+        end
+        LibUser32.TranslateMessage(pointerof(msg))
+        LibUser32.DispatchMessageW(pointerof(msg))
+      end
+      break if ProbeState.quit_requested
+
+      tex_e = ge.sync_atlas_textures
+      te.build_text(sink_e, emoji_text, text_x, text_y, text_size, width, height, tex_e)
+      tex_c = glr_c.sync_atlas_textures
+      tr_c.build_text(sink_c, rest_text, pen_after, text_y, text_size, width, height, tex_c)
+
+      glr_c.begin_frame(width, height, bg_r, bg_g, bg_b, 1.0_f32)
+      ge.draw_text(te)
+      glr_c.draw_text(tr_c)
+      glr_c.end_frame
+
+      TessellGL.glPixelStorei(TessellGL::GL_PACK_ALIGNMENT, 1)
+      TessellGL.glReadPixels(0, 0, width, height, TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE, last_readback.to_unsafe.as(Void*))
+
+      if LibGdi32.SwapBuffers(hdc) != 0
+        swap_ok += 1
+      end
+      frames_done += 1
+      frame_times << (Time.instant - t0).total_milliseconds
+    end
+
+    mixed_nonbg = count_nonbg(last_readback, width, height, bg_r, bg_g, bg_b)
+    sorted = frame_times.sort
+    p50 = percentile(sorted, 50.0)
+    p95 = percentile(sorted, 95.0)
+    p99 = percentile(sorted, 99.0)
+
+    ge.delete_textures
+    glr_c.delete_textures
+    LibWGL.wglMakeCurrent(Pointer(Void).null, Pointer(Void).null)
+    LibWGL.wglDeleteContext(hglrc)
+    LibUser32.ReleaseDC(hwnd, hdc)
+    LibUser32.DestroyWindow(hwnd) unless ProbeState.quit_requested
+    ft_e.not_nil!.close
+    ft_c.close
+
+    puts "emoji_color_quads=#{emoji_color_quads} emoji_color_pixels=#{emoji_color_pixels} emoji_color_pixels_colored=#{emoji_color_pixels_colored} emoji_color_dominant_rgb=#{emoji_color_dominant_rgb} emoji_color_batches=#{emoji_color_batches} emoji_color_verify=#{emoji_color_verify} a_opaque_ratio=#{a_opaque_ratio} emoji_color_ratio=#{emoji_color_ratio} cpu_cov=#{cpu_cov_e} mixed_pixels_nonbg=#{mixed_nonbg} frames=#{frames_done} swapbuffers=#{swap_ok} pen_after_emoji_x=#{pen_after} text_quads=#{tr_c.stats[:quads]} frame_p50_ms=#{p50} frame_p95_ms=#{p95} frame_p99_ms=#{p99}"
+    puts "emoji_color_note=rendered \"😀👍 Hello 你好\" with COLR/CPAL color glyphs (seguiemj.ttf) into RGBA atlas pages + gray text (msyh.ttc); color texel is premultiplied RGBA submitted with glColor4f(1,1,1,1) (no second multiply); gray path unchanged R8->GL_INTENSITY with vertex tint. a_opaque_ratio = non-bg pixels with readback alpha==255 (opaque canvas is the documented side effect of the premultiplied blend)."
+    puts "gl_path=GL1.1_compat R8->GL_INTENSITY_blend_one_minus_src_alpha + RGBA_premultiplied_blend_one_minus_src_alpha glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
+
+    if verify_mode
+      exit(emoji_color_verify ? 0 : 1)
+    else
+      exit(0)
+    end
+  elsif emoji_mode
     te = tr_e.not_nil!
     ae = atlas_e.not_nil!
     ge = glr_e.not_nil!

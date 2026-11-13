@@ -8,12 +8,15 @@ require "./ffi/freetype"
 require "./ffi/harfbuzz"
 require "./ft_measurer"
 require "./glyph_atlas"
+require "./color_glyph"
 
 module Tessell
   module Text
     # Placement of one shaped glyph in atlas space.
     # uv in [0,1] over atlas page: (u0,v0)=top-left, (u1,v1)=bottom-right of glyph rect.
     # page: atlas page index for drawable glyphs, -1 for zero-bitmap/non-atlas placements.
+    # color: true = placement lives in an RGBA atlas page (COLR/CPAL color glyph,
+    # premultiplied RGBA texel); false = R8 coverage page (default, backward compatible).
     struct GlyphPlacement
       getter key : GlyphKey
       getter glyph_id : UInt32
@@ -27,12 +30,14 @@ module Tessell
       getter u1 : Float32
       getter v1 : Float32
       getter page : Int32
+      getter color : Bool
 
       def initialize(@key : GlyphKey, @glyph_id : UInt32, @advance_px : Float32,
                      @offset_x : Int32, @offset_y : Int32,
                      @w : Int32, @h : Int32,
                      @u0 : Float32, @v0 : Float32, @u1 : Float32, @v1 : Float32,
-                     @page : Int32 = -1)
+                     @page : Int32 = -1,
+                     @color : Bool = false)
       end
     end
 
@@ -102,8 +107,12 @@ module Tessell
       @run_cache_capacity : Int32
       @run_tick : UInt64
       @run_in_frame : Int32
+      # Opt-in COLR/CPAL path (task-134). When false, every glyph rasterizes as
+      # R8 gray coverage (pre-task-134 behavior preserved, e.g. --emoji 1171 px).
+      @color_enabled : Bool
+      @color_rasterizer : ColorRasterizer?
 
-      def initialize(@measurer : FtMeasurer, @atlas : GlyphAtlas, @font_id : Int32 = 0, run_cache_capacity : Int32 = 256)
+      def initialize(@measurer : FtMeasurer, @atlas : GlyphAtlas, @font_id : Int32 = 0, run_cache_capacity : Int32 = 256, color_enabled : Bool = false)
         @hits = 0
         @misses = 0
         @rasters = 0
@@ -111,6 +120,8 @@ module Tessell
         @run_cache_capacity = run_cache_capacity
         @run_tick = 0_u64
         @run_in_frame = 0
+        @color_enabled = color_enabled
+        @color_rasterizer = nil
       end
 
       def atlas : GlyphAtlas
@@ -138,10 +149,27 @@ module Tessell
       end
 
       # Alpha coverage of a placement: number of pixels with value > 0 in the atlas slot.
+      # Color placements read the RGBA page alpha byte (4B/px); gray placements read the
+      # R8 coverage byte (1B/px) as before.
       def coverage(p : GlyphPlacement) : Int32
-        slot = @atlas.lookup(p.key)
+        slot = @atlas.lookup(p.key, p.color)
         return 0 unless slot
         return 0 if slot.w <= 0 || slot.h <= 0
+        if p.color
+          d = @atlas.rgba_page_data(slot.page)
+          ps = @atlas.page_size
+          count = 0
+          y = 0
+          while y < slot.h
+            x = 0
+            while x < slot.w
+              count += 1 if d[((slot.y + y) * ps + (slot.x + x)) * 4 + 3] > 0
+              x += 1
+            end
+            y += 1
+          end
+          return count
+        end
         d = @atlas.page_data(slot.page)
         ps = @atlas.page_size
         count = 0
@@ -286,8 +314,9 @@ module Tessell
 
       private def rasterize_glyph(gid : UInt32, face : FT::Lib::Face, size_px : Int32,
                                   advance_px : Float32, page_size_f : Float32) : GlyphPlacement
-        key = GlyphKey.new(@font_id, gid, size_px, 0_u8, 0_u8)
-        if slot = @atlas.lookup(key)
+        use_color = color_glyph?(gid)
+        key = GlyphKey.new(@font_id, gid, size_px, 0_u8, use_color ? 1_u8 : 0_u8)
+        if slot = @atlas.lookup(key, use_color)
           @hits += 1
           return placement_from_slot(key, gid, advance_px, slot, page_size_f)
         end
@@ -297,11 +326,26 @@ module Tessell
         # stays == HB glyph count and HB advance is preserved. Drawable area is empty.
         if gid == 0
           return GlyphPlacement.new(key, gid, advance_px, 0, 0, 0, 0,
-                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1)
+                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1, use_color)
         end
 
         @misses += 1
         @rasters += 1
+
+        # COLR/CPAL color glyph: rasterize layers into a premultiplied RGBA canvas
+        # (ColorRasterizer) and store into an RGBA atlas page.
+        if use_color
+          cbm = color_rasterizer.rasterize_color(gid, size_px)
+          w = cbm.w
+          h = cbm.h
+          if w <= 0 || h <= 0
+            return GlyphPlacement.new(key, gid, advance_px, cbm.bearing_x, cbm.bearing_y, 0, 0,
+                                      0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1, true)
+          end
+          atlas_slot = @atlas.insert_rgba(key, w, h, cbm.bearing_x, cbm.bearing_y, advance_px)
+          copy_rgba_to_atlas(cbm.pixels, atlas_slot)
+          return placement_from_slot(key, gid, advance_px, atlas_slot, page_size_f)
+        end
 
         # FT_LOAD_RENDER: render outline to 8bpp gray bitmap (pixel_mode=2), no hinting/LCD.
         err = FT::Lib.load_glyph(face, gid, FT::Lib::LOAD_RENDER)
@@ -321,12 +365,54 @@ module Tessell
         # correct HB advance so text layout/advance accumulation remains correct.
         if w <= 0 || h <= 0
           return GlyphPlacement.new(key, gid, advance_px, bearing_x, bearing_y, 0, 0,
-                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1)
+                                    0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, -1, false)
         end
 
         atlas_slot = @atlas.insert(key, w, h, bearing_x, bearing_y, advance_px)
         copy_bitmap_to_atlas(bm, atlas_slot)
         placement_from_slot(key, gid, advance_px, atlas_slot, page_size_f)
+      end
+
+      private def color_rasterizer : ColorRasterizer
+        cr = @color_rasterizer
+        if cr.nil?
+          cr = ColorRasterizer.new(@measurer)
+          @color_rasterizer = cr
+        end
+        cr.not_nil!
+      end
+
+      # Color-glyph detection (opt-in). False for .notdef, non-color faces, and
+      # glyphs without COLR layers; one FFI probe per cache miss only.
+      private def color_glyph?(gid : UInt32) : Bool
+        return false unless @color_enabled
+        return false if gid == 0
+        color_rasterizer.color?(gid)
+      end
+
+      private def copy_rgba_to_atlas(pixels : Bytes, slot : GlyphSlot) : Nil
+        w = slot.w
+        h = slot.h
+        return if w <= 0 || h <= 0
+        return if pixels.size < w * h * 4
+        dst_page = @atlas.rgba_page_data(slot.page)
+        ps = @atlas.page_size
+        row = 0
+        while row < h
+          src_index = row * w * 4
+          dst_index = ((slot.y + row) * ps + slot.x) * 4
+          col = 0
+          while col < w
+            dst_page[dst_index] = pixels[src_index]
+            dst_page[dst_index + 1] = pixels[src_index + 1]
+            dst_page[dst_index + 2] = pixels[src_index + 2]
+            dst_page[dst_index + 3] = pixels[src_index + 3]
+            src_index += 4
+            dst_index += 4
+            col += 1
+          end
+          row += 1
+        end
       end
 
       private def copy_bitmap_to_atlas(bm : FT::Lib::Bitmap, slot : GlyphSlot) : Nil
@@ -370,7 +456,7 @@ module Tessell
           v1 = (slot.y + slot.h).to_f32 / page_size_f
         end
         GlyphPlacement.new(key, gid, advance_px, slot.bearing_x, slot.bearing_y,
-                           slot.w, slot.h, u0, v0, u1, v1, slot.page)
+                           slot.w, slot.h, u0, v0, u1, v1, slot.page, slot.color)
       end
     end
 
