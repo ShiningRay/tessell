@@ -1,21 +1,80 @@
 # Tessell
 
-A retained-mode, declarative GUI framework for **Crystal**.
+Tessell 是 **Crystal 的 retained-mode 自绘 GUI 框架**：纯 FFI 绑定
+FreeType / HarfBuzz / OpenGL，**无第三方运行时绑定**，渲染与文本栈全部
+自绘，不依赖原生控件工具包。
 
-Tessell 的设计目标：用 Crystal 的表达力做可控渲染的原生桌面 UI，而不是再做一层 C toolkit 绑定。
+## 当前状态（M0–M4）
 
-## 为什么是这条路
+| 阶段 | 状态 | 内容 | 证据 |
+|---|---|---|---|
+| M0 | 完成 | 本机基线、Isolated UI 上下文、WGL 窗口+GL 提交、文本 FFI（FT/HB）、IMM32 IME 探针、度量工具链 | [M0-summary](docs/evidence/M0-summary.md)、[M0-gate](docs/evidence/M0-gate.md) |
+| M1 | 完成 | 两遍布局内核、文本测量缓存、retained 树与三级失效、DrawList/批次、稳态零分配 | [M1-iteration-log](docs/evidence/M1-iteration-log.md)、[M1-WP5-zero-alloc](docs/evidence/M1-WP5-zero-alloc.md) |
+| M2 | 完成 | 输入焦点/命中测试、FT+HB 文本栈、字形图集/光栅化、文本上屏、IME 探针、万行虚拟列表、a11y 树 | [M2-summary](docs/evidence/M2-summary.md)、[M2-gate](docs/evidence/M2-gate.md) |
+| M3 | S1 收口 | 后端抽象+脏矩形部分提交、DPI/主题、真实 GL 万行滚动；macOS No-Go、Linux 未验证、stencil 未做 | [M3-iteration-log](docs/evidence/M3-iteration-log.md)、[M3-gate-r4](docs/evidence/M3-gate-r4.md) |
+| M4 | 完成 | UI DSL（S1）、打包 DLL 清单、真实示例应用+使用文档、一键质量门禁 | [M4-iteration-log](docs/evidence/M4-iteration-log.md)、[M4-WP4-gate](docs/evidence/M4-WP4-gate.md) |
 
-- **Execution Contexts**（2026-07）让单个 fiber 独占系统线程，官方明确支持 GUI/game loop。UI 主循环跑在 `Isolated` context，业务留在默认 context，语言层面解决了主线程归属问题。
-- **GC 决定 retained 优于 immediate**。Boehm GC 停等会把每帧全量重建变成掉帧，retained 树 + 脏重绘把稳态分配压到近零。
-- **绑定路线没有空位**。GTK4.cr / CrystKit / crystal-imgui 已各占一位，且绑定时 Crystal 的编译期优势被 C 侧吸收。
+> M2 Emoji 仅 R8 灰度显示/测量，彩色 COLR/CPAL 未做；M3 为 S1 范围收口，
+> 不等于全平台完成。详见上表证据文件的「未验证」清单。
 
-架构与论证见 [docs/architecture.md](docs/architecture.md)。
+## 快速开始
 
-## 状态
+环境：Windows + msys2 ucrt64，Crystal 1.22（`crystal --version` 可核对）。
 
-**早期设计阶段，不可用于生产。** M0 技术验证未完成。
+```powershell
+$env:PATH="C:\msys64\ucrt64\bin;$env:PATH"
+crystal build examples/app_demo.cr -o bin/app_demo.exe
+bin/app_demo.exe --frames=120 --verify
+```
+
+- 字体要求：本机已装 `C:/Windows/Fonts/msyh.ttc`（示例内硬编码该路径）。
+- 一键质量门禁（spec/build/示例/打包/卫生 14 项）：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/gate.ps1
+```
+
+- 完整参数、交互与判据说明见 [docs/usage.md](docs/usage.md)。
+
+## 架构
+
+| 层 | 目录 | 职责 |
+|---|---|---|
+| core | `src/tessell/core/` | retained Node 树；三级失效 Layout/Paint/CompositeOnly |
+| layout | `src/tessell/layout.cr` | 两遍布局（约束下行、尺寸上行），纯函数内核 |
+| text | `src/tessell/text/` | FreeType/HarfBuzz、字形 atlas、rasterizer、measurer |
+| render | `src/tessell/render/` | DrawList、Dirty 脏矩形、Backend 抽象、GL、Theme、Dpi |
+| input | `src/tessell/input/` | event、hit_test、focus、Router 事件分发 |
+| widgets | `src/tessell/widgets/` | VirtualList 等基础控件 |
+| a11y | `src/tessell/a11y/` | A11yNode 无障碍树（进程内） |
+| ui | `src/tessell/ui/` | key/builder/apply 声明式 DSL 与状态协调 |
+
+数据流与线程模型见 [docs/architecture.md](docs/architecture.md)。
+
+## 证据索引
+
+- [M0-summary](docs/evidence/M0-summary.md)：M0 各 WP 证据链与 Go（条件）建议。
+- [M2-summary](docs/evidence/M2-summary.md)：M2 WP 状态与 C1–C9 条件台账。
+- [M3-iteration-log](docs/evidence/M3-iteration-log.md)：M3 三次迭代收口记录。
+- [M3-gate-r4](docs/evidence/M3-gate-r4.md)：M3 收口门禁终审（Go-with-conditions）。
+- [M4-iteration-log](docs/evidence/M4-iteration-log.md)：M4 迭代 4 任务与 gate 14/14 证据。
+- [M4-WP4-gate](docs/evidence/M4-WP4-gate.md)：一键门禁 14 项与 DoD 对照。
+- [verify-M4-WP3-WP4](docs/evidence/verify-M4-WP3-WP4.md)：WP3/WP4 独立核验。
+- [M2-WP2c-zero-alloc-criterion](docs/evidence/M2-WP2c-zero-alloc-criterion.md)：零分配判据 A/B 定义。
+
+## 已知限制（如实）
+
+- 真实键盘 IME 组合输入未手测（C7，需人工）；程序化 IME 注入不可用。
+- macOS 后端本机 No-Go；Linux 后端未做、未运行验证。
+- UIA provider 未实现；a11y 仅进程内 A11yNode 树，未接屏幕阅读器。
+- Emoji 彩色（COLR/CPAL）未做；当前为 R8 灰度路径。
+- 安装器、代码签名、干净 VM 端到端未做；跨机器性能/零分配基线未建。
+- 零分配判据为 A `delta_work < 1000`、B `delta_work <= 256`（3 窗 max），
+  **不是严格 0**；本机 16–96B GC/簿记噪声可落任意窗。
 
 ## License
 
-MIT
+项目本体 MIT（见 [LICENSE](LICENSE)，Copyright (c) 2026 ShiningRay）。
+依赖许可（FreeType / HarfBuzz / Boehm GC / msys2 运行时 DLL / 字体）见
+[docs/evidence/M4-WP2-licensing.md](docs/evidence/M4-WP2-licensing.md)。
+Windows 系统字体（如 `msyh.ttc`）不随包分发，运行时依赖用户本机已装字体。

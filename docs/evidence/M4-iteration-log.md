@@ -114,3 +114,66 @@
 - f06cb3f docs: M3 收口门禁终审、独立核验与零分配口径修正
 - （见提交 3 本身）docs: 回填 M4 迭代 4 提交 hash
 - 推送：已 push 到 origin/main（HEAD == origin/main，见验证）
+
+# M4 迭代 5 收口日志（M4-iter5）
+
+- 任务：task-129（S3）+ task-128（README/C9）+ task-130（独立核验）；
+  HEAD `5547fac` 起；执行者 gongbu-shangshu-4；记录日 2026-11-13。
+- 范围：S3 代码 + 两个新 spec + app_demo 接入 + README 一行事实修正；
+  未动 docs/ 与 tools/（除本日志与既有证据件），未做破坏性 git 操作。
+
+## 1. 任务表
+
+| 任务 | 内容 | 执行者 | 状态 |
+|---|---|---|---|
+| task-128 | README 重写 + C9 许可决策 | gongbu-3 | completed |
+| task-129 | M4-WP1 S3（a11y 同步 + D6） | gongbu-shangshu-4 | completed |
+| task-130 | S3 独立核验 | zuodu-yushi | PASS（67 行） |
+
+- 注：task-130 原派 dalisi-qing-2，上下文耗尽无产出，改派 zuodu-yushi。
+
+## 2. 交付物实测行数（ReadAllLines）
+
+| 交付物 | 行数 |
+|---|---:|
+| README.md | 80 |
+| docs/evidence/M4-WP2-licensing.md | 51 |
+| spec/ui_a11y_spec.cr | 273 |
+| spec/router_single_entry_spec.cr | 85 |
+| docs/evidence/verify-M4-WP1-S3.md | 67 |
+
+## 3. 证据
+
+- spec：`233 examples, 0 failures`（基线 221，新增 12）。
+- 三组 `--verify` 均 `a11y_nodes=34 verify=pass alloc_windows=[0,0,0]`
+  `retried=false attempt=1`；`diff_A_vs_C=3113/3102/6092`。
+- `zero_alloc_frame --frames=200 --json`：static `windows=[0,16,0]`、
+  paint1 `[0,0,0]`，均 `criterion_ok=true`。
+- 探针 A：五字段一致；B：删除后 emit 3→2；C：10000 行仅 32 节点且
+  scroll_to(4000) offset=4000；D：默认值 tree_same/dirty_same 均 true；
+  E：D6 自 grep 19 命中只有 router.cr/focus.cr 写入。
+
+## 4. 缺陷台账
+
+- S3 无 P0/P1/P2。
+- P3×3：仅本机 Windows/WGL；app_demo `--verify` 滚动为 0，虚拟滚动只
+  在合成探针覆盖；README/许可文件未在核验范围。
+
+## 5. 条件台账更新
+
+- C5 关闭（前轮）；C6 waiver 仅覆盖 M3-WP5；C7 仍未关闭（真实键盘
+  IME 手测需人工）；M3-WP2 macOS No-Go、M3-WP3 Linux 本机不可验证。
+- C9 → 决策已定（D-C9：不随包分发 Windows 字体、推荐 Noto OFL），
+  法务复核项列为未验证。
+
+## 6. 未验证
+
+1. 跨机器/跨 GPU 基线 — 需第二台机器重跑 gate。
+2. CI 接入 — 需 runner 与凭证。
+3. 覆盖率采集 — 需工具接入 spec 流程。
+4. 法务复核（OFL 文本/DLL 条款）— 需法务。
+5. 真实键盘 IME 手测（C7）— 需人工真机。
+
+## 7. 下一步
+
+- 最终项目门禁（全量 gate + 法务复核 + C7 手测 + 跨机器基线）。
