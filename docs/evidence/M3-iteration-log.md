@@ -260,3 +260,66 @@
 - 许可：freetype FTL/GPLv2+、harfbuzz MIT、Noto OFL 1.1 可随包；
   Windows 系统字体不可分发（`docs/research/font-fallback.md`）。
 - 证据：`docs/evidence/M4-WP2-packaging.md`（173 行，含 8 条 [未验证]）。
+
+# M3 迭代 4 收口日志（M3-WP4 路径 stencil/cover）
+
+## 1. 任务表
+
+| 任务 | 内容 | 状态 |
+|---|---|---|
+| task-141 | 实现：Polygon CPU 参考 + GL stencil/cover + 窗口验证（阶段 A/B） | 已完成（待提交） |
+| task-142 | 独立核验：stencil 反证 + CPU 参考独立性 + 判据审计 | PASS-WITH-DEFECTS（P3×3） |
+| task-143 | 收尾文字：注释事实修正 + 本日志 + README/终审 r3 | 本节 |
+
+## 2. 交付物行数表（ReadAllLines 口径）
+
+| 文件 | 行数 |
+|---|---|
+| `src/tessell/render/polygon.cr` | 151 |
+| `src/tessell/render/backend.cr` | 51 |
+| `src/tessell/render/gl/gl_backend.cr` | 668 |
+| `src/tessell.cr` | 38 |
+| `spec/polygon_spec.cr` | 361 |
+| `spec/path_gl_spec.cr` | 209 |
+| `spec/backend_protocol_spec.cr` | 443 |
+| `examples/m3_path_window.cr` | 575 |
+| `tools/gate.ps1` | 250 |
+| `docs/evidence/M3-WP4-stencil-cover.md` | 71 |
+| `docs/evidence/verify-M3-WP4.md` | 78 |
+
+## 3. 实测原始 token 照录（三行；折行处内容照录）
+
+- 正例：`mode=stencil_cover stencil_bits=8 fill_pixels_gl=7794
+  fill_pixels_cpu=7794 star_pixels=7794 diff_pixels=0 star_offset_x=0.13
+  star_offset_y=0.29 star_vertices=5 frames=20 alloc_windows=[64,64,64]
+  retried=false attempt=1 negative_holds=true verify=pass`
+- 负例：`mode=fan_no_stencil stencil_bits=8 fill_pixels_gl=16244
+  fill_pixels_cpu=7794 star_pixels=7794 diff_pixels=8450 ... verify=fail`
+- 核验反证：`GL_INVERT→GL_KEEP` 后 `fill_pixels_gl=0 fill_pixels_cpu=7794
+  diff_pixels=7794 verify=fail`（已恢复，`git diff --stat` 仍 +111/−6）。
+
+## 4. 判据与口径
+
+- 四条：`stencil_bits>=8`、`diff_pixels==0`、`fill_pixels_gl==fill_pixels_cpu`、
+  `fill_pixels_gl>0`；未放宽。
+- 零分配：A `delta_work<1000`、B `<=256`、三窗 max、`GC.enable` 在 ensure。
+
+## 5. P3 台账（核验 PASS-WITH-DEFECTS，P0/P1/P2 无）
+
+- P3-1 注释偏移陈旧：本轮已修（400.13/300.29，并补 0.37/0.61 曾得 diff=1）。
+- P3-2 `diff==0` 仅对当前 5 角/偏移几何成立；radius 80 时 `diff=1`，属边界
+  fill convention，记录不视作缺陷。
+- P3-3 零分配 probe 数字跨运行差 16B（64 vs 80）；A/B 均过，非阻断。
+
+## 6. 未验证（≥4）
+
+- 多显卡/驱动 stencil 行为差异；MSAA 下像素一致性。
+- cover 仅 bounds quad 的极端形状覆盖质量。
+- stencil 与 dirty/scissor/多 polygon 复用交互。
+- `even_odd=false`（nonzero）未实现。
+
+## 7. 门禁关联
+
+- **M3-WP4 关闭（带限定：even-odd only、单几何像素对拍）**；C8 已关闭；
+  C7/C9 未动。
+- 措辞禁写：通用/跨平台/生产就绪/严格零分配。

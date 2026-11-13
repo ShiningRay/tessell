@@ -124,3 +124,17 @@ GATE_RESULT=PASS
 - 本轮改动（13 文件 + 核验报告）**尚未提交**；终审结论以回填提交 hash 为准
   （cffe071 feat + 0f86db3 docs）。P2-1 修文档后再宣称“已完成”；当前可称“已完成（带限定）”。
 - 裁决：可宣布 M2-WP2 关闭（带限定）；不得写成全量/跨平台完成。
+
+## r3 复核（M3-WP4 关闭）
+
+- 裁定：M3-WP4 路径 stencil/cover **关闭（带限定）**：even-odd only、单几何
+  样例像素对拍；不得外推跨平台/任意几何。
+- 证据链：工部报告 `M3-WP4-stencil-cover.md`（71 行）+ 核验
+  `verify-M3-WP4.md`（78 行，PASS-WITH-DEFECTS，P3×3）+ stencil 反证
+  7794→0（去 INVERT）与负例 8450（fan 填星心）。
+- 数字：全量 spec 246 → **263**（+17：polygon 9 + path_gl 6 +
+  backend_protocol +2）；正例 `diff_pixels=0 fill_pixels_gl==cpu==7794`。
+- 未关闭清单 10 → **9**：删除「M3-WP4 stencil/cover」；其余 9 项原样保留
+  （C7 人工 IME、C9 法务、macOS、Linux、UIA、安装器/签名/干净 VM、跨机基线、
+  C6 waiver 仅覆盖 M3-WP5、真实窗口人工目视）。
+- 提交 hash 待回填。

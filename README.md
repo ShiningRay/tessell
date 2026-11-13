@@ -11,10 +11,10 @@ FreeType / HarfBuzz / OpenGL，**无第三方运行时绑定**，渲染与文本
 | M0 | 完成 | 本机基线、Isolated UI 上下文、WGL 窗口+GL 提交、文本 FFI（FT/HB）、IMM32 IME 探针、度量工具链 | [M0-summary](docs/evidence/M0-summary.md)、[M0-gate](docs/evidence/M0-gate.md) |
 | M1 | 完成 | 两遍布局内核、文本测量缓存、retained 树与三级失效、DrawList/批次、稳态零分配 | [M1-iteration-log](docs/evidence/M1-iteration-log.md)、[M1-WP5-zero-alloc](docs/evidence/M1-WP5-zero-alloc.md) |
 | M2 | 完成 | 输入焦点/命中测试、FT+HB 文本栈、字形图集/光栅化、文本上屏、IME 探针、万行虚拟列表、a11y 树、彩色 Emoji（Windows seguiemj 单样例，COLRv0/CPAL；已完成，带限定） | [M2-summary](docs/evidence/M2-summary.md)、[M2-gate](docs/evidence/M2-gate.md) |
-| M3 | S1 收口 | 后端抽象+脏矩形部分提交、DPI/主题、真实 GL 万行滚动；macOS No-Go、Linux 未验证、stencil 未做 | [M3-iteration-log](docs/evidence/M3-iteration-log.md)、[M3-gate-r4](docs/evidence/M3-gate-r4.md) |
+| M3 | S1 收口 | 后端抽象+脏矩形部分提交、DPI/主题、真实 GL 万行滚动、路径填充 stencil/cover（even-odd，五角星与 CPU 参考逐像素对拍）；macOS No-Go、Linux 未验证 | [M3-iteration-log](docs/evidence/M3-iteration-log.md)、[M3-gate-r4](docs/evidence/M3-gate-r4.md) |
 | M4 | 完成 | UI DSL（S1）、打包 DLL 清单、真实示例应用+使用文档、一键质量门禁 | [M4-iteration-log](docs/evidence/M4-iteration-log.md)、[M4-WP4-gate](docs/evidence/M4-WP4-gate.md) |
 
-当前全量 spec：246 examples / 0 failures（M2 彩色 Emoji 新增 13 例）。
+当前全量 spec：263 examples / 0 failures（M3-WP4 stencil/cover 新增 17 例：polygon 9 + path_gl 6 + backend_protocol +2；M2 彩色 Emoji 历史新增 13 例）。
 
 > M2 Emoji 已完成（带限定）：Windows + `C:/Windows/Fonts/seguiemj.ttf` 单一样例 +
 > COLRv0/CPAL + glReadPixels 数值回读；R8 灰度路径保留；不得外推为
@@ -66,6 +66,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/gate.ps1
 - [M2-WP2c-zero-alloc-criterion](docs/evidence/M2-WP2c-zero-alloc-criterion.md)：零分配判据 A/B 定义。
 - [M2-WP2-emoji-color](docs/evidence/M2-WP2-emoji-color.md)：彩色 Emoji 实现、反证与限定。
 - [verify-M2-WP2-emoji-color](docs/evidence/verify-M2-WP2-emoji-color.md)：彩色 Emoji 独立核验（PASS-WITH-DEFECTS）。
+- [M3-WP4-stencil-cover](docs/evidence/M3-WP4-stencil-cover.md)：路径 stencil/cover 实现与正负例证据。
+- [verify-M3-WP4](docs/evidence/verify-M3-WP4.md)：路径 stencil/cover 独立核验（PASS-WITH-DEFECTS）。
 
 ## 已知限制（如实）
 
