@@ -293,4 +293,10 @@ Platform/Window Input + Channel(UiSnapshot)
 | Crystal 泛型/宏编译时长与单态化开销未系统测量 | 未验证 | capabilities 未探泛型开销；宏仅单次 run 样本 5053ms（非泛化） | [来源: research/crystal-capabilities.md:L12; 未验证] |
 | macOS/Linux 后端、IME/a11y 平台细节与一致性 | 待证据/待环境 | 非本机环境 | [待证据] |
 
+## 变更记录
+
+- **CR-1（2026-11-14）**：M2-WP5 的 a11y 交付范围明确为「A11yNode 树 + 与 FocusManager 同步 + 虚拟列表不物化」；Windows UIA 的 COM provider 层（`IRawElementProviderSimple`/`Fragment`/`FragmentRoot` 手写 vtable、COM 生命周期与跨线程封送）**不在 M0–M4 范围内**，该层未实现，门禁条件 C8 由此条变更关闭。理由：接口与验收条件不足，工作量与风险显著高于其余 M2 项；本机无屏幕阅读器/自动化客户端验收条件（现仅有 .NET UIAutomationClient 可做只读探针）；本轮派工执行者上下文耗尽、零产出（团队 8 人已满，无法补人）。依据：`docs/evidence/M2-gate.md`（C8 原文）、`docs/evidence/verify-M4-WP1-S3.md`、`src/tessell/a11y/tree.cr`、`src/tessell/ui/apply.cr:369-380`。
+- **CR-2**：M3-WP2 macOS 维持 No-Go（无环境）；M3-WP3 Linux 维持「仅编译级」，不做运行验证。依据：`docs/evidence/M3-gate-r4.md`、`docs/research/m3-platform-matrix.md:48`、`docs/evidence/PROJECT-final-gate.md`。
+- **CR-3**：零分配验收口径固定为 `delta_work < 1000 且 <= 256`（非严格 0）；C6 waiver 仅覆盖 M3-WP5。依据：`docs/evidence/M2-WP2c-zero-alloc-criterion.md`、`docs/evidence/M2-summary.md:52`、`docs/evidence/M3-iteration-log.md:231`。
+
 *（文末）*

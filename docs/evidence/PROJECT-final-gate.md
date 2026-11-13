@@ -156,3 +156,10 @@ GATE_RESULT=PASS
 - 规模（现算，HEAD `c356253`）：提交 **60**；`git ls-files src` **31 文件 / 5,792 行**；spec **32 文件**；example **15**；`docs/evidence/*.md` **73**；`docs/evidence/shots` **6**。
 - 未关闭清单保持 **9 条**：C7 真实键盘 IME 人工手测；C9 字体许可法务复核（D-C9 已决策）；M3-WP2 macOS No-Go；M3-WP3 Linux 无显示/未运行；UIA provider 延后；安装器/签名/干净 VM（便携 zip 已提供 3 个示例 + 依赖闭包，裸 PATH 可跑；仍无安装器与代码签名）；跨机基线；C6 waiver 仅 M3-WP5；人工 QA 签字未做。
 - 裁决：维持 **Go-with-conditions（S1，仅 Windows 本机 msys2/Intel 驱动）**；本轮无新增缺陷、无判据改动。
+
+## r6 复核（C8 以 plan 变更关闭）
+
+- 变更记录：`docs/plan.md:298` CR-1（2026-11-14）将 M2-WP5 的 a11y 交付范围限定为「A11yNode 树 + 与 FocusManager 同步 + 虚拟列表不物化」；Windows UIA COM provider 层不在 M0–M4 范围，**UIA provider 未实现；不是「实现但未验证」**，门禁条件 C8 由此条变更关闭。
+- 依据：`docs/plan.md` `## 变更记录`（CR-1；`:296-302`）；`docs/evidence/M2-gate.md`（C8 原文）；`docs/evidence/verify-M4-WP1-S3.md`；`src/tessell/a11y/tree.cr`、`src/tessell/ui/apply.cr:369-380`。
+- 未关闭清单 9 → **8 条**：C7 真实键盘 IME 人工手测；C9 字体许可法务复核；M3-WP2 macOS No-Go；M3-WP3 Linux 无显示/未运行；安装器/签名/干净 VM；跨机基线；C6 waiver 仅 M3-WP5；人工 QA 签字未做。
+- 裁决：维持 **Go-with-conditions（S1，仅 Windows 本机 msys2/Intel 驱动）**。本轮为范围/文档变更，未改代码与判据，spec 263/0 与 gate 15/15 不受影响。
