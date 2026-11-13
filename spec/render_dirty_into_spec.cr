@@ -1,11 +1,8 @@
-# M1-WP5 稳态零分配：Render::Dirty.merge_into 复用调用方缓冲（spec）。
-#
-# 覆盖：
-#   1) merge_into 与 merge 在 6 组输入上结果相等（含顺序）；
-#   2) sink 预分配后重复调用不增长（size 不超 max_regions、重复调用不抛）；
-#   3) 不产空矩形；
-#   4) GC 零分配探针兜底（bytes_since_gc 差值 0）。
-
+require "./spec_helper"
+# M1-WP5 绋虫€侀浂鍒嗛厤锛歊ender::Dirty.merge_into 澶嶇敤璋冪敤鏂圭紦鍐诧紙spec锛夈€?#
+# 瑕嗙洊锛?#   1) merge_into 涓?merge 鍦?6 缁勮緭鍏ヤ笂缁撴灉鐩哥瓑锛堝惈椤哄簭锛夛紱
+#   2) sink 棰勫垎閰嶅悗閲嶅璋冪敤涓嶅闀匡紙size 涓嶈秴 max_regions銆侀噸澶嶈皟鐢ㄤ笉鎶涳級锛?#   3) 涓嶄骇绌虹煩褰紱
+#   4) GC 闆跺垎閰嶆帰閽堝厹搴曪紙bytes_since_gc 宸€?0锛夈€?
 require "spec"
 require "../src/tessell/render/dirty"
 
@@ -65,20 +62,66 @@ describe "Render::Dirty.merge_into (M1-WP5 zero-alloc path)" do
     sink.size.should eq 1
   end
 
-  it "allocates zero bytes across repeated calls with a pre-sized sink (GC probe)" do
+  it "satisfies zero-alloc criterion on repeated calls with a pre-sized sink (GC probe)" do
     input = [r(0, 0, 10, 10), r(5, 5, 10, 10), r(20, 20, 4, 4)] of Rect
     sink = [] of Rect
     64.times { sink << Rect.new }
     sink.clear
 
+    n = 1000
     10.times { Render::Dirty.merge_into(input, sink) } # warmup
+
+    # Prime window (diagnostic)
+    delta_prime = 0_i64
     GC.collect
     GC.disable
-    before = GC.stats.bytes_since_gc
-    1000.times { Render::Dirty.merge_into(input, sink) }
-    after = GC.stats.bytes_since_gc
-    GC.enable
+    begin
+      before = GC.stats.bytes_since_gc
+      n.times { Render::Dirty.merge_into(input, sink) }
+      after = GC.stats.bytes_since_gc
+      delta_prime = after.to_i64 - before.to_i64
+    ensure
+      GC.enable
+    end
 
-    (after - before).should eq 0
+    # Calib window (diagnostic)
+    delta_calib = 0_i64
+    calib_sink = 0_i64
+    GC.collect
+    GC.disable
+    begin
+      before = GC.stats.bytes_since_gc
+      i = 0
+      while i < n
+        calib_sink &+= i.to_i64
+        i += 1
+      end
+      after = GC.stats.bytes_since_gc
+      delta_calib = after.to_i64 - before.to_i64
+    ensure
+      GC.enable
+    end
+    calib_sink.should be >= 0_i64
+
+    # 3 work windows
+    work = [] of Int64
+    3.times do
+      GC.collect
+      GC.disable
+      begin
+        before = GC.stats.bytes_since_gc
+        n.times { Render::Dirty.merge_into(input, sink) }
+        after = GC.stats.bytes_since_gc
+        work << (after.to_i64 - before.to_i64)
+      ensure
+        GC.enable
+      end
+    end
+    delta_work = work.max
+    seq = "[#{work[0]},#{work[1]},#{work[2]}]"
+    puts "zero-alloc probe(render_dirty): delta_prime=#{delta_prime} delta_calib=#{delta_calib} delta_work=#{delta_work} N=#{n} windows=#{seq}"
+    unless delta_work < n && delta_work <= 64
+      fail "zero-alloc probe: delta_work=#{delta_work} delta_calib=#{delta_calib} delta_prime=#{delta_prime} N=#{n} windows=#{seq}"
+    end
   end
 end

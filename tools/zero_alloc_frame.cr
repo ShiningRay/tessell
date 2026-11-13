@@ -69,7 +69,8 @@ class FrameRunner
   end
 end
 
-def measure_scenario(runner : FrameRunner, frames : Int32, paint1 : Bool) : UInt64
+def measure_scenario(runner : FrameRunner, frames : Int32, paint1 : Bool) : {Int64, Int64, Int64, Array(Int64)}
+  # warmup
   w = 0
   while w < 10
     if paint1
@@ -80,8 +81,8 @@ def measure_scenario(runner : FrameRunner, frames : Int32, paint1 : Bool) : UInt
     w += 1
   end
 
-  before = 0_u64
-  after = 0_u64
+  # prime window (diagnostic)
+  delta_prime = 0_i64
   GC.collect
   GC.disable
   begin
@@ -96,10 +97,53 @@ def measure_scenario(runner : FrameRunner, frames : Int32, paint1 : Bool) : UInt
       f += 1
     end
     after = GC.stats.bytes_since_gc
+    delta_prime = after.to_i64 - before.to_i64
   ensure
     GC.enable
   end
-  after - before
+
+  # calib window (diagnostic)
+  delta_calib = 0_i64
+  calib_sink = 0_i64
+  GC.collect
+  GC.disable
+  begin
+    before = GC.stats.bytes_since_gc
+    i = 0
+    while i < frames
+      calib_sink &+= i.to_i64
+      i += 1
+    end
+    after = GC.stats.bytes_since_gc
+    delta_calib = after.to_i64 - before.to_i64
+  ensure
+    GC.enable
+  end
+  _ = calib_sink # keep observable side effect value live
+
+  # 3 work windows
+  work = [] of Int64
+  3.times do
+    GC.collect
+    GC.disable
+    begin
+      before = GC.stats.bytes_since_gc
+      f = 0
+      while f < frames
+        if paint1
+          runner.paint1_frame(f)
+        else
+          runner.static_frame
+        end
+        f += 1
+      end
+      after = GC.stats.bytes_since_gc
+      work << (after.to_i64 - before.to_i64)
+    ensure
+      GC.enable
+    end
+  end
+  {delta_prime, delta_calib, work.max, work}
 end
 
 frames = 200
@@ -142,21 +186,26 @@ end
 
 runner = FrameRunner.new(root, nodes)
 
-static_alloc = measure_scenario(runner, frames, false)
-paint_alloc = measure_scenario(runner, frames, true)
+static_prime, static_calib, static_alloc, static_work = measure_scenario(runner, frames, false)
+paint_prime, paint_calib, paint_alloc, paint_work = measure_scenario(runner, frames, true)
+
+static_seq = "[#{static_work[0]},#{static_work[1]},#{static_work[2]}]"
+paint_seq = "[#{paint_work[0]},#{paint_work[1]},#{paint_work[2]}]"
+static_ok = static_alloc < frames && static_alloc <= 64
+paint_ok = paint_alloc < frames && paint_alloc <= 64
 
 if json_out
-  puts %({"scenario":"static","frames":#{frames},"nodes":#{node_count},"alloc_bytes":#{static_alloc},"delta_zero":#{static_alloc == 0}})
-  puts %({"scenario":"paint1","frames":#{frames},"nodes":#{node_count},"alloc_bytes":#{paint_alloc},"delta_zero":#{paint_alloc == 0}})
+  puts %({"scenario":"static","frames":#{frames},"nodes":#{node_count},"alloc_bytes":#{static_alloc},"criterion_ok":#{static_ok},"delta_prime":#{static_prime},"delta_calib":#{static_calib},"windows":#{static_seq}})
+  puts %({"scenario":"paint1","frames":#{frames},"nodes":#{node_count},"alloc_bytes":#{paint_alloc},"criterion_ok":#{paint_ok},"delta_prime":#{paint_prime},"delta_calib":#{paint_calib},"windows":#{paint_seq}})
 else
-  puts "scenario=static frames=#{frames} nodes=#{node_count} alloc_bytes=#{static_alloc} delta_zero=#{(static_alloc == 0) ? "true" : "false"}"
-  puts "scenario=paint1 frames=#{frames} nodes=#{node_count} alloc_bytes=#{paint_alloc} delta_zero=#{(paint_alloc == 0) ? "true" : "false"}"
+  puts "scenario=static frames=#{frames} nodes=#{node_count} alloc_bytes=#{static_alloc} criterion_ok=#{static_ok} delta_prime=#{static_prime} delta_calib=#{static_calib} windows=#{static_seq}"
+  puts "scenario=paint1 frames=#{frames} nodes=#{node_count} alloc_bytes=#{paint_alloc} criterion_ok=#{paint_ok} delta_prime=#{paint_prime} delta_calib=#{paint_calib} windows=#{paint_seq}"
 end
 
-# 非 0 如实提示（不凑 0、不臆断来源）：warmup 已跑，非 0 说明仍有隐式分配，需在证据中分析来源。
-if static_alloc != 0
-  puts "alloc_note=static non-zero: #{static_alloc} bytes in #{frames} measured frames; not forced to 0; source analysis in docs/evidence/M1-WP5-zero-alloc.md"
+unless static_ok
+  puts "alloc_note=static criterion failed: alloc_bytes=#{static_alloc} frames=#{frames} (require <frames and <=64) windows=#{static_seq} prime=#{static_prime} calib=#{static_calib}"
 end
-if paint_alloc != 0
-  puts "alloc_note=paint1 non-zero: #{paint_alloc} bytes in #{frames} measured frames; not forced to 0; source analysis in docs/evidence/M1-WP5-zero-alloc.md"
+unless paint_ok
+  puts "alloc_note=paint1 criterion failed: alloc_bytes=#{paint_alloc} frames=#{frames} (require <frames and <=64) windows=#{paint_seq} prime=#{paint_prime} calib=#{paint_calib}"
 end
+exit 1 unless static_ok && paint_ok

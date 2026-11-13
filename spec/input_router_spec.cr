@@ -1,3 +1,4 @@
+require "./spec_helper"
 # M2-WP1 路由 spec：down 聚焦+返回目标、move hover、key 到焦点、blur 清焦点、resize nil、up 按压、wheel 回落。
 
 require "spec"

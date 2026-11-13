@@ -1,3 +1,4 @@
+require "./spec_helper"
 # M2-WP1 命中测试 spec：嵌套命中、重叠 z-order（后加子节点优先）、边界点、miss。
 
 require "spec"
@@ -6,6 +7,7 @@ require "../src/tessell/core/node"
 require "../src/tessell/input/hit_test"
 
 include Tessell
+include Tessell::Input
 
 def build_hit_tree : {Node, Node, Node, Node}
   root = Node.new("root", Rect.new(0.0_f32, 0.0_f32, 100.0_f32, 100.0_f32))

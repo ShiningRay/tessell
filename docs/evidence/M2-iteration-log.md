@@ -95,5 +95,55 @@
 ### 提交信息（M2-iter2）
 - 提交 1（feat）hash：10253733405e9f936abab8b43103e9e56198d22e
 - 提交 1（feat）短 hash：1025373
-- 提交 2（docs 回填）hash：见本次收口回报（HEAD / origin/main）
-- 提交 2（docs 回填）短 hash：见本次收口回报
+- 提交 2（docs 回填）hash：76ef5d6e6f06b6358329049a049c89d32c913a1e
+- 提交 2（docs 回填）短 hash：76ef5d6
+
+---
+
+## M2 迭代 3（M2-WP2b / M2-WP2c）
+
+### 任务与状态
+| 任务 | 状态 | 说明/产出 |
+|---|---|---|
+| T49（M2-WP2b 字形图集） | 完成 | `src/tessell/text/glyph_atlas.cr`、`spec/glyph_atlas_spec.cr`：R8 Page/shelf 装箱、GlyphKey(FNV-1a-64)/GlyphSlot、lookup/insert(LRU tick)/invalidate_font/begin_frame-end_frame 帧内禁止淘汰(FrameEvictionError)/evict_lru 与页复用/page_data+slot_rect 等 |
+| T52（WP2b 核验） | 完成（核验） | `docs/evidence/verify-M2-WP2b.md`（99 行，read 工具口径），裁定 **PASS-WITH-DEFECTS**（P1/P2 无；P3-1 超大字形 acquire_page 后失败遗留空页、P3-2 0 尺寸/重复 key 尺寸忽略语义未约束） |
+| T53（M2-WP2c 光栅化） | 完成 | `src/tessell/text/rasterizer.cr`、`spec/rasterizer_spec.cr`：Rasterizer(face,atlas)、rasterize/rasterize_into、GlyphPlacement、HB shaping 复用、FT_Load_Glyph(FT_LOAD_RENDER) 8bpp 写 atlas、负 pitch 拷贝逻辑、命中复用 stats(hits/misses/rasters) |
+| T54（atlas P3 修复 + 接线） | 完成 | P3-1 超大字形在 acquire_page 前预检 raise（page_count/旧槽不变，消息不变）；P3-2 0 尺寸 `ArgumentError`、同 key 重复 insert 首槽生效(忽略新参数)；`src/tessell.cr` +2 行 require(glyph_atlas/rasterizer)；glyph_atlas_spec 保留既有并补充覆盖 |
+| T55/T56（WP2c 首轮核验与探针加固） | 完成（发现缺陷/加固未根治） | `docs/evidence/verify-M2-WP2c.md`（88 行）裁定 **FAIL**（P1 rasterize_into 全缓存命中 `delta_steady=16` 非 0；P2 零分配稳定性不足 5 次中 1 次 flake；P3-1 空白/零尺寸字形抛异常、P3-2 `"لا"` placements/advance 三方不一致、P3-3 负 pitch 未触达、P3-4 单跑 FT::Lib 未限定）。task-56 将 core_node/render_dirty/text_ft 三探针改为 prime+steady 双窗口并补诊断，但 dalisi 独立连跑 5 次仍 run1 失败 1/5（双窗口未根治） |
+| T58（零分配判据可判定化） | 完成 | 4 探针(core_node/render_dirty_into/text_ft/glyph_atlas)+`tools/zero_alloc_frame.cr` 统一：warmup→prime(诊断)→calib(N 空迭代,诊断)→3 work 窗口取 max；`GC.enable` in ensure；打印 `delta_prime/delta_calib/delta_work/N/windows=[w1,w2,w3]`；判据 **A `delta_work < N`(N=1000)**、**B `delta_work <= 64`**；修 glyph_atlas_spec.cr:151 旧单窗口；报告 `docs/evidence/M2-WP2c-zero-alloc-criterion.md`（24 行）。验收：全量 10/10 绿 `141 examples, 0 failures`；4 探针各 10 次 40/40 绿 |
+| T59（rasterizer 三缺陷修复 + spec 单跑） | 完成 | D1：gid==0/bitmap w<=0||h<=0 不入图集仍产 placement(w=h=0,uv 空,保留 HB advance/bearing)；D2：RTL `"لا"` placements 数==HB glyph 数且 Σadvance 与 measure/HB 一致（msyh count==2，tahoma/arial/times count==1）；D3：新增 `spec/spec_helper.cr`，15 个 spec 补 require/spec_helper 与必要限定，逐文件单跑 15/15 全绿；rasterizer_spec 11 examples 0 failures |
+| T60（修复复核） | 完成（核验） | `docs/evidence/verify-M2-WP2c-fix.md`（83 行），裁定 **PASS**；对抗实验 `bin/_negctl.cr` (8B×1000/call) **RESULT=CAUGHT** `delta_work=31968 windows=[28576,31968,31968] criterion_ok=false`（判据未放水）；独立 5/5 全量 + 20/20 探针全绿 |
+
+### 两轮核验裁定
+- `docs/evidence/verify-M2-WP2b.md`（99 行）：**PASS-WITH-DEFECTS**（P3-1/P3-2 观察项）。
+- `docs/evidence/verify-M2-WP2c.md`（88 行）：**FAIL**（P1/P2 + P3 若干）。
+- 修复（T54/T56/T58/T59）后 `docs/evidence/verify-M2-WP2c-fix.md`（83 行）：**PASS**（P3 观察项 2 条，非阻塞）。
+
+### 零分配判据变更与理由
+- 背景：Boehm `GC.stats.bytes_since_gc` 在 GC.disable 下仍可出现间歇簿记噪声，严格 `delta==0` 在 Windows 上不可判定。
+- 取证（task-59，rasterize_into 全缓存命中 1000 次 × 20 窗口）：`0,0,0,0,16,0,16,0,0,16,0,0,16,0,16,0,0,16,0,0`（+16B 间歇、非 per-call，可落任意窗口）。
+- task-58 step1 全量 20 次 flake 原始失败行：run1,3-7,9-17,19-20 EXIT=0 `138 examples, 0 failures`；run2 EXIT=1 `138 examples, 2 failures` — `spec\glyph_atlas_spec.cr:151` `Expected 0 got 16`；`spec\render_dirty_into_spec.cr:90` `delta_steady.should eq 0` Expected 0 got 16 (Finished 100.44ms)；run8 EXIT=1 `138 examples, 1 failures` — `spec\glyph_atlas_spec.cr:151` Expected 0 got 16 (Finished 137.08ms)；run18 EXIT=1 `138 examples, 1 failures` — `spec\core_node_zero_alloc_spec.cr:109` `delta_steady should eq 0` Expected 0 got 16 (Finished 142.42ms)。未复现 `spec/text_ft_zero_alloc_spec.cr:12`；`glyph_atlas_spec.cr:151` 原为旧单窗口协议。
+- 新判据：`delta_work = max(3 work windows)`；**A `delta_work < N`**（N=1000，1B/次 per-call ⇒ 每窗 ≥1000B 必失败）；**B `delta_work <= 64`**（容忍观测到的 +16B 噪声，仍检出 ≥100B 固定分配）；prime/calib 仅诊断，失败打印四数+序列。
+- 强度/对抗：对抗实验 `bin/_negctl.cr` 每调用分配 8B×1000 次 → **CAUGHT** `delta_work=31968 windows=[28576,31968,31968] criterion_ok=false`。判据不证明“绝对 0 分配”，提供 Boehm 噪声下可判定的强下界检测；若观测到 >64B 噪声需升级分位法。
+
+### 验收数字（M2-iter3，收口自检）
+- `crystal spec`：141 examples / 0 failures / 0 errors / 0 pending（EXIT=0）
+- 逐文件单跑：15/15 全绿（EXIT=0）
+- `crystal build src/tessell.cr`：EXIT=0（构建产物 `tessell.exe` 删除）
+- `crystal run tools/zero_alloc_frame.cr`：scenario=static/paint1 `alloc_bytes` 0 或在判据内、`criterion_ok=true`
+
+### 未验证清单
+- 真实 IME 组合 / 绝对坐标换算（沿用）
+- 真实负 pitch 位图样本在本机未触达（代码分支按 FT 语义实现，正 pitch 路径已验证）
+- 真实 IME 手测未做
+- GPU 上传未纳入 GC 窗口（沿用）
+
+### 已知缺口与 P3 观察项
+- M2-WP2 文本栈其余、M2-WP3 IME、M2-WP4 虚拟列表、M2-WP5 a11y（虚拟列表/a11y 设计预研见 `docs/research/virtual-list-a11y.md`，100 行）
+- P3 观察项（verify-M2-WP2c-fix）：空白 bitmap 路径（rasterizer）累计 `miss/rasters` 但不增 `used_pixels`（统计口径与 gid==0 路径不完全一致，placements/advance 正确且不入图集）；`tools/zero_alloc_frame.cr` paint1 偶发 `alloc_bytes=16`（windows 含 16，仍 `criterion_ok=true`，在 A/B 内）
+
+### 提交信息（M2-iter3）
+- 提交 1（feat）hash：待回填
+- 提交 1（feat）短 hash：待回填
+- 提交 2（docs 回填）hash：待回填（本次收口第二次提交后）
+- 提交 2（docs 回填）短 hash：待回填（本次收口第二次提交后）

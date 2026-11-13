@@ -1,3 +1,4 @@
+require "./spec_helper"
 require "spec"
 require "../src/tessell/render/draw_list"
 require "../src/tessell/render/dirty"

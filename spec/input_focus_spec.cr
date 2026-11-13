@@ -1,3 +1,4 @@
+require "./spec_helper"
 # M2-WP1 焦点管理 spec：设置/替换返回旧值、next/prev 前序+回绕、单节点自身、
 # detach 不参与、可注入 focusable 谓词。
 #
@@ -12,6 +13,7 @@ require "../src/tessell/core/node"
 require "../src/tessell/input/focus"
 
 include Tessell
+include Tessell::Input
 
 def build_focus_chain : {Node, Node, Node, Node}
   root = Node.new("root", Rect.new(0.0_f32, 0.0_f32, 100.0_f32, 100.0_f32))

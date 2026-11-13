@@ -1,3 +1,4 @@
+require "./spec_helper"
 # M1 观察-1（task-36）：Node remove_child / detach 与重挂载一致性（spec）。
 #
 # 覆盖：成功/失败、detach 中间节点/根、重挂载双向一致、同父重复 add 幂等、

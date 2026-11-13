@@ -1,3 +1,4 @@
+require "./spec_helper"
 require "spec"
 require "../src/tessell/geometry"
 require "../src/tessell/text/measurer"

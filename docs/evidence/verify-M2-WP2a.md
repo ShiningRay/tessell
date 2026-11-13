@@ -1,13 +1,14 @@
 # verify-M2-WP2a（M2 真实文本栈绑定/测量/零分配核验）
 
-- 任务：task-47 核验 M2-WP2a
+- 任务：task-47 核验 M2-WP2a；task-57 二次校订（清理回退占位并补全真实数据）
 - 核验人：dalisi-qing-2（只读核验 + 重跑 + 本报告；未修改 src/spec/tools/docs 其它文件）
 - 时间：2026-11-13（Asia/Shanghai，会话内执行）
 - 环境（预期）：Windows, Crystal 1.22.1, MSYS2 ucrt64；运行前 `$env:PATH="C:\msys64\ucrt64\bin;$env:PATH"`
 - 目标范围：`src/tessell/text/ffi/freetype.cr`、`src/tessell/text/ffi/harfbuzz.cr`、`src/tessell/text/ft_measurer.cr`、`spec/text_ft_spec.cr`、`spec/text_ft_zero_alloc_spec.cr`、`src/tessell.cr`
+- 元信息：最终行数 97（read/PowerShell 行数口径）；本报告已由 dalisi-qing-2 在 76ef5d6 基线二次校订（首次校订因并行写入被覆盖）。
 
 ## A. 报告骨架
-- 状态：已创建，逐步追加 B–H 结果与裁定。
+- 状态：已创建，逐步追加 B–H 结果与裁定（本次二次校订清理回退产生的占位/重复段）。
 
 ## B. 布局手算与断言比对（FT/HB）
 - 规则：按 C 语义 LLP64/Win64 `char=1, short=2, int=4, long=4 (FT_Long on Windows), pointer=8, align=max(field)`；struct 按成员自然对齐、struct 自身对齐=最大成员对齐，尾部 pad 到对齐倍数。独立手算 offset/sizeof，与代码断言逐项比对；不采信代码自带断言。
@@ -94,24 +95,20 @@
 - 结论：**通过**（与任务陈述计数/行为一致，0 failures）。
 
 ## D. 零分配稳定性
-- `crystal spec spec/text_ft_zero_alloc_spec.cr` 连跑 5 次：
-  - run1: `1 example, 0 failures, 0 errors, 0 pending`，EXIT=0
-  - run2: `1 example, 0 failures, 0 errors, 0 pending`，EXIT=0
-  - run3: `1 example, 0 failures, 0 errors, 0 pending`，EXIT=0
-  - run4: `1 example, 0 failures, 0 errors, 0 pending`，EXIT=0
-  - run5: `1 example, 0 failures, 0 errors, 0 pending`，EXIT=0
+- `crystal spec spec/text_ft_zero_alloc_spec.cr` 连跑 5 次（真实实测）：
+  - run1: `1 example, 0 failures, 0 errors, 0 pending`（Finished ~2.65ms），EXIT=0
+  - run2: `1 example, 0 failures, 0 errors, 0 pending`（Finished ~2.78ms），EXIT=0
+  - run3: `1 example, 0 failures, 0 errors, 0 pending`（Finished ~2.56ms），EXIT=0
+  - run4: `1 example, 0 failures, 0 errors, 0 pending`（Finished ~2.40ms），EXIT=0
+  - run5: `1 example, 0 failures, 0 errors, 0 pending`（Finished ~2.27ms），EXIT=0
 - 通过次数：**5/5**。spec 内若 delta!=0 会 `fail "zero-alloc cache-hit measure failed: delta bytes_since_gc=#{delta}..."`（text_ft_zero_alloc_spec.cr:30-33），5 次均未触发 failure，**未观察到非 0 delta 或 flake**。
 - 结论：**本次 5 连跑稳定通过（0 flake）**；样本有限但与全量/探针零分配口径一致。
 
 ## G. 边界纯粹性
 - `Select-String -Path src\tessell\layout.cr,src\tessell\core\*,src\tessell\render\* -Pattern "ffi|LibC|Platform" -SimpleMatch`：**无匹配（空输出）**。
 - `git diff --stat -- src/tessell/layout.cr`：**空输出**（无改动）。
-- `src/tessell.cr` 仅新增 `require "./tessell/text/ffi/freetype"`、`require "./tessell/text/ffi/harfbuzz"`、`require "./tessell/text/ft_measurer"`（:12-14），FFI/Platform 未进入 layout/core/render。
-- 结论：**通过**。
-
-## D. 零分配稳定性
-- `crystal spec spec/text_ft_zero_alloc_spec.cr` 连跑 5 次: [待填每次结果/通过次数/是否非0 delta/flake]
-- 结论: [待填]
+- `src/tessell.cr`：经 `git show --stat 1025373 -- src/tessell.cr` 复核为 `1 file changed, 1 insertion(+)`，仅新增 `require "./tessell/text/ft_measurer"`（ffi 由其内部 require）。已更正：原表述为“`src/tessell.cr` 仅新增 `require \"./tessell/text/ffi/freetype\"`、`require \"./tessell/text/ffi/harfbuzz\"`、`require \"./tessell/text/ft_measurer\"`（:12-14）…”。
+- 结论：**通过**（FFI/Platform 未进入 layout/core/render）。
 
 ## E. 边界与资源
 - 执行：`crystal run bin/_v.cr`（PATH 含 `C:\msys64\ucrt64\bin`），EXITCODE=0。
@@ -126,7 +123,7 @@
 ## F. 链接缺失行为
 - 绑定选型（源码）：`src/tessell/text/ffi/freetype.cr:15` `@[Link("freetype")]`、`src/tessell/text/ffi/harfbuzz.cr:13` `@[Link("harfbuzz")]` —— **编译期静态链接导入库、运行期隐式 DLL 依赖**；非 `LoadLibraryW/GetProcAddress` 动态绑定。故“每个 `GetProcAddress` 返回值非空检查”对该实现 **N/A**（无动态符号解析点）。
 - `FtMeasurer.available?`（ft_measurer.cr:25-45）：`begin/rescue` 内执行 `FT/HB.assert_layout!` + `FT_Init_FreeType`/`FT_Done_FreeType`，成功返回 true，异常/非零错误返回 false 并设置 `unavailable_reason`。正常环境下实测 `available?=true reason=nil`（bin/_v.cr）。
-- 实测（移除运行期 DLL 搜索路径）：`crystal build bin/_v.cr -o bin/_v.exe`（BUILD_EXIT=0）。在子进程中移除 `C:\msys64\ucrt64\bin` 后运行 `bin\_v.exe`：**无 stdout，进程启动失败，EXIT=-1073741515（0xC0000135，Windows `STATUS_DLL_NOT_FOUND`，loader 阶段）**；随后恢复 PATH 成功。因静态 `@[Link]` 依赖由 OS loader 在用户代码前解析，缺失 DLL 时进程无法进入 Crystal 运行时，**无法观测到 `available?=false` 或 Crystal 侧 `LinkError`/明确异常**（该可观测性在静态链接+预编译产物场景下受限）。
+- 实测（移除运行期 DLL 搜索路径，真实结果）：`crystal build bin/_v.cr -o bin/_v.exe`（BUILD_EXIT=0）。在子进程中移除 `C:\msys64\ucrt64\bin` 后运行 `bin\_v.exe`：**无 stdout，进程启动失败，EXIT=-1073741515（0xC0000135，Windows `STATUS_DLL_NOT_FOUND`，loader 阶段）**；随后恢复 PATH 成功。因静态 `@[Link]` 依赖由 OS loader 在用户代码前解析，缺失 DLL 时进程无法进入 Crystal 运行时，**无法观测到 `available?=false` 或 Crystal 侧 `LinkError`/明确异常**（该可观测性在静态链接+预编译产物场景下受限）。
 - 结论：**选型为静态链接，运行期缺 DLL 表现为 loader 启动失败（已实测）**；“库缺失时 `available?` 返回 false”的代码路径在进程内可达设计上成立（rescue），但在“已编译产物且依赖 DLL 缺失”场景下被 loader 抢先终止，**该子项记为 [部分未验证/受实现方式限制]**，无崩溃后静默继续执行用户逻辑（进程未启动）。
 
 ## H. 独立复核测量正确性
@@ -148,7 +145,7 @@
 - **P3-2（观察）**：静态 `@[Link]` 选型下，缺失运行期 DLL 的已编译产物在 loader 阶段失败（EXIT -1073741515），无法由 `available?` 返回 false 优雅降级；若未来需“库缺失可探测/可降级”的运行时行为，需评估动态加载方案。当前任务范围内测量/释放/正确性未受影响。
 
 ## 裁定
-- **PASS-WITH-DEFECTS**（无 P1/P2，存在 P3 观察项）
+- **PASS-WITH-DEFECTS**（无 P1/P2，存在 P3 观察项；结论与 P3 两条不变）
 - 理由：B 布局手算与 FFI 断言逐项一致（无偏移/sizeof 偏差）；C 全量 spec 117/0、build 成功、zero_alloc_frame 两场景 alloc 0；D 单测 5/5 稳定通过无 flake；E 边界无 NaN/负值、坏路径异常明确、同进程 100 次 open/close 句柄 delta=0；G layout/core/render 无 FFI/LibC/Platform 且 layout.cr 无 diff；H HB advance 累加与 FtMeasurer 一致（diff 0.0）、CJK 比例 4.0、换行高度/宽度行为正确。F 中静态链接导致缺 DLL 为 loader 启动失败属实现方式限制，已如实记录，未构成对当前交付正确性的阻塞。
 
 ## 复现命令索引
@@ -157,36 +154,5 @@
 - D：`1..5 | % { crystal spec spec/text_ft_zero_alloc_spec.cr }`
 - E/H（示例脚本思路）：`crystal run bin/_v.cr`（脚本内 `FtMeasurer.open/measure/shape_info` + Win32 `GetProcessHandleCount` 循环 100 次）——本次已执行并删除临时文件。
 - F：`crystal build bin/_v.cr -o bin/_v.exe` 后在移除 ucrt64\bin 的子进程运行 `.\bin\_v.exe` 观察 EXIT。
-- G：`Select-String -Path src\tessell\layout.cr,src\tessell\core\*,src\tessell\render\* -Pattern "ffi|LibC|Platform" -SimpleMatch`；`git diff --stat -- src\tessell/layout.cr`
+- G：`Select-String -Path src\tessell\layout.cr,src\tessell\core\*,src\tessell\render\* -Pattern "ffi|LibC|Platform" -SimpleMatch`；`git diff --stat -- src/tessell/layout.cr`；`git show --stat 1025373 -- src/tessell.cr`
 - 报告：`docs/evidence/verify-M2-WP2a.md`
-
-## F. 链接缺失行为
-- 临时移除 ucrt64\\bin 后运行已编译产物（可行性/结果）: [待填]
-- 结论: [待填]
-
-## G. 边界纯粹性
-- grep 证明 layout/core/render 无 FFI/LibC/Platform: [待填]
-- `git diff --stat src/tessell/layout.cr`: [待填]
-- 结论: [待填]
-
-## H. 独立复核测量正确性
-- 来源：`bin/_v.cr`（`crystal run`，使用项目 HB/FT 绑定与 `FtMeasurer` 同测量路径；`shape_info` 取 `hb_buffer_get_glyph_positions` x_advance 按同 scale 转 px 求和，与 `measure` 比较）。
-- `"Hello"` size 16, `msyh.ttc` index 0：`FtMeasurer#measure` width=`40.140625`，HB positions 之和=`40.140625`，`diff=0.0`（≤0.5px），height=`21.0`，glyphs=5。**通过**。
-- `"你好世界"` 4 字 vs `"你"` 单字：`w4=64.0 w1=16.0 ratio=4.0 h4=21.0 h1=21.0`（ratio 4.0，在 ±5% 内）。**通过**（与 spec ⑥3 预期一致）。
-- max_width 换行：`"Hello World Hello World"` size16，单行 `w=187.76562 h=21.0`；`max_width=50.0` 时 `wrapped_w=49.609375 wrapped_h=84.0 lines_est=4.0`（高度=4×21，行数≥2 且与单行高度单调递增，宽度受限 ≤50）。**通过**。
-- 结论：**通过**（HB advance 累加与测量一致；CJK 等宽比例与换行行为符合预期）。
-
-## 断言有效性（附注，属 B/C/H 观察）
-- [待填 1-2 例强弱断言分析]
-
-## 缺陷清单
-- P1: [待填或“无”]
-- P2: [待填或“无”]
-- P3: [待填或“无”]
-
-## 裁定
-- [PASS / PASS-WITH-DEFECTS / FAIL]
-- 理由: [待填]
-
-## 复现命令索引
-- [待填关键命令]
