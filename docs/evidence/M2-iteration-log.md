@@ -272,3 +272,28 @@ BENCH_SCROLL_EXIT=0
 - 提交 1（feat）：9159f35ce0d329a194e182f37dc2448c51ad9a86（`feat(m2): Emoji 样例与字体回退、shaped-run 缓存清除真实帧分配（C1/C6 证据）`）
 - 提交 2（docs）：581439349b42a879231fde05d6c665af51f3339f（`docs: M2 门禁终审与 M3 后端预研入库`）
 - 提交 3（docs 回填）：见本迭代收口提交 `docs: 回填 M2 迭代 6 提交 hash`
+
+---
+
+## M2 迭代 7：门禁整改收口（task-89）
+
+- 时间：2026-11-13 13:33 +08:00（Asia/Shanghai）
+- 基线：HEAD `4cc928a3f53d02032d4f2ac1d1f28a160c50ff06`（origin/main 同步）
+- 执行：gongbu-shangshu-3
+- 复评依据：`docs/evidence/M2-gate-r2.md`（105 行，zuodu-yushi，2026-11-13 13:15 +08:00）
+
+### 取证（提交前）
+- `crystal spec`：186 examples, 0 failures, 0 errors, 0 pending（EXIT=0）
+- `crystal run tools/atlas_raster_verify.cr`：8 项关键行齐全，`ATLAS_RASTER_VERIFY_EXIT=0`（EXIT=0）
+
+### 条件关闭与整改
+- **C1 关闭**：Emoji 交付（`spec/font_fallback_spec.cr` 6 + `spec/text_emoji_spec.cr` 5，`examples/m2_text_window.cr --emoji`，`docs/evidence/M2-WP2-emoji.md`）+ 独立核验 PASS-WITH-DEFECTS；seguiemj gid!=0 / msyh gid=0 防冒充成立。
+- **C2 关闭**：新增可重跑探针 `tools/atlas_raster_verify.cr`（8 项契约断言，EXIT=0）；`docs/evidence/M2-WP2b.md` 按当前 HEAD 重写为 124 行（`[System.IO.File]::ReadAllLines`），§1/§2 行号校准、§3 探针+spec 输出、§4 证据指向探针行并删除“代码路径未变”，`76ef5d6`/`verify-M2-WP2b.md` 降级为历史参照。
+- **C3 关闭**：`docs/evidence/M2-summary.md` 完成门禁要求的修正（WP2c/真实帧与 bench 数值对齐 task-73 证据、P1-1 语义回归、WP2F/状态表一致化）+ §4.2 C1–C9 九行与 `M2-gate.md` 原文逐字节一致 + C2 指针改指 `tools/atlas_raster_verify.cr`/当前 HEAD 证据。
+- **C4 关闭**：`17814ca` 首字节 BOM（EF BB BF）记录为不可变例外，不 rewrite；后续提交首字节取证无 BOM。
+- **C6 书面 waiver**：承认字面 `alloc_windows=[0,0,0]` 未达；实测 112–160B/1000 帧，判据 A（<N）/B（<=256）通过，判为 Boehm `GC.stats.bytes_since_gc` 簿记噪声（`docs/evidence/M2-WP4-virtual-list.md`/`verify-M2-WP4-task73.md`）。**阻断 M3-WP5 验收，不阻断 M3 其他 WP 开工**（见 `M2-summary.md` §3.1）。
+- **门禁复评裁定**：`docs/evidence/M2-gate-r2.md` 裁定 **Go-with-conditions**；本迭代落盘 C2/C3 关闭与 C6 waiver，供首辅据此放行 M3 开工（C6 仍阻断 M3-WP5）。
+
+### 提交信息（M2-iter7 / task-89）
+- 提交 1（chore）：待回填（`chore(m2): 门禁整改收口（C2 探针/证据重写、C3 修正、C6 waiver、复评报告）`）
+- 提交 2（docs 回填）：待回填（`docs: 回填 M2 迭代 7 提交 hash`）
