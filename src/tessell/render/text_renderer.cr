@@ -103,7 +103,7 @@ module Tessell
       def append_text_cached(placement_sink : Array(Text::GlyphPlacement), text : String,
                              x : Float32, y : Float32, size_px : Int32,
                              viewport_w : Int32, viewport_h : Int32,
-                             rgba : UInt32 = 0xffffffff_u32) : Float32
+                             rgba : UInt32 = 0x000000ff_u32) : Float32
         @rasterizer.shape_run_into(text, size_px, placement_sink)
         build_text_from_placements(placement_sink, x, y, rgba)
       end
@@ -116,7 +116,7 @@ module Tessell
       def build_text(placement_sink : Array(Text::GlyphPlacement), text : String,
                      x : Float32, y : Float32, size_px : Int32,
                      viewport_w : Int32, viewport_h : Int32,
-                     rgba : UInt32 = 0xffffffff_u32) : Float32
+                     rgba : UInt32 = 0x000000ff_u32) : Float32
         @vertex_count = 0
         @batch_count = 0
 
@@ -129,7 +129,7 @@ module Tessell
                      x : Float32, y : Float32, size_px : Int32,
                      viewport_w : Int32, viewport_h : Int32,
                      page_texture_ids : Array(Int32),
-                     rgba : UInt32 = 0xffffffff_u32) : Float32
+                     rgba : UInt32 = 0x000000ff_u32) : Float32
         build_text(placement_sink, text, x, y, size_px, viewport_w, viewport_h, rgba)
       end
 
@@ -138,7 +138,7 @@ module Tessell
       def build_text_cached(placement_sink : Array(Text::GlyphPlacement), text : String,
                             x : Float32, y : Float32, size_px : Int32,
                             viewport_w : Int32, viewport_h : Int32,
-                            rgba : UInt32 = 0xffffffff_u32) : Float32
+                            rgba : UInt32 = 0x000000ff_u32) : Float32
         @vertex_count = 0
         @batch_count = 0
 
@@ -151,7 +151,7 @@ module Tessell
                             x : Float32, y : Float32, size_px : Int32,
                             viewport_w : Int32, viewport_h : Int32,
                             page_texture_ids : Array(Int32),
-                            rgba : UInt32 = 0xffffffff_u32) : Float32
+                            rgba : UInt32 = 0x000000ff_u32) : Float32
         build_text_cached(placement_sink, text, x, y, size_px, viewport_w, viewport_h, rgba)
       end
 

@@ -30,13 +30,28 @@ module Tessell
         # 配置 2D 正交投影（屏幕像素，y-down：top=0,bottom=h）与文本混合状态，整帧清屏。
         def begin_frame(viewport_w : Int32, viewport_h : Int32,
                         bg_r : Float32 = 1.0_f32, bg_g : Float32 = 1.0_f32, bg_b : Float32 = 1.0_f32, bg_a : Float32 = 1.0_f32) : Nil
+          theme = Tessell::Render::Theme.new(
+            rgba_from_f(bg_r, bg_g, bg_b, bg_a),
+            0x000000ff_u32, 0x2f6fedff_u32, 0x8a8a8aff_u32, 0xd0d0d0ff_u32, 0xbcd4ffff_u32
+          )
+          begin_frame(viewport_w, viewport_h, theme)
+        end
+
+        def begin_frame(viewport_w : Int32, viewport_h : Int32, theme : Tessell::Render::Theme) : Nil
           unless @initialized
             @backend.init(viewport_w, viewport_h)
             @initialized = true
           end
           @backend.resize(viewport_w, viewport_h)
-          @backend.set_clear_color(bg_r, bg_g, bg_b, bg_a)
-          @backend.begin_frame(nil)
+          @backend.begin_frame(nil, theme)
+        end
+
+        private def rgba_from_f(r : Float32, g : Float32, b : Float32, a : Float32) : UInt32
+          ri = (r * 255.0_f32).round.clamp(0.0_f32, 255.0_f32).to_u32
+          gi = (g * 255.0_f32).round.clamp(0.0_f32, 255.0_f32).to_u32
+          bi = (b * 255.0_f32).round.clamp(0.0_f32, 255.0_f32).to_u32
+          ai = (a * 255.0_f32).round.clamp(0.0_f32, 255.0_f32).to_u32
+          (ri << 24) | (gi << 16) | (bi << 8) | ai
         end
 
         # 绘制 TextRenderer 产出的批次（整帧，无脏区裁剪）。

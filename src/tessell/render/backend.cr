@@ -4,6 +4,7 @@
 # backend resolves them via resolved_texture(page).
 
 require "../geometry"
+require "./theme"
 require "./text_renderer"
 require "../text/glyph_atlas"
 
@@ -21,7 +22,7 @@ module Tessell
     abstract class Backend
       abstract def init(width : Int32, height : Int32) : Nil
       abstract def resize(width : Int32, height : Int32) : Nil
-      abstract def begin_frame(dirty : Array(Rect)? = nil) : Nil
+      abstract def begin_frame(dirty : Array(Tessell::Rect)? = nil, theme : Tessell::Render::Theme = Tessell::Render::Theme.light) : Nil
       abstract def sync_atlas(atlas : Text::GlyphAtlas) : Nil
       abstract def draw_text(vertices : Array(Vertex), batches : Array(TextBatch), batch_count : Int32 = batches.size) : Int32
       abstract def end_frame : Nil

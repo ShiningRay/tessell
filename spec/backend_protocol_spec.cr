@@ -42,7 +42,7 @@ class RecordingBackend < Tessell::Render::Backend
     @height = height
   end
 
-  def begin_frame(dirty : Array(Tessell::Rect)? = nil) : Nil
+  def begin_frame(dirty : Array(Tessell::Rect)? = nil, theme : Tessell::Render::Theme = Tessell::Render::Theme.light) : Nil
     @calls << "begin_frame" if @record_calls
     @last_dirty = dirty
     @submitted_quads = 0

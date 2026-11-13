@@ -35,6 +35,8 @@ lib TessellGL
 
   GL_RGBA          = 0x1908_u32
   GL_ALPHA         = 0x1906_u32
+  GL_LUMINANCE     = 0x1909_u32
+  GL_INTENSITY     = 0x8049_u32
   GL_UNSIGNED_BYTE = 0x1401_u32
 
   GL_UNPACK_ALIGNMENT = 0x0CF5_u32
@@ -143,12 +145,17 @@ module Tessell
           @bg_a = a
         end
 
-        def begin_frame(dirty : Array(Tessell::Rect)? = nil) : Nil
+        def begin_frame(dirty : Array(Tessell::Rect)? = nil, theme : Tessell::Render::Theme = Tessell::Render::Theme.light) : Nil
           @dirty = dirty
           @scissor_calls = 0
           @culled_quads = 0
           @submitted_quads = 0
           @frame_active = true
+
+          @bg_r = Tessell::Render::Theme.r(theme.bg)
+          @bg_g = Tessell::Render::Theme.g(theme.bg)
+          @bg_b = Tessell::Render::Theme.b(theme.bg)
+          @bg_a = Tessell::Render::Theme.a(theme.bg)
 
           TessellGL.glViewport(0, 0, @viewport_w, @viewport_h)
           TessellGL.glClearColor(@bg_r, @bg_g, @bg_b, @bg_a)
@@ -161,8 +168,13 @@ module Tessell
 
           TessellGL.glEnable(TessellGL::GL_TEXTURE_2D)
           TessellGL.glEnable(TessellGL::GL_BLEND)
-          TessellGL.glBlendFunc(TessellGL::GL_SRC_ALPHA, TessellGL::GL_ONE_MINUS_SRC_ALPHA)
-          TessellGL.glColor4f(0.0_f32, 0.0_f32, 0.0_f32, 1.0_f32)
+          # Atlas uploaded as GL_INTENSITY coverage: texel=(I,I,I,I). Vertex color
+          # (fg,1) is straight/non-premultiplied foreground, so modulation gives
+          # fragment (fg*I, I). Premultiplied blend (GL_ONE, GL_ONE_MINUS_SRC_ALPHA):
+          #   rgb   = src.rgb + dst.rgb*(1-src.a) = fg*I + bg*(1-I)
+          #   alpha = src.a   + dst.a*(1-src.a)   = I + (1-I) = 1 (opaque canvas)
+          # Using GL_SRC_ALPHA would multiply RGB by I again -> fg*I^2 (double coverage).
+          TessellGL.glBlendFunc(TessellGL::GL_ONE, TessellGL::GL_ONE_MINUS_SRC_ALPHA)
 
           if dirty.nil?
             TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST)
@@ -194,9 +206,11 @@ module Tessell
             TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MAG_FILTER, TessellGL::GL_LINEAR.to_i32)
             TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_S, TessellGL::GL_CLAMP.to_i32)
             TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_T, TessellGL::GL_CLAMP.to_i32)
-            TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_ALPHA.to_i32,
+            # Upload R8 coverage as GL_INTENSITY so vertex color (rgba) tints text:
+            # texel (I,I,I,I), modulate with vertex (R,G,B,A) -> (R*I,G*I,B*I,A*I).
+            TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_INTENSITY.to_i32,
                                    size, size, 0,
-                                   TessellGL::GL_ALPHA, TessellGL::GL_UNSIGNED_BYTE,
+                                   TessellGL::GL_LUMINANCE, TessellGL::GL_UNSIGNED_BYTE,
                                    data.to_unsafe.as(Void*))
             i += 1
           end
@@ -250,8 +264,7 @@ module Tessell
               vend = b.start + b.count
               while vi < vend
                 v = vertices[vi]
-                TessellGL.glTexCoord2f(v.u, v.v)
-                TessellGL.glVertex2f(v.x, v.y)
+                emit_vertex(v)
                 vi += 1
               end
               TessellGL.glEnd
@@ -315,10 +328,10 @@ module Tessell
                   qb = max4(v0.y, v1.y, v2.y, v3.y)
                   if quad_intersects_rect(ql, qt, qr, qb, r)
                     unless intersects_any_previous(ql, qt, qr, qb, rects, ri)
-                      TessellGL.glTexCoord2f(v0.u, v0.v); TessellGL.glVertex2f(v0.x, v0.y)
-                      TessellGL.glTexCoord2f(v1.u, v1.v); TessellGL.glVertex2f(v1.x, v1.y)
-                      TessellGL.glTexCoord2f(v2.u, v2.v); TessellGL.glVertex2f(v2.x, v2.y)
-                      TessellGL.glTexCoord2f(v3.u, v3.v); TessellGL.glVertex2f(v3.x, v3.y)
+                      emit_vertex(v0)
+                      emit_vertex(v1)
+                      emit_vertex(v2)
+                      emit_vertex(v3)
                       @submitted_quads += 1
                     end
                   end
@@ -355,6 +368,16 @@ module Tessell
             end
             bi += 1
           end
+        end
+
+        private def emit_vertex(v : Tessell::Render::Vertex) : Nil
+          rgba = v.rgba
+          TessellGL.glColor4f(((rgba >> 24) & 0xff).to_f32 / 255.0_f32,
+                              ((rgba >> 16) & 0xff).to_f32 / 255.0_f32,
+                              ((rgba >> 8) & 0xff).to_f32 / 255.0_f32,
+                              (rgba & 0xff).to_f32 / 255.0_f32)
+          TessellGL.glTexCoord2f(v.u, v.v)
+          TessellGL.glVertex2f(v.x, v.y)
         end
 
         private def min4(a : Float32, b : Float32, c : Float32, d : Float32) : Float32

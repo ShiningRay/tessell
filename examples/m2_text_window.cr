@@ -419,8 +419,8 @@ begin
     ft_c.close
 
     puts "emoji_quads=#{emoji_quads} emoji_pixels_nonbg=#{emoji_pixels_nonbg} emoji_pixel_match=#{emoji_pixel_match} frame_p50_ms=#{p50} frame_p95_ms=#{p95} frame_p99_ms=#{p99} emoji_cpu_coverage_sum=#{cpu_cov_e} emoji_ratio=#{emoji_ratio} mixed_pixels_nonbg=#{mixed_nonbg} frames=#{frames_done} swapbuffers=#{swap_ok} pen_after_emoji_x=#{pen_after} text_quads=#{tr_c.stats[:quads]}"
-    puts "emoji_note=rendered \"😀👍 Hello 你好\" as emoji(seguiemj.ttf)+text(msyh.ttc) segments; emoji metrics from emoji-only pass (RGB delta>8 vs white bg, ratio tolerance [0.5,1.5]); display path R8->GL_ALPHA (gray coverage). If seguiemj bitmap were BGRA/color-only, GL_ALPHA could not show color and pixel_match would be false (not fabricated)."
-    puts "gl_path=GL1.1_compat R8->GL_ALPHA glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
+    puts "emoji_note=rendered \"😀👍 Hello 你好\" as emoji(seguiemj.ttf)+text(msyh.ttc) segments; emoji metrics from emoji-only pass (RGB delta>8 vs white bg, ratio tolerance [0.5,1.5]); display path R8->GL_INTENSITY with premultiplied blend (GL_ONE,GL_ONE_MINUS_SRC_ALPHA), gray coverage. If seguiemj bitmap were BGRA/color-only, this path could not show color and pixel_match would be false (not fabricated)."
+    puts "gl_path=GL1.1_compat R8->GL_INTENSITY_blend_one_minus_src_alpha glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
 
     if verify_mode
       exit(emoji_pixel_match ? 0 : 1)
@@ -490,7 +490,7 @@ begin
 
     puts "text_pixels_nonbg=#{text_pixels_nonbg} cpu_coverage_sum=#{cpu_coverage_sum} ratio=#{ratio} pixel_match=#{pixel_match} frames=#{frames_done} swapbuffers=#{swap_ok} frame_p50_ms=#{p50} frame_p95_ms=#{p95} frame_p99_ms=#{p99} pen_end_x=#{pen_end} quads=#{tr_c.stats[:quads]} batches=#{tr_c.stats[:batches]}"
     puts "criterion_note=non-bg counted as RGB delta>8 from white background; cpu_coverage_sum counts nonzero R8 atlas bytes over rendered glyph rects; ratio tolerance [0.5,1.5] accounts for GL_LINEAR filtering, blending edge coverage, and y-axis/sample-position differences vs source bitmap"
-    puts "gl_path=GL1.1_compat R8->GL_ALPHA glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
+    puts "gl_path=GL1.1_compat R8->GL_INTENSITY_blend_one_minus_src_alpha glPixelStorei(GL_UNPACK_ALIGNMENT,1) glTexCoord2f/glVertex2f"
 
     if verify_mode
       exit(pixel_match ? 0 : 1)
