@@ -82,6 +82,17 @@ module Tessell
         @meta[id]?
       end
 
+      # 删除指定节点的旁挂元数据，返回是否存在并已删除。
+      # UI.apply 在节点被移除时必须调用，避免 id 复用（object_id）残留旧语义。
+      def remove_meta(id : UInt64) : Bool
+        !@meta.delete(id).nil?
+      end
+
+      # 焦点实时查询：与 build 内 focused 同源，供 UI.a11y_emit 复用。
+      def focused?(node : Tessell::Node) : Bool
+        @focus.try(&.focused?(node)) || false
+      end
+
       # DFS 先序遍历 retained 树，向复用 sink 追加 A11y::Node。
       # 调用方/内部约定：每次 build 前先 clear sink（本方法内部也 clear，保证复用）。
       def build(root : Tessell::Node, sink : Array(A11y::Node)) : Nil

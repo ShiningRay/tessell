@@ -261,6 +261,10 @@ class M4DApp
   @top_node : Node?
   @list_node : Node?
   @status_node : Node?
+  @a11y : Tessell::A11y::Builder
+  @a11y_sink : Array(Tessell::A11y::Node)
+  @row_name : Proc(Int32, String)
+  @a11y_count : Int32
 
   def initialize(@hdc : Void*, @initial_dark : Bool, @scale : Float32, @dpi_label : String)
     @width = WIDTH
@@ -348,6 +352,20 @@ class M4DApp
     @dirty_out.clear
 
     @router = Input::Router.new
+
+    # a11y mirror of the DSL tree (M4-WP1 S3): meta is synced by UI.apply and
+    # the tree is emitted into a pre-sized sink every frame (no materialization
+    # of the 10k virtual rows; only the visible window becomes ListItem nodes).
+    @a11y = Tessell::A11y::Builder.new(@router.focus_manager)
+    @a11y_sink = [] of Tessell::A11y::Node
+    64.times do
+      @a11y_sink << Tessell::A11y::Node.new(0_u64, Tessell::A11y::Role::Group, "",
+        "", Rect.new(0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32), false, false, true, 0, 0)
+    end
+    @a11y_sink.clear
+    @row_name = ->(i : Int32) { @labels[i] }
+    @a11y_count = 0
+
     @force_full = true
     @ignore_input = false
     @vis_sum = 0_i64
@@ -359,7 +377,7 @@ class M4DApp
 
     # First frame: create nodes, then remember the pooled nodes.
     build_ui
-    UI.apply(@builder.buf, @root, @pool)
+    UI.apply(@builder.buf, @root, @pool, @a11y)
     Node.collect_dirty(@root, @dirty_sink)
     UI.consume(@dirty_sink)
     @top_node = @pool.map[@top_key]?
@@ -368,6 +386,7 @@ class M4DApp
     if top = @top_node
       @router.focus_manager.focus(top)
     end
+    emit_a11y
   end
 
   def ignore_input=(v : Bool) : Nil
@@ -390,11 +409,30 @@ class M4DApp
   end
 
   # ---- DSL chain: declarations are rebuilt every frame from external state. ----
+  # a11y_* carries the accessible surface: the top line is an editable Text
+  # (focusable), the list is a List container (its rows are virtual), the status
+  # line is a read-only Text.
   def build_ui : Nil
     UI.build(UiKey.root, @builder) do |x|
-      x.text(@top_key, @input_text, @top_rect)
-      x.node(@list_key, @list_rect)
-      x.text(@status_key, @status, @status_rect)
+      x.text(@top_key, @input_text, @top_rect,
+        a11y_role: Tessell::A11y::Role::Text, a11y_name: "input",
+        a11y_value: @input_text, a11y_focusable: true)
+      x.node(@list_key, @list_rect,
+        a11y_role: Tessell::A11y::Role::List, a11y_name: "rows")
+      x.text(@status_key, @status, @status_rect,
+        a11y_role: Tessell::A11y::Role::Text, a11y_name: "status",
+        a11y_value: @status)
+    end
+  end
+
+  # Emit the a11y mirror into the reused sink. ListItem rows come from the
+  # VirtualList visible window only (children_count carries the logical 10k).
+  private def emit_a11y : Nil
+    ln = @list_node
+    if ln
+      @a11y_count = UI.a11y_emit(@root, @a11y, @a11y_sink, @vl, ln, @row_name)
+    else
+      @a11y_count = UI.a11y_emit(@root, @a11y, @a11y_sink)
     end
   end
 
@@ -576,7 +614,8 @@ class M4DApp
     pump_messages
     apply_pending_input
     build_ui
-    UI.apply(@builder.buf, @root, @pool)
+    UI.apply(@builder.buf, @root, @pool, @a11y)
+    emit_a11y
     Node.collect_dirty(@root, @dirty_sink)
     if @force_full
       @quads_full = render_full
@@ -602,7 +641,8 @@ class M4DApp
     do_scroll(@row_h)
     t2 = GC.stats.bytes_since_gc.to_i64; @seg[2] += t2 - t; t = t2
     build_ui
-    UI.apply(@builder.buf, @root, @pool)
+    UI.apply(@builder.buf, @root, @pool, @a11y)
+    emit_a11y
     Node.collect_dirty(@root, @dirty_sink)
     t2 = GC.stats.bytes_since_gc.to_i64; @seg[3] += t2 - t; t = t2
     unless @dirty_sink.empty?
@@ -710,6 +750,7 @@ class M4DApp
       s << " retried=" << alloc[:retried]
       s << " attempt=" << alloc[:attempt]
       s << " scroll=" << @vl.scroll_y
+      s << " a11y_nodes=" << @a11y_count
       s << " verify=" << (pass ? "pass" : "fail")
     end
     {pass, line}
