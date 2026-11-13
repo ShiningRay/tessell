@@ -1,6 +1,8 @@
 param(
   [string]$OutDir = "dist\tessell",
-  [string]$Example = "examples/m3_dpi_theme.cr"
+  [string]$Example = "examples/m3_dpi_theme.cr",
+  [switch]$Bundle,
+  [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +24,15 @@ Push-Location $repoRoot
 try {
   $examplePath = Join-Path $repoRoot $Example
   if (!(Test-Path $examplePath)) { Fail "example not found: $examplePath" }
+
+  if ($Bundle -and [string]::IsNullOrWhiteSpace($Version)) {
+    $shard = Join-Path $repoRoot "shard.yml"
+    if (Test-Path $shard) {
+      $m = Select-String -Path $shard -Pattern '^version:\s*(.+)$' | Select-Object -First 1
+      if ($m) { $Version = $m.Matches[0].Groups[1].Value.Trim().Trim('"').Trim("'") }
+    }
+    if ([string]::IsNullOrWhiteSpace($Version)) { $Version = "dev" }
+  }
 
   $outAbs = Join-Path $repoRoot $OutDir
   New-Item -ItemType Directory -Force -Path $outAbs | Out-Null
@@ -99,6 +110,38 @@ try {
     Copy-Item $kv.Value (Join-Path $outAbs ([IO.Path]::GetFileName($kv.Value))) -Force
   }
 
+  $runCmdPath = Join-Path $outAbs "run.cmd"
+  $noticePath = Join-Path $outAbs "NOTICE.txt"
+  if ($Bundle) {
+    $runLines = @(
+      '@echo off',
+      ('"%~dp0' + $exeName + '" %*'),
+      'exit /b %ERRORLEVEL%'
+    )
+    [IO.File]::WriteAllText($runCmdPath, ($runLines -join "`r`n") + "`r`n")
+
+    $notice = @(
+      "Tessell distribution bundle",
+      "",
+      "This package contains a sample executable and runtime DLLs only.",
+      "Tessell itself is distributed as source code in the repository.",
+      "",
+      "Third-party runtime components (upstream license notices):",
+      "- FreeType (libfreetype): FTL / GPLv2+ (dual license)",
+      "- HarfBuzz (libharfbuzz): MIT",
+      "- Boehm GC (libgc): MIT-like",
+      "- msys2/ucrt64 runtime DLLs: licenses as provided by their upstream projects",
+      "",
+      "Fonts: this bundle does NOT distribute any Windows system fonts.",
+      "At runtime the sample loads fonts installed on the user's machine.",
+      "See repository evidence: docs/evidence/M4-WP2-licensing.md"
+    )
+    [IO.File]::WriteAllText($noticePath, ($notice -join "`r`n") + "`r`n")
+  } else {
+    Remove-Item $runCmdPath -ErrorAction SilentlyContinue
+    Remove-Item $noticePath -ErrorAction SilentlyContinue
+  }
+
   # MANIFEST.txt: name, bytes, SHA256
   $manifestPath = Join-Path $outAbs "MANIFEST.txt"
   $lines = @()
@@ -118,6 +161,21 @@ try {
   Get-ChildItem -File $outAbs | Sort-Object Name | ForEach-Object {
     Write-Output ("  " + $_.Name + " " + $_.Length)
   }
+
+  if ($Bundle) {
+    $zipName = "tessell-$Version-win64.zip"
+    $zipPath = Join-Path $repoRoot ("dist\" + $zipName)
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($outAbs, $zipPath)
+    $zipInfo = Get-Item $zipPath
+    $zipHash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+    try { $entries = $zip.Entries.Count } finally { $zip.Dispose() }
+    $exeBytes = (Get-Item $exeOut).Length
+    Write-Output ("BUNDLE_OK zip=$zipPath zip_bytes=$($zipInfo.Length) entries=$entries dll_count=$($toCopy.Count) exe_bytes=$exeBytes sha256_zip=$zipHash")
+  }
+
   exit 0
 } catch {
   Write-Error $_
