@@ -144,3 +144,15 @@ GATE_RESULT=PASS
 - 截图证据：`M2-WP5-visual-check.md`（75 行）+ `docs/evidence/shots/` 6 PNG（合计 107,195 B）；像素统计复核见该报告 `## lead 复核（像素统计）`；**无人眼 QA 签字，也不存在人眼观察记录**。
 - 未关闭项仍 **9** 条，其中「真实窗口人工目视」改写为「人工 QA 签字未做（已有 6 张截图 + 像素统计复核，见 `docs/evidence/M2-WP5-visual-check.md`）」；其余 8 项原样。
 - spec 数不变：**263**（截图开关/转换不增删用例）；本轮提交 hash：feat `c57ebdc`、docs `6f1e5ff`。
+
+## r5 复核（0.2.0 分发包独立复验）
+
+- 包：`dist/tessell-0.2.0-win64.zip`，7,757,194 B，25 entries，SHA256 `625c2fc838a5698f4b639d016cfc07a3bfada8f4adcbad76ae21052a4d6bbc06`；提交 `c356253`。3 exe：`app_demo.exe` 4,018,412 B、`m3_dpi_theme.exe` 3,776,423 B、`m3_path_window.exe` 2,615,520 B。
+- lead 独立复验（洁净解压 + 裸 PATH `C:\Windows\System32;C:\Windows`，`--frames=20 --verify`）：
+  - `app_demo` EXIT=0：`frames=20 rows=10000 visible_avg=30.0000 quads_dirty=159 quads_full=171 culled=12 diff_pixels=0 diff_A_vs_C=3113 diff_theme=0 diff_theme_roundtrip=0 alloc_windows=[0,0,0] retried=false attempt=1 a11y_nodes=34 verify=pass`
+  - `m3_dpi_theme` EXIT=0：`verify=pass`
+  - `m3_path_window` EXIT=0：`mode=stencil_cover stencil_bits=8 fill_pixels_gl=7794 fill_pixels_cpu=7794 diff_pixels=0 alloc_windows=[64,80,80] retried=false attempt=1 negative_holds=true verify=pass`
+- 口径声明：包内 3 个 exe 均在本机洁净解压 + 裸 PATH 下自证 `verify=pass`；未在其它机器/其它驱动/Windows 10 上验证。
+- 规模（现算，HEAD `c356253`）：提交 **60**；`git ls-files src` **31 文件 / 5,792 行**；spec **32 文件**；example **15**；`docs/evidence/*.md` **73**；`docs/evidence/shots` **6**。
+- 未关闭清单保持 **9 条**：C7 真实键盘 IME 人工手测；C9 字体许可法务复核（D-C9 已决策）；M3-WP2 macOS No-Go；M3-WP3 Linux 无显示/未运行；UIA provider 延后；安装器/签名/干净 VM（便携 zip 已提供 3 个示例 + 依赖闭包，裸 PATH 可跑；仍无安装器与代码签名）；跨机基线；C6 waiver 仅 M3-WP5；人工 QA 签字未做。
+- 裁决：维持 **Go-with-conditions（S1，仅 Windows 本机 msys2/Intel 驱动）**；本轮无新增缺陷、无判据改动。
