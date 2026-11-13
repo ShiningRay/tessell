@@ -279,34 +279,30 @@ module Tessell
           @culled_quads = 0
           @submitted_quads = 0
 
-          ri = 0
           rcount = rects.size
           TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST)
+
+          # Pass 1: clear all dirty rects first (preserve outside pixels). Doing this
+          # before any draw avoids a later rect's clear erasing boundary-spanning quads
+          # already drawn into an earlier rect.
+          ri = 0
           while ri < rcount
             r = rects[ri]
-            # OpenGL scissor uses window coords (origin bottom-left); ortho is y-down.
-            sx = r.origin.x.floor.to_i
-            sy_top = r.origin.y
-            sh_f = r.size.height
-            sy = (@viewport_h.to_f32 - (sy_top + sh_f)).floor.to_i
-            sw = r.size.width.ceil.to_i
-            sh_i = sh_f.ceil.to_i
-            if sx < 0
-              sw += sx
-              sx = 0
-            end
-            if sy < 0
-              sh_i += sy
-              sy = 0
-            end
-            sw = @viewport_w - sx if sx + sw > @viewport_w
-            sh_i = @viewport_h - sy if sy + sh_i > @viewport_h
-            sw = 0 if sw < 0
-            sh_i = 0 if sh_i < 0
+            sx, sy, sw, sh_i = scissor_params(r)
             TessellGL.glScissor(sx, sy, sw, sh_i)
             @scissor_calls += 1
-            # Clear only this dirty rect (preserve pixels outside dirty regions).
             TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT)
+            ri += 1
+          end
+
+          # Pass 2: for each rect, draw all quads intersecting it. Scissor clips to the
+          # rect; quads spanning multiple dirty rects are redrawn per intersecting rect
+          # so their pixels inside every cleared dirty region are restored.
+          ri = 0
+          while ri < rcount
+            r = rects[ri]
+            sx, sy, sw, sh_i = scissor_params(r)
+            TessellGL.glScissor(sx, sy, sw, sh_i)
 
             bi = 0
             while bi < batch_count
@@ -327,13 +323,11 @@ module Tessell
                   qr = max4(v0.x, v1.x, v2.x, v3.x)
                   qb = max4(v0.y, v1.y, v2.y, v3.y)
                   if quad_intersects_rect(ql, qt, qr, qb, r)
-                    unless intersects_any_previous(ql, qt, qr, qb, rects, ri)
-                      emit_vertex(v0)
-                      emit_vertex(v1)
-                      emit_vertex(v2)
-                      emit_vertex(v3)
-                      @submitted_quads += 1
-                    end
+                    emit_vertex(v0)
+                    emit_vertex(v1)
+                    emit_vertex(v2)
+                    emit_vertex(v3)
+                    @submitted_quads += 1
                   end
                   vi += 4
                 end
@@ -368,6 +362,29 @@ module Tessell
             end
             bi += 1
           end
+        end
+
+        private def scissor_params(r : Tessell::Rect) : {Int32, Int32, Int32, Int32}
+          # OpenGL scissor uses window coords (origin bottom-left); ortho is y-down.
+          sx = r.origin.x.floor.to_i
+          sy_top = r.origin.y
+          sh_f = r.size.height
+          sy = (@viewport_h.to_f32 - (sy_top + sh_f)).floor.to_i
+          sw = r.size.width.ceil.to_i
+          sh_i = sh_f.ceil.to_i
+          if sx < 0
+            sw += sx
+            sx = 0
+          end
+          if sy < 0
+            sh_i += sy
+            sy = 0
+          end
+          sw = @viewport_w - sx if sx + sw > @viewport_w
+          sh_i = @viewport_h - sy if sy + sh_i > @viewport_h
+          sw = 0 if sw < 0
+          sh_i = 0 if sh_i < 0
+          {sx, sy, sw, sh_i}
         end
 
         private def emit_vertex(v : Tessell::Render::Vertex) : Nil

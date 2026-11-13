@@ -24,6 +24,7 @@ require "./tessell/render/theme"
 require "./tessell/render/dpi"
 require "./tessell/render/text_renderer"
 require "./tessell/widgets/virtual_list"
+require "./tessell/ui/builder"
 require "./tessell/a11y/tree"
 
 module Tessell
