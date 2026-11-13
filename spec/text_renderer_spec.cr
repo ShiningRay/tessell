@@ -67,13 +67,14 @@ describe Tessell::Render::TextRenderer do
     atlas.page_count.should eq 1
     tr.batch_count.should eq 1
     b = tr.batch_runs[0]
-    b.texture.should eq 7
+    b.page.should eq 0
+    page_tex[b.page].should eq 7
     b.start.should eq 0
     b.count.should eq tr.vertex_count
     ft.close
   end
 
-  it "cross-page placements produce multiple batches with correct texture ids" do
+  it "cross-page placements produce multiple batches with correct page indices" do
     # Force 2 pages: 64x64 atlas. 48px CJK glyphs (~48x48) fill a page quickly;
     # pre-place "你" on page 0, then "好" (miss, cached "你" stays on page 0) won't fit -> page 1.
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH, 0)
@@ -92,14 +93,16 @@ describe Tessell::Render::TextRenderer do
 
     b0 = tr.batch_runs[0]
     b1 = tr.batch_runs[1]
-    b0.texture.should eq 101
-    b1.texture.should eq 202
+    b0.page.should eq 0
+    b1.page.should eq 1
+    page_tex[b0.page].should eq 101
+    page_tex[b1.page].should eq 202
     b0.start.should eq 0
     b0.count.should be > 0
     b1.start.should eq b0.count
     (b0.count + b1.count).should eq tr.vertex_count
-    (page_tex.includes?(b0.texture)).should be_true
-    (page_tex.includes?(b1.texture)).should be_true
+    (page_tex.size > b0.page).should be_true
+    (page_tex.size > b1.page).should be_true
     ft.close
   end
 

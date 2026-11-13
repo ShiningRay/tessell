@@ -32,13 +32,13 @@ module Tessell
       end
     end
 
-    # 批次：同一图集页（texture）的连续顶点段
+    # 批次：同一图集页（page）的连续顶点段。纹理由后端占有，调用方不再传纹理 id。
     struct TextBatch
-      getter start : Int32   # vertices 起始下标
-      getter count : Int32   # 顶点数（4 的倍数）
-      getter texture : Int32 # page_texture_ids[page]
+      getter start : Int32 # vertices 起始下标
+      getter count : Int32 # 顶点数（4 的倍数）
+      getter page : Int32  # atlas page index（由 Backend#resolved_texture 解析为实际纹理）
 
-      def initialize(@start : Int32, @count : Int32, @texture : Int32)
+      def initialize(@start : Int32, @count : Int32, @page : Int32)
       end
     end
 
@@ -92,22 +92,45 @@ module Tessell
         end
       end
 
-      # 生成文本四边形。
-      # placement_sink: 调用方复用的 GlyphPlacement 缓冲（传给 rasterize_into 以避免分配）。
-      # text/x/y: baseline 起点（y-down）。size_px: 字号。viewport_w/h: 视口尺寸（当前用于边界安全，顶点仍为屏幕坐标）。
-      # page_texture_ids: 按 atlas page index 索引的 GL 纹理 id。
+      # 逻辑清零（复用缓冲，稳态不分配）。
+      def reset : Nil
+        @vertex_count = 0
+        @batch_count = 0
+      end
+
+      # 追加文本四边形到当前缓冲（不清零），用于同帧多段文本合批/拼场景。
+      # placement_sink 由调用方复用；每段 shape_run_into 会覆写 placement_sink 后再转顶点。
+      def append_text_cached(placement_sink : Array(Text::GlyphPlacement), text : String,
+                             x : Float32, y : Float32, size_px : Int32,
+                             viewport_w : Int32, viewport_h : Int32,
+                             rgba : UInt32 = 0xffffffff_u32) : Float32
+        @rasterizer.shape_run_into(text, size_px, placement_sink)
+        build_text_from_placements(placement_sink, x, y, rgba)
+      end
+
+      # 生成文本四边形（M3-WP1：不再接受纹理 id；批次携带 page，由后端解析纹理）。
+      # placement_sink: 调用方复用的 GlyphPlacement 缓冲。text/x/y: baseline 起点（y-down）。
+      # size_px: 字号。viewport_w/h: 视口尺寸（当前用于边界安全，顶点仍为屏幕坐标）。
       # 返回 pen 末端 x（Float32）。
       # Uses per-call HB/FT shaping path (rasterize_into) to preserve existing behavior/stats.
       def build_text(placement_sink : Array(Text::GlyphPlacement), text : String,
                      x : Float32, y : Float32, size_px : Int32,
                      viewport_w : Int32, viewport_h : Int32,
-                     page_texture_ids : Array(Int32),
                      rgba : UInt32 = 0xffffffff_u32) : Float32
         @vertex_count = 0
         @batch_count = 0
 
         @rasterizer.rasterize_into(text, size_px, placement_sink)
-        build_text_from_placements(placement_sink, x, y, page_texture_ids, rgba)
+        build_text_from_placements(placement_sink, x, y, rgba)
+      end
+
+      # 兼容重载：接受并忽略 page_texture_ids（纹理由后端占有）。
+      def build_text(placement_sink : Array(Text::GlyphPlacement), text : String,
+                     x : Float32, y : Float32, size_px : Int32,
+                     viewport_w : Int32, viewport_h : Int32,
+                     page_texture_ids : Array(Int32),
+                     rgba : UInt32 = 0xffffffff_u32) : Float32
+        build_text(placement_sink, text, x, y, size_px, viewport_w, viewport_h, rgba)
       end
 
       # M2-WP4/task-73: uses Rasterizer shaped-run cache (shape_run_into) to skip HB/FT shaping on hit.
@@ -115,25 +138,32 @@ module Tessell
       def build_text_cached(placement_sink : Array(Text::GlyphPlacement), text : String,
                             x : Float32, y : Float32, size_px : Int32,
                             viewport_w : Int32, viewport_h : Int32,
-                            page_texture_ids : Array(Int32),
                             rgba : UInt32 = 0xffffffff_u32) : Float32
         @vertex_count = 0
         @batch_count = 0
 
         @rasterizer.shape_run_into(text, size_px, placement_sink)
-        build_text_from_placements(placement_sink, x, y, page_texture_ids, rgba)
+        build_text_from_placements(placement_sink, x, y, rgba)
+      end
+
+      # 兼容重载：接受并忽略 page_texture_ids（纹理由后端占有）。
+      def build_text_cached(placement_sink : Array(Text::GlyphPlacement), text : String,
+                            x : Float32, y : Float32, size_px : Int32,
+                            viewport_w : Int32, viewport_h : Int32,
+                            page_texture_ids : Array(Int32),
+                            rgba : UInt32 = 0xffffffff_u32) : Float32
+        build_text_cached(placement_sink, text, x, y, size_px, viewport_w, viewport_h, rgba)
       end
 
       private def build_text_from_placements(placement_sink : Array(Text::GlyphPlacement),
                                              x : Float32, y : Float32,
-                                             page_texture_ids : Array(Int32),
                                              rgba : UInt32) : Float32
         pen_x = x
         pen_y = y
         current_page = -1
         batch_start = 0
         batch_vertices = 0
-        batch_tex = 0
+        batch_page = 0
 
         i = 0
         count = placement_sink.size
@@ -143,11 +173,10 @@ module Tessell
           # w==0||h==0 零位图字形：不产四边形，但推进 pen
           if p.w > 0 && p.h > 0
             page = p.page
-            tex = page >= 0 && page < page_texture_ids.size ? page_texture_ids[page] : 0
 
             if current_page != -1 && page != current_page
               # flush batch on page change
-              write_batch(batch_start, batch_vertices, batch_tex)
+              write_batch(batch_start, batch_vertices, batch_page)
               batch_start = @vertex_count
               batch_vertices = 0
             end
@@ -156,7 +185,7 @@ module Tessell
               batch_vertices = 0
             end
             current_page = page
-            batch_tex = tex
+            batch_page = page
 
             left = pen_x + p.offset_x.to_f32
             top = pen_y - p.offset_y.to_f32
@@ -172,17 +201,17 @@ module Tessell
         end
 
         if batch_vertices > 0
-          write_batch(batch_start, batch_vertices, batch_tex)
+          write_batch(batch_start, batch_vertices, batch_page)
         end
 
         pen_x
       end
 
-      private def write_batch(start : Int32, count : Int32, texture : Int32) : Nil
+      private def write_batch(start : Int32, count : Int32, page : Int32) : Nil
         if @batch_count < @batches.size
-          @batches[@batch_count] = TextBatch.new(start, count, texture)
+          @batches[@batch_count] = TextBatch.new(start, count, page)
         else
-          @batches << TextBatch.new(start, count, texture)
+          @batches << TextBatch.new(start, count, page)
         end
         @batch_count += 1
       end
