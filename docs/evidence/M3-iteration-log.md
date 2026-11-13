@@ -169,3 +169,90 @@
 - C5 关闭
 - C6 waiver 仍适用（M3-WP5 验收侧：字面 [0,0,0] 未达，A/B 通过）
 - C7/C8/C9 未动
+
+# M3 迭代 3 收口日志（M3-iter3）
+
+## 迭代概览
+- 迭代：M3-iter3（C8 真实 GL 万行滚动 + M4-WP1 S1 声明层）
+- 日期：2026-11-13（Asia/Shanghai）
+- 仓库：C:\Users\ShiningRay\projects\ShiningRay\tessell
+- HEAD 基线：1f238b273990300382e946ef43e4a28715850769（工作区改动未 commit）
+- 执行/收口：gongbu-shangshu-4；task-117（仅改本文件，禁 commit）
+
+## A. C8 真实 GL 万行滚动
+- 产物：`examples/m3_scroll_window.cr`、`docs/evidence/M3-C8-gl-scroll.md`、
+  `src/tessell/render/gl/gl_backend.cr`。场景 10000 行 × 行高 20 × 800×600。
+- 修复后 verify：`diff_pixels=0 diff_A_vs_C=3101 quads_dirty=5 quads_full=141`
+  `culled=136 visible_avg=30`，`alloc_windows=[0,0,0] retried=false attempt=1`
+  （frames=20/120，verify=pass，EXIT 0）。
+- `--steady` 连续滚动：`STEADY mode=steady_continuous windows=[0,0,0] max=0`
+  `retried=false attempt=1 scroll_y=36000`；5 连跑 5/5 pass；
+  `label_bytes_total=78890`（init 一次性）。
+- 根因链：①脏区仅重绘 exposed strips、无 interior 像素平移 →
+  `diff_pixels=2798`（`DIAG_DIFF_BC bbox=(45,25)-(64,576)` 覆盖全高）；
+  ②`gl_backend` 逐 rect clear→draw 顺序问题 → 两阶段（先全 clear，再逐
+  rect scissor 画相交 quad）；③run cache 默认 256 条不足 10000 行 → 每帧
+  miss 分配 → 原位归因 `rdirty=92576/200帧`；④首窗 3984B 一次性分配
+  （`ALLOC_ATTEMPT1 alloc_windows=[3984,0,0] fail_reason=delta>=1000`）靠
+  prime measured-probe pass 吸收 → 修复后到 0。
+
+## B. M4-WP1 S1 声明层
+- 产物：`docs/research/dsl-state-api.md`（145 行）、
+  `src/tessell/ui/{key,builder,apply}.cr`、`spec/ui_builder_spec.cr`。
+- 实证：`UiKey{parent,local}` 非字符串 key；复用为对象身份
+  （`same_object=true id_stable=true`）；脏集最小
+  （`LAYOUT_LEAF_CHANGE count=3` 链上三节点、`PAINT_ONLY_CHANGE count=1`）；
+  幂等按完整帧：`apply → collect_dirty → consume → 同输入 apply → 空`。
+
+## C. 缺陷台账（本轮 P1×2）
+| 缺陷 | 裁断与修复 | 结果 |
+|---|---|---|
+| P1-apply 吞外部脏 | apply 只标脏、清脏归调用方；新增 `UI.consume` | 复核通过 |
+| P1-C8 像素不等价 | blit interior + 仅 exposed strip 重绘 | 像素等价 |
+- P1-apply：`apply.cr:102-111` 帧起始无条件 clean；
+  `P1_EXTERNAL ... swallowed=true`。新增 `UI.consume`（`apply.cr:199-206`），
+  全文唯一 `clean!` 在 `:203`。复核 `swallowed=false`、
+  `CONSUME_PARTIAL n1_cleared=true n2_kept=true`、
+  `IDEMPOTENT empty=true`；加回 clean 反证 `REGRESS_PROBE_EXIT=1`。
+- P1-C8：`diff_pixels=2798`（`DIAG_DIFF_BC bbox=(45,25)-(64,576)` 覆盖全高）；
+  修复后 `diff_pixels=0 diff_A_vs_C=3101`。
+
+## D. 零分配判据现状
+- 判据：A `delta < 1000`、B `delta <= 256`、三窗取 max、`GC.enable` 在 `ensure`、
+  ≤1 次重试且必须打印 `attempt=1`。
+- 本轮 ui_apply/ui_consume/ui_builder 三探针全 `[0,0,0]`（偶发 `[0,0,16]` 仍在
+  判据内）；负例对抗 `NEG_RESULT=CAUGHT`（两轮）。
+
+## E. 门禁条件台账（逐条）
+| 条件 | 状态 | 说明 |
+|---|---|---|
+| C5 | 已关闭 | 性能区间三档已给出（M3-iter2） |
+| C6 | 书面 waiver | `[0,0,0]`未达、A/B通过；阻断 M3-WP5 不阻断其余 |
+| C7 | 未关闭 | 真实键盘 IME 手测需人工（`ime_injection=blocked`） |
+| C8 | 部分/范围缩减 | GL 万行滚动已实现；UIA provider 未实现（lead 裁断缩减） |
+| C9 | 未关闭 | 字体许可待决：Noto 可分发 / Windows 字体不可分发 |
+- C6：见 `docs/evidence/M2-summary.md` §3.1。
+- C8：M3/M4 计划无 UIA 项（`docs/plan.md:263-266`）；M2-WP5 已交付 A11yNode
+  最小树 + J1–J9；UIA 需 COM vtable/线程模型，成本收益不匹配。
+  结论：UIA 明确不在 M3/M4 范围、延后待真实场景评估，属 lead 裁断范围缩减，
+  非已完成。
+
+## F. 未验证清单
+- 真实 GPU 帧时间不可由 CPU 侧外推；需 GPU timestamp query 或 Present 计数。
+- 跨机器/跨驱动不可外推；需多 GPU/驱动矩阵实测。
+- 进程 RSS 未采样（`label_bytes_total` 仅为字符串字节和）；需进程级采样。
+- UIA 未实现，a11y 与屏幕阅读器端到端未验证；需 UIA COM provider + 读屏器。
+
+## G. M4-WP2 打包与 DLL 依赖清单（同迭代并行）
+- `tools/package.ps1`：build → 复制 DLL → 写 `MANIFEST.txt`
+  （名/字节/SHA256），绝对路径调 crystal/objdump；
+  `dist/tessell/` 裸 PATH 验收 EXIT=0。
+- 导入表 20 个 DLL；裸 PATH（`C:\Windows\System32;C:\Windows`）
+  跑未打包 exe → `EXIT=-1073741515`（STATUS_DLL_NOT_FOUND）。
+- 补齐传递闭包后最小 msys2 运行时集 **16 个 DLL**，与 exe 同目录裸 PATH
+  `verify=pass`、`j1_pass=true`、`j5_pass=true j5_j3_pass=true`、EXIT=0。
+- 删测 3 次（`libintl-8.dll`/`libgraphite2.dll`/`libiconv-2.dll`）
+  每次均 `-1073741515`。
+- 许可：freetype FTL/GPLv2+、harfbuzz MIT、Noto OFL 1.1 可随包；
+  Windows 系统字体不可分发（`docs/research/font-fallback.md`）。
+- 证据：`docs/evidence/M4-WP2-packaging.md`（173 行，含 8 条 [未验证]）。
