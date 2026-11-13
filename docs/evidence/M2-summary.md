@@ -11,8 +11,8 @@
 |---|---|---|
 | M2-WP1 文本测量与 shaping | 已完成 | `src/tessell/text/measurer.cr`、`src/tessell/text/ft_measurer.cr`（FT 2.15.0 / HB 15.1.0，`M0-WP4-text.md`） |
 | M2-WP2 文本上屏（GL） | 已完成 | `src/tessell/render/text_renderer.cr`（`build_text`/`TextBatch`/`reserve_quads`）、`src/tessell/render/gl/gl_renderer.cr`（`sync_atlas_textures`/`begin_frame`/`draw_text`/`delete_textures`）；`examples/m2_text_window.cr` 上屏 verify 通过（`text_pixels_nonbg=2801 cpu_coverage_sum=2638 ratio=1.0618`，EXIT=0） |
-| M2-WP2a 图集/光栅化 | 已完成 | `src/tessell/text/glyph_atlas.cr`、`src/tessell/text/rasterizer.cr`；`docs/evidence/M2-WP2b.md`（本迭代新建） |
-| M2-WP2b 图集/光栅化证据 | 已完成 | `docs/evidence/M2-WP2b.md`：24 examples, 0 failures, EXIT=0（glyph_atlas 13 + rasterizer 11）；契约见 `tools/atlas_raster_verify.cr`（当前 HEAD 4cc928a，8 项断言）与 `M2-WP2b.md` §4；`verify-M2-WP2b.md` 仅为 `76ef5d6` 历史参照 |
+| M2-WP2a 图集/光栅化 | 已完成 | `src/tessell/text/glyph_atlas.cr`、`src/tessell/text/rasterizer.cr`；`docs/evidence/M2-WP2b.md`（当前 HEAD 可重跑） |
+| M2-WP2b 图集/光栅化证据 | 已完成（断言强度按 M2-gate-r3 P2-1 修正，待复核） | `docs/evidence/M2-WP2b.md`：`tools/atlas_raster_verify.cr` 8 项契约（含定向 page_reuse `same_page` + RANDOM200 `pages_ok`）EXIT=0，并有反例脚本证明鉴别力；全量 spec 186 examples, 0 failures；`verify-M2-WP2b.md` 仅为 `76ef5d6` 历史参照 |
 | M2-WP2c 零分配判据 | 部分达成 | 簿记 delta=0；真实 CPU 帧 112–160B/1000 帧（scroll 112、jump 112–160，3 窗 max，重试 0 次）；判据 A（<1000）与 B（<=256）均通过；字面 alloc_windows=[0,0,0] 未达，见 §3.1 waiver |
 | M2-WP2d 上屏真实性/GL 路径 | 已完成 | `docs/evidence/verify-M2-WP2d.md`（PASS-WITH-DEFECTS，162 行） |
 | M2-WP2e 帧时间/脏矩形 | 已完成 | `docs/evidence/verify-M2-iteration5.md`（PASS-WITH-DEFECTS，62 行）；`docs/research/virtual-list-a11y.md` |
@@ -82,7 +82,7 @@
 | C8 | 否（M3 前决策） | UIA 与 GL 滚动：实现或书面延后并修改 plan；不得在 summary 写成“已完成” | UIA COM 输出/读屏器验证；GL 滚动 on-screen 帧；或 plan 变更记录 | M2-WP5 / M2-WP4 |
 | C9 | 否（M3 打包前） | WP2F 许可：下载/核验 OFL 文本，明确可再分发与替代字体方案 | OFL 文本哈希/路径；分发清单；不可再分发替代方案 | M2-WP2F |
 
-当前状态：C1/C2/C3/C4 已按本迭代交付（C1 待门禁复核）；C5–C9 仍开放。
+当前状态：C1/C3/C4 已关闭；C2 断言强度已按 M2-gate-r3 P2-1 修正（定向 page_reuse + RANDOM200 页数断言 + 文档契约收窄），待复核；C5–C9 仍开放。
 
 ## 5. 提交卫生例外（C4）
 

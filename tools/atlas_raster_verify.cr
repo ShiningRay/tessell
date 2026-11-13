@@ -123,8 +123,9 @@ def verify_random200
     break unless ok
     i += 1
   end
-  puts "RANDOM200 ok=#{ok} count=#{slots.size} pages=#{atlas.page_count}"
-  check("random200", ok && slots.size == 200)
+  pages_ok = atlas.page_count <= 16
+  puts "RANDOM200 ok=#{ok} count=#{slots.size} pages=#{atlas.page_count} pages_ok=#{pages_ok}"
+  check("random200", ok && slots.size == 200 && pages_ok)
 end
 
 # 5. UV stability across page expansion.
@@ -171,29 +172,40 @@ def verify_uv_stable
   check("uv_stable", uv_stable)
 end
 
-# 6. Page reuse: whole page freed -> reuse, page_count not increased.
+# 6. Targeted page reuse: when a specific page is the only page with free space
+# (other pages fully occupied), freeing that whole page and inserting a fitting glyph
+# must place into that freed page index and must not grow page_count.
 def verify_page_reuse
   atlas = GlyphAtlas.new(128, 128)
-  # fill keys on page 0
-  keys = [] of GlyphKey
-  10.times do |i|
-    k = GlyphKey.new(6, i.to_u32, 16, 0_u8, 0_u8)
-    atlas.insert(k, 40, 40)
-    keys << k
+
+  # Page 0: fully occupied by 4 live glyphs (2x2 grid of 64x64 in 128x128).
+  4.times do |i|
+    atlas.insert(GlyphKey.new(6, i.to_u32, 16, 0_u8, 0_u8), 64, 64)
   end
+
+  # Page 1: fully occupied by 4 glyphs, to be freed entirely.
+  page1_keys = [] of GlyphKey
+  4.times do |i|
+    k = GlyphKey.new(8, i.to_u32, 16, 0_u8, 0_u8)
+    atlas.insert(k, 64, 64)
+    page1_keys << k
+  end
+
+  freed_page = atlas.lookup(page1_keys[0]).not_nil!.page
   pc_before = atlas.page_count
-  # remove all so page becomes fully free (live_count==0 path in remove_key)
-  keys.each { |k| atlas.evict_lru(0) } # no-op; need actual removal
-  atlas.invalidate_font(6)
-  # also clear any others
+
+  # Free the whole target page; page 0 remains fully occupied (no space).
+  atlas.invalidate_font(8)
   pc_after_free = atlas.page_count
-  # insert new keys - should reuse freed page
-  atlas.insert(GlyphKey.new(7, 1_u32, 16, 0_u8, 0_u8), 40, 40)
-  atlas.insert(GlyphKey.new(7, 2_u32, 16, 0_u8, 0_u8), 40, 40)
+
+  # Insert a glyph that fits: only the freed page has room, so placement must land there.
+  reused_slot = atlas.insert(GlyphKey.new(7, 1_u32, 16, 0_u8, 0_u8), 64, 64)
+  reused_page = reused_slot.page
   pc_after = atlas.page_count
-  # page_count (total pages allocated) should not grow compared to after-free state; reuse means same count
-  ok = pc_after <= pc_before
-  puts "page_reuse_page_count_before=#{pc_before} page_count_after_free=#{pc_after_free} page_count_after=#{pc_after} reused=#{ok}"
+  same_page = reused_page == freed_page
+  ok = same_page && pc_after <= pc_before
+
+  puts "page_reuse_freed_page=#{freed_page} reused_page=#{reused_page} same_page=#{same_page} page_count_before=#{pc_before} page_count_after_free=#{pc_after_free} page_count_after=#{pc_after}"
   check("page_reuse", ok)
 end
 

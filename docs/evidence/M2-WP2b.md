@@ -1,13 +1,13 @@
 # M2-WP2b 图集与光栅化：实现与证据（当前 HEAD）
 
-- 任务：task-85（C2 关闭：契约证据当前 HEAD 可重跑）
-- 基线：`4cc928a`（HEAD at verification time）；`76ef5d6` 仅作历史参照，不再作为关闭依据
-- 证据来源（当前 HEAD 实跑）：
-  - `crystal run tools/atlas_raster_verify.cr`（EXITCODE=0，8 项关键断言全齐，见 §3）
-  - `crystal spec spec/glyph_atlas_spec.cr spec/rasterizer_spec.cr`（24 examples, 0 failures）
-  - `crystal spec` 全量（186 examples, 0 failures，见 §3）
+- 任务：task-85（C2 关闭：契约证据当前 HEAD 可重跑）→ task-93（M2-gate-r3 C2 P2-1 断言强度修正）
+- 基线：`b4f91fb`（HEAD at task-93 start）；`4cc928a`/`76ef5d6` 为历史参照
+- 证据来源（task-93 修正后实跑）：
+  - `crystal run tools/atlas_raster_verify.cr`（EXITCODE=0；见 §3，含定向 page_reuse 与 RANDOM200 页数断言）
+  - 自证反例 `bin/_p2.cr`（一次性脚本，已删除）：目标页非唯一空闲页时 `same_page=false` 且断言失败，EXITCODE=1（见 §3.3）
+  - `crystal spec` 全量（186 examples, 0 failures，见 §3.2；本任务未改 src/spec）
 - 时间：2026-11-13 Asia/Shanghai
-- 本轮改动范围：仅 `tools/atlas_raster_verify.cr`（新增）、`docs/evidence/M2-WP2b.md`（本文件重写）；未改 src/spec/其他 docs；禁 commit
+- 本轮改动范围：`tools/atlas_raster_verify.cr`、`docs/evidence/M2-WP2b.md`、`docs/evidence/M2-summary.md`；未改 src/spec/examples/其他 docs
 
 ## 1. 实现描述（`src/tessell/text/glyph_atlas.cr`，当前 HEAD）
 
@@ -55,16 +55,16 @@ $env:PATH="C:\msys64\ucrt64\bin;$env:PATH"
 crystal run tools/atlas_raster_verify.cr
 ```
 
-完整输出（8 项关键断言齐全）：
+完整输出（task-93 修正后，8 项关键断言齐全）：
 
 ```
 frame_eviction_raised=true class=Tessell::Text::GlyphAtlas::FrameEvictionError
 frame_eviction_after_end_evicted=1
 invalidate_font_evicted=2 font1a_nil=true font1b_nil=true font2_present=true
 lru_tick_k1_present=true lru_tick_k2_nil=true lru_tick_k3_present=true
-RANDOM200 ok=true count=200 pages=1
+RANDOM200 ok=true count=200 pages=1 pages_ok=true
 UV_STABLE=true mismatch=0 pages_before=5 pages_after=10
-page_reuse_page_count_before=2 page_count_after_free=2 page_count_after=2 reused=true
+page_reuse_freed_page=1 reused_page=1 same_page=true page_count_before=2 page_count_after_free=2 page_count_after=2
 lookup_probe deltas=[0,0,0] delta_work=0 N=1000 pass=true
 shaped_run_hit_equiv=true count_base=9 count_hit=9 bad=0 run_cache_size=1
 ATLAS_RASTER_VERIFY_EXIT=0
@@ -72,34 +72,41 @@ ATLAS_RASTER_VERIFY_EXIT=0
 
 - EXITCODE=0
 
-### 3.2 规格实跑（当前 HEAD `4cc928a`）
+### 3.2 规格实跑（当前 HEAD `b4f91fb` + task-93 工作区改动；未改 src/spec）
 
 ```
-crystal spec spec/glyph_atlas_spec.cr spec/rasterizer_spec.cr
-# Finished in 34.46 milliseconds
-# 24 examples, 0 failures, 0 errors, 0 pending
-# EXITCODE=0
-
 crystal spec
-# Finished in 487.71 milliseconds
 # 186 examples, 0 failures, 0 errors, 0 pending
 # EXITCODE=0
 ```
 
-## 4. 行为契约（当前 HEAD 证据；`76ef5d6` 仅历史参照）
+（以本次实跑原始输出为准，见回报与 §3.1 探针输出）
+
+### 3.3 自证反例（断言鉴别力）
+
+一次性脚本 `bin/_p2.cr`（做完删除）复现「目标页未被复用」：页 0 仍有空闲空间，页 1 整页释放后插入新 glyph 落到页 0（`place` 按页索引顺序扫描现有页，页 0 先匹配），因此 `reused_page != freed_page`，`same_page=false`，同等判据失败。
+
+```
+page_reuse_freed_page=1 reused_page=0 same_page=false page_count_before=2 page_count_after=2
+COUNTEREXAMPLE_OK=false
+EXITCODE=1
+```
+
+- EXITCODE=1（脚本对 `same_page==false` 判为鉴别成功后主动以 1 退出，证明新断言能区分「目标页未被复用」而非软通过）
+
+## 4. 行为契约（当前 HEAD 证据；`4cc928a`/`76ef5d6` 仅历史参照）
 
 | 契约 | 结论 | 当前 HEAD 证据（探针输出行 / 代码锚点） | 备注 |
 |---|---|---|---|
 | 帧内禁淘汰抛 `FrameEvictionError`；帧外可驱逐 | 已验证（当前 HEAD） | `frame_eviction_raised=true class=Tessell::Text::GlyphAtlas::FrameEvictionError`；`frame_eviction_after_end_evicted=1`（§3.1）；`glyph_atlas.cr:158-168,226-238,253-259` | atlas 帧契约 |
 | `invalidate_font` 定向驱逐计数且不误伤他字体 | 已验证（当前 HEAD） | `invalidate_font_evicted=2 font1a_nil=true font1b_nil=true font2_present=true`（§3.1）；`glyph_atlas.cr:215-224` | 定向清理 |
 | LRU tick：`lookup` 命中刷新，`evict_lru` 淘汰最旧 | 已验证（当前 HEAD） | `lru_tick_k1_present=true lru_tick_k2_nil=true lru_tick_k3_present=true`（§3.1）；`glyph_atlas.cr:174-181,226-238` | LRU 语义 |
-| 随机装箱 200 个不同尺寸无重叠/越界 | 已验证（当前 HEAD） | `RANDOM200 ok=true count=200 pages=1`（§3.1） | shelf 装箱正确性 |
+| 随机装箱 200 个不同尺寸无重叠/越界且页数有界 | 已验证（当前 HEAD） | `RANDOM200 ok=true count=200 pages=1 pages_ok=true`（§3.1，`pages <= 16` 断言） | shelf 装箱正确性 + 页数上界（P3） |
 | UV 稳定：扩容前后同 key slot/uv 不变 | 已验证（当前 HEAD） | `UV_STABLE=true mismatch=0 pages_before=5 pages_after=10`（§3.1） | 扩容不移动既有 glyph |
-| 整页空闲后复用，`page_count` 不增 | 已验证（当前 HEAD） | `page_reuse_page_count_before=2 page_count_after_free=2 page_count_after=2 reused=true`（§3.1）；`glyph_atlas.cr:273-286,315-324` | 页回收复用 |
+| 定向整页复用：目标页为唯一空闲页时，新 glyph 落入被释放页且 `page_count` 不增 | 已验证（当前 HEAD，定向场景） | `page_reuse_freed_page=1 reused_page=1 same_page=true page_count_before=2 page_count_after_free=2 page_count_after=2`（§3.1）；反例 `same_page=false` EXITCODE=1（§3.3）；`glyph_atlas.cr:273-286,291-324` | **断言收窄为可证语义**：在“其他页无可放置空间、仅被释放页可容纳”场景下验证 `reused_page==freed_page` 且页数不增；不声称“任意场景总复用某个特定 freed 页”（`place` 先按索引扫描现有页，见 §3.3） |
 | `lookup` 3×1000 全命中 delta=0（判据 A/B, 3 窗 max, GC.enable in ensure） | 已验证（当前 HEAD） | `lookup_probe deltas=[0,0,0] delta_work=0 N=1000 pass=true`（§3.1） | 热路径零分配探针 |
 | `shape_run_into` 命中路径与 `rasterize_into` per-glyph 路径 placements 逐字段一致（缓存未改语义） | 已验证（当前 HEAD） | `shaped_run_hit_equiv=true count_base=9 count_hit=9 bad=0 run_cache_size=1`（§3.1）；`rasterizer.cr:168-198,200-238,287-330` | task-73 shaped-run 语义保持 |
-| `glyph_atlas_spec + rasterizer_spec` 回归 | 已验证（当前 HEAD） | `24 examples, 0 failures, 0 errors, 0 pending` EXITCODE=0（§3.2） | 定向 spec |
-| 全量 spec 回归 | 已验证（当前 HEAD） | `186 examples, 0 failures, 0 errors, 0 pending` EXITCODE=0（§3.2） | 全仓基线保持 |
+| 全量 spec 回归 | 已验证（当前 HEAD） | `186 examples, 0 failures, 0 errors, 0 pending` EXITCODE=0（§3.2） | 全仓基线保持，本任务未改 src/spec |
 | P3-1 超大 glyph 失败不遗留空页 | 已验证（当前 HEAD 代码） | `glyph_atlas.cr:299-304`（acquire_page 前预检查）；spec `oversized glyph raises without leaving a stray page...` 覆盖（§3.2） | 约束保持 |
 | 0 尺寸 insert 拒绝且无副作用 | 已验证（当前 HEAD 代码） | `glyph_atlas.cr:186-188`；spec `zero-size insert raises ArgumentError...` 覆盖（§3.2） | 设计决策，非缺陷 |
 | 重复 key 幂等（首 slot 胜出） | 已验证（当前 HEAD 代码） | `glyph_atlas.cr:192-197`；spec `duplicate-key insert is idempotent...` 覆盖（§3.2） | 已文档化行为 |
