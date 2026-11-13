@@ -16,6 +16,7 @@ class RecordingBackend < Tessell::Render::Backend
   @submitted_quads : Int32
   @scissor_calls : Int32
   @culled_quads : Int32
+  @stencil_fills : Int32
 
   def initialize
     @calls = [] of String
@@ -28,6 +29,7 @@ class RecordingBackend < Tessell::Render::Backend
     @submitted_quads = 0
     @scissor_calls = 0
     @culled_quads = 0
+    @stencil_fills = 0
   end
 
   def init(width : Int32, height : Int32) : Nil
@@ -48,6 +50,7 @@ class RecordingBackend < Tessell::Render::Backend
     @submitted_quads = 0
     @scissor_calls = 0
     @culled_quads = 0
+    @stencil_fills = 0
   end
 
   def sync_atlas(atlas : Tessell::Text::GlyphAtlas) : Nil
@@ -89,7 +92,13 @@ class RecordingBackend < Tessell::Render::Backend
   end
 
   def stats : Tessell::Render::FrameStats
-    Tessell::Render::FrameStats.new(@submitted_quads, @scissor_calls, @culled_quads)
+    Tessell::Render::FrameStats.new(@submitted_quads, @scissor_calls, @culled_quads, @stencil_fills)
+  end
+
+  def draw_polygon(points : Array(Tessell::Point), color : UInt32, even_odd : Bool = true) : Bool
+    @calls << "draw_polygon" if @record_calls
+    @stencil_fills += 1
+    true
   end
 
   def resolved_texture(page : Int32) : Int32
@@ -175,6 +184,23 @@ def make_quad(vertices : Array(Tessell::Render::Vertex), l : Float32, t : Float3
   vertices << Tessell::Render::Vertex.new(r, t, 1.0_f32, 0.0_f32, 0xffffffff_u32)
   vertices << Tessell::Render::Vertex.new(r, b, 1.0_f32, 1.0_f32, 0xffffffff_u32)
   vertices << Tessell::Render::Vertex.new(l, b, 0.0_f32, 1.0_f32, 0xffffffff_u32)
+end
+
+class NoPolyBackend < Tessell::Render::Backend
+  def init(width : Int32, height : Int32) : Nil; end
+  def resize(width : Int32, height : Int32) : Nil; end
+  def begin_frame(dirty : Array(Tessell::Rect)? = nil,
+                  theme : Tessell::Render::Theme = Tessell::Render::Theme.light) : Nil; end
+  def sync_atlas(atlas : Tessell::Text::GlyphAtlas) : Nil; end
+  def draw_text(vertices : Array(Tessell::Render::Vertex),
+                batches : Array(Tessell::Render::TextBatch),
+                batch_count : Int32 = batches.size) : Int32
+    0
+  end
+  def end_frame : Nil; end
+  def close : Nil; end
+  def stats : Tessell::Render::FrameStats; Tessell::Render::FrameStats.new; end
+  def resolved_texture(page : Int32) : Int32; 0; end
 end
 
 describe "Backend protocol (M3-WP1)" do
@@ -392,5 +418,26 @@ describe "Backend protocol (M3-WP1)" do
       attempt = 2
     end
     (delta_work < n && delta_work <= 256).should be_true
+  end
+
+  it "draw_polygon: base backend returns false (unsupported)" do
+    unsupported = NoPolyBackend.new
+    pts = [Tessell::Point.new(0.0_f32, 0.0_f32),
+           Tessell::Point.new(10.0_f32, 0.0_f32),
+           Tessell::Point.new(10.0_f32, 10.0_f32)] of Tessell::Point
+    unsupported.draw_polygon(pts, 0xFF0000FF_u32).should be_false
+    unsupported.stats.stencil_fills.should eq(0)
+  end
+
+  it "draw_polygon: override records call and increments stencil_fills" do
+    backend = RecordingBackend.new
+    pts = [Tessell::Point.new(0.0_f32, 0.0_f32),
+           Tessell::Point.new(10.0_f32, 0.0_f32),
+           Tessell::Point.new(10.0_f32, 10.0_f32)] of Tessell::Point
+    backend.draw_polygon(pts, 0xFF0000FF_u32).should be_true
+    backend.calls.includes?("draw_polygon").should be_true
+    backend.stats.stencil_fills.should eq(1)
+    backend.draw_polygon(pts, 0x00FF00FF_u32).should be_true
+    backend.stats.stencil_fills.should eq(2)
   end
 end

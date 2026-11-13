@@ -24,14 +24,16 @@ lib TessellGL
   alias GLclampd = Float64
   alias GLvoid = Void
 
-  GL_COLOR_BUFFER_BIT = 0x00004000_u32
-  GL_TRIANGLES        = 0x0004_u32
-  GL_QUADS            = 0x0007_u32
+  GL_COLOR_BUFFER_BIT   = 0x00004000_u32
+  GL_STENCIL_BUFFER_BIT = 0x00000400_u32
+  GL_TRIANGLES          = 0x0004_u32
+  GL_QUADS              = 0x0007_u32
 
   GL_TEXTURE_2D   = 0x0DE1_u32
   GL_BLEND        = 0x0BE2_u32
   GL_ALPHA_TEST   = 0x0BC0_u32
   GL_SCISSOR_TEST = 0x0C11_u32
+  GL_STENCIL_TEST = 0x0B90_u32
 
   GL_RGBA          = 0x1908_u32
   GL_ALPHA         = 0x1906_u32
@@ -41,6 +43,7 @@ lib TessellGL
 
   GL_UNPACK_ALIGNMENT = 0x0CF5_u32
   GL_PACK_ALIGNMENT   = 0x0D05_u32
+  GL_STENCIL_BITS     = 0x0D57_u32
 
   GL_TEXTURE_MIN_FILTER = 0x2801_u32
   GL_TEXTURE_MAG_FILTER = 0x2800_u32
@@ -55,21 +58,33 @@ lib TessellGL
   GL_ONE                 = 1_u32
   GL_ZERO                = 0_u32
 
+  GL_ALWAYS   = 0x0207_u32
+  GL_NOTEQUAL = 0x0205_u32
+  GL_KEEP     = 0x1E00_u32
+  GL_INVERT   = 0x150A_u32
+  GL_TRIANGLE_FAN = 0x0006_u32
+
   GL_PROJECTION = 0x1701_u32
   GL_MODELVIEW  = 0x1700_u32
 
   fun glViewport(x : GLint, y : GLint, width : GLsizei, height : GLsizei) : Void
   fun glScissor(x : GLint, y : GLint, width : GLsizei, height : GLsizei) : Void
   fun glClearColor(red : GLfloat, green : GLfloat, blue : GLfloat, alpha : GLfloat) : Void
+  fun glClearStencil(s : GLint) : Void
   fun glClear(mask : GLbitfield) : Void
   fun glFlush : Void
   fun glFinish : Void
   fun glGetError : GLenum
+  fun glGetIntegerv(pname : GLenum, params : GLint*) : Void
 
   fun glEnable(cap : GLenum) : Void
   fun glDisable(cap : GLenum) : Void
   fun glBlendFunc(sfactor : GLenum, dfactor : GLenum) : Void
   fun glColor4f(red : GLfloat, green : GLfloat, blue : GLfloat, alpha : GLfloat) : Void
+  fun glColorMask(red : GLboolean, green : GLboolean, blue : GLboolean, alpha : GLboolean) : Void
+  fun glStencilFunc(func : GLenum, ref : GLint, mask : GLuint) : Void
+  fun glStencilOp(fail : GLenum, zfail : GLenum, zpass : GLenum) : Void
+  fun glStencilMask(mask : GLuint) : Void
 
   fun glMatrixMode(mode : GLenum) : Void
   fun glLoadIdentity : Void
@@ -107,6 +122,8 @@ module Tessell
         @scissor_calls : Int32
         @culled_quads : Int32
         @submitted_quads : Int32
+        @stencil_fills : Int32
+        @stencil_bits : Int32
         @bg_r : Float32
         @bg_g : Float32
         @bg_b : Float32
@@ -122,6 +139,8 @@ module Tessell
           @scissor_calls = 0
           @culled_quads = 0
           @submitted_quads = 0
+          @stencil_fills = 0
+          @stencil_bits = 0
           @bg_r = 1.0_f32
           @bg_g = 1.0_f32
           @bg_b = 1.0_f32
@@ -132,7 +151,16 @@ module Tessell
         def init(width : Int32, height : Int32) : Nil
           @viewport_w = width
           @viewport_h = height
+          # Query the actual stencil bits of the current GL context. If the pixel
+          # format carried no stencil buffer this stays 0 and draw_polygon must
+          # honestly report unsupported (return false) instead of silently
+          # falling back to a wrong fill.
+          bits = 0
+          TessellGL.glGetIntegerv(TessellGL::GL_STENCIL_BITS, pointerof(bits))
+          @stencil_bits = bits
         end
+
+        getter stencil_bits : Int32
 
         def resize(width : Int32, height : Int32) : Nil
           @viewport_w = width
@@ -152,6 +180,7 @@ module Tessell
           @scissor_calls = 0
           @culled_quads = 0
           @submitted_quads = 0
+          @stencil_fills = 0
           @frame_active = true
 
           @bg_r = Tessell::Render::Theme.r(theme.bg)
@@ -180,7 +209,8 @@ module Tessell
 
           if dirty.nil?
             TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST)
-            TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT)
+            TessellGL.glClearStencil(0)
+            TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
           else
             # Dirty/partial: do not clear full framebuffer here.
             # Each dirty rect is scissor-cleared in draw_batches_with_dirty so that
@@ -344,7 +374,8 @@ module Tessell
             sx, sy, sw, sh_i = scissor_params(r)
             TessellGL.glScissor(sx, sy, sw, sh_i)
             @scissor_calls += 1
-            TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT)
+            TessellGL.glClearStencil(0)
+            TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
             ri += 1
           end
 
@@ -554,8 +585,82 @@ module Tessell
           ids
         end
 
+        def draw_polygon(points : Array(Tessell::Point), color : UInt32,
+                         even_odd : Bool = true) : Bool
+          n = points.size
+          return false if n < 3
+          # Honest capability reporting: only even-odd stencil/cover is implemented.
+          # nonzero-rule (GL_INCR/GL_DECR winding) is NOT implemented; callers
+          # asking for it get false, not a silently wrong fill.
+          return false unless even_odd
+          # No stencil buffer in the chosen pixel format -> cannot do stencil/cover.
+          return false if @stencil_bits <= 0
+          # Stencil/cover (even-odd): fill stencil with triangle fan parity,
+          # then cover bounded region where stencil != 0.
+          TessellGL.glDisable(TessellGL::GL_TEXTURE_2D)
+          was_scissor = !@dirty.nil?
+          TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST) if was_scissor
+
+          min_x = points[0].x
+          max_x = points[0].x
+          min_y = points[0].y
+          max_y = points[0].y
+          i = 1
+          while i < n
+            p = points.unsafe_fetch(i)
+            min_x = p.x if p.x < min_x
+            max_x = p.x if p.x > max_x
+            min_y = p.y if p.y < min_y
+            max_y = p.y if p.y > max_y
+            i += 1
+          end
+
+          TessellGL.glEnable(TessellGL::GL_STENCIL_TEST)
+          TessellGL.glClearStencil(0)
+          TessellGL.glClear(TessellGL::GL_STENCIL_BUFFER_BIT)
+          TessellGL.glColorMask(0_u8, 0_u8, 0_u8, 0_u8)
+          TessellGL.glStencilFunc(TessellGL::GL_ALWAYS, 0, 0xFF_u32)
+          TessellGL.glStencilOp(TessellGL::GL_KEEP, TessellGL::GL_KEEP, TessellGL::GL_INVERT)
+          TessellGL.glStencilMask(0xFF_u32)
+
+          TessellGL.glBegin(TessellGL::GL_TRIANGLE_FAN)
+          i = 0
+          while i < n
+            p = points.unsafe_fetch(i)
+            TessellGL.glVertex2f(p.x, p.y)
+            i += 1
+          end
+          TessellGL.glEnd
+
+          TessellGL.glColorMask(1_u8, 1_u8, 1_u8, 1_u8)
+          TessellGL.glStencilFunc(TessellGL::GL_NOTEQUAL, 0, 0xFF_u32)
+          TessellGL.glStencilOp(TessellGL::GL_KEEP, TessellGL::GL_KEEP, TessellGL::GL_KEEP)
+          TessellGL.glStencilMask(0xFF_u32)
+
+          r = ((color >> 24) & 0xFF).to_f32 / 255.0_f32
+          g = ((color >> 16) & 0xFF).to_f32 / 255.0_f32
+          b = ((color >> 8) & 0xFF).to_f32 / 255.0_f32
+          a = (color & 0xFF).to_f32 / 255.0_f32
+          TessellGL.glColor4f(r, g, b, a)
+          TessellGL.glBegin(TessellGL::GL_QUADS)
+          TessellGL.glVertex2f(min_x, min_y)
+          TessellGL.glVertex2f(max_x, min_y)
+          TessellGL.glVertex2f(max_x, max_y)
+          TessellGL.glVertex2f(min_x, max_y)
+          TessellGL.glEnd
+
+          TessellGL.glDisable(TessellGL::GL_STENCIL_TEST)
+          TessellGL.glStencilMask(0xFF_u32)
+          TessellGL.glColorMask(1_u8, 1_u8, 1_u8, 1_u8)
+          TessellGL.glEnable(TessellGL::GL_TEXTURE_2D)
+          TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST) if was_scissor
+
+          @stencil_fills += 1
+          true
+        end
+
         def stats : Tessell::Render::FrameStats
-          Tessell::Render::FrameStats.new(@submitted_quads, @scissor_calls, @culled_quads)
+          Tessell::Render::FrameStats.new(@submitted_quads, @scissor_calls, @culled_quads, @stencil_fills)
         end
       end
     end

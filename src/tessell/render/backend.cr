@@ -14,8 +14,10 @@ module Tessell
       getter submitted_quads : Int32
       getter scissor_calls : Int32
       getter culled_quads : Int32
+      getter stencil_fills : Int32
 
-      def initialize(@submitted_quads : Int32 = 0, @scissor_calls : Int32 = 0, @culled_quads : Int32 = 0)
+      def initialize(@submitted_quads : Int32 = 0, @scissor_calls : Int32 = 0,
+                     @culled_quads : Int32 = 0, @stencil_fills : Int32 = 0)
       end
     end
 
@@ -34,6 +36,15 @@ module Tessell
       # Backends without RGBA pages fall back to the R8 resolution (gray semantics).
       def resolved_texture(page : Int32, color : Bool) : Int32
         resolved_texture(page)
+      end
+
+      # Fill a polygon using stencil/cover when supported (e.g. GLBackend). `points`
+      # are in screen space, `color` is premultiplied RGBA8, and `even_odd` selects
+      # fill rule (true = even-odd). Base returns false = unsupported; backends that
+      # perform the fill must return true and account stencil_fills in stats.
+      def draw_polygon(points : Array(Tessell::Point), color : UInt32,
+                       even_odd : Bool = true) : Bool
+        false
       end
     end
   end

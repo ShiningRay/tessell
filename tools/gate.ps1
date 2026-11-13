@@ -117,6 +117,8 @@ Run-Example "ex_m3_scroll_dy20" "examples/m3_scroll_window.cr" `
   @("--verify","--dy=20") @("verify=pass","diff_pixels=","diff_A_vs_C=","alloc_windows=") | Out-Null
 Run-Example "ex_m3_scroll_dy600" "examples/m3_scroll_window.cr" `
   @("--verify","--dy=600") @("verify=pass","diff_pixels=","diff_A_vs_C=","alloc_windows=") | Out-Null
+Run-Example "ex_m3_path_verify" "examples/m3_path_window.cr" `
+  @("--verify","--frames=20") @("verify=pass","stencil_bits=","diff_pixels=0","fill_pixels_gl=","fill_pixels_cpu=") | Out-Null
 
 # 4. zero_alloc_frame.cr
 $zaCmd = "run tools/zero_alloc_frame.cr -- --frames=200 --json"
@@ -191,7 +193,12 @@ $allowedUntracked = @(
   'docs/evidence/M4-WP4-gate.md',
   'examples/app_demo.cr',
   'docs/usage.md',
-  'docs/evidence/M3-gate-r4.md'
+  'docs/evidence/M3-gate-r4.md',
+  'examples/m3_path_window.cr',
+  'spec/path_gl_spec.cr',
+  'docs/evidence/M3-WP4-stencil-cover.md',
+  'spec/polygon_spec.cr',
+  'src/tessell/render/polygon.cr'
 )
 $unexpected = @()
 $allowedSeen = @()
