@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.1 (2026-11-15)
+
+三个真机回归缺陷修复（#45–#47），GitHub issue 保持清零。
+
+### Bug 修复
+- **#47 无时间戳时双击静默失效**：宿主不透传 `timestamp_ms`（默认 0）时
+  Router 双击判定恒不成立且无任何信号。`timestamp_ms == 0` 现在解释为
+  「平台未提供」——双击退化为**同目标 + 位移上限 + 同修饰键**；透传时间戳
+  的宿主仍享受完整时间窗判定。usage.md 新增宿主事件契约节
+  （`timestamp_ms` / `repeat` 透传为必需项）。
+- **#46 GLBackend 帧统计被逐次 draw_text 清零**：交错提交（#15/#21 推荐
+  写法）下 `submitted_quads` 只反映最后一次调用（实测 200 字形 quads=10）。
+  三处逐调用清零移除——stats 与 `begin_frame` 重置对齐，帧内只累加；
+  `draw_text` 返回值改为**本次调用增量**，「本次提交了多少」与
+  stats「本帧累计」同时成立。
+- **#45 GLBackend 缺外部纹理通道**：`Kit::Image` 在 GL 宿主上静默画不出。
+  GLBackend 实现 create/update/destroy/resolved_texture_external（handle
+  独立命名空间）与 `CmdKind::Image` 分支（straight-alpha blend 临时切换 +
+  GL_MODULATE tint + v 轴翻转 UV）；`Kit::Image` 支持
+  `ctx.supports_external_texture = false` 跳过绘制（a11y 仍报 Role::Image）。
+  附带修复示例宿主三处编译错误（GLPainter#image 缺失、`frames` 残留、
+  `bounds.x` 访问器）——v0.3.0 起示例集不可编译的问题就此解决。
+  GL/SDL 运行路径本机编译验证，真机渲染 [未验证]。
+
 ## 0.4.0 (2026-11-15)
 
 跟进项 #43 / #44 处置完成，GitHub issue 全部清零。

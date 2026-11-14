@@ -1,5 +1,5 @@
 name: tessell
-version: 0.4.0
+version: 0.4.1
 description: |
   A retained-mode, declarative GUI framework for Crystal.
   Self-drawn rendering, isolated UI execution context, zero-allocation steady-state frames.
