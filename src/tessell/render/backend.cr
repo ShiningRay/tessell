@@ -33,6 +33,9 @@ module Tessell
       # text segments interleaved with draw_draw_list segments. `from_batch`
       # selects the unsubmitted suffix of `batches`; `clip` restricts the text
       # segment to a scissor rect (nil = unclipped).
+      # Return value = quads submitted by THIS call (delta, issue #46);
+      # `stats.submitted_quads` is the FRAME cumulative total (reset only in
+      # begin_frame) — interleaved submissions accumulate, never reset.
       abstract def draw_text(vertices : Array(Vertex), batches : Array(TextBatch),
                              batch_count : Int32 = batches.size, from_batch : Int32 = 0,
                              clip : Tessell::Rect? = nil) : Int32

@@ -418,19 +418,20 @@ module Tessell
         def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch),
                       batch_count : Int32 = batches.size, from_batch : Int32 = 0,
                       clip : Tessell::Rect? = nil) : Int32
+          # stats 是帧级累计（begin_frame 清零，issue #46）：交错提交时多次
+          # draw_text 只做累加；返回值 = 本次调用增量（"本次提交了多少"）。
+          before = @submitted_quads
           if @dirty.nil?
             draw_batches_all(vertices, batches, batch_count, from_batch, clip)
           else
             rects = @dirty.not_nil!
             if rects.empty?
-              @scissor_calls = 0
-              @culled_quads = total_quads(batches, batch_count)
-              @submitted_quads = 0
+              @culled_quads += total_quads(batches, batch_count)
             else
               draw_batches_with_dirty(vertices, batches, batch_count, rects, from_batch, clip)
             end
           end
-          @submitted_quads
+          @submitted_quads - before
         end
 
         # Draw Kit/core primitive commands. Colors are 0xRRGGBBAA, alpha-premultiplied
@@ -595,9 +596,6 @@ module Tessell
                                      batch_count : Int32, from_batch : Int32 = 0,
                                      clip : Tessell::Rect? = nil) : Nil
           apply_clip(clip)
-          @submitted_quads = 0
-          @culled_quads = 0
-          @scissor_calls = 0
           i = from_batch
           while i < batch_count
             b = batches[i]
@@ -641,10 +639,6 @@ module Tessell
         private def draw_batches_with_dirty(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch),
                                             batch_count : Int32, rects : Array(Tessell::Rect),
                                             from_batch : Int32 = 0, clip : Tessell::Rect? = nil) : Nil
-          @scissor_calls = 0
-          @culled_quads = 0
-          @submitted_quads = 0
-
           rcount = rects.size
           TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST)
           # 脏矩形清屏已在 begin_frame 完成（issue #15：交错提交不能被
