@@ -231,6 +231,24 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
   调用顺序即绘制顺序，同 clip 内自动合批）。
 
+## 宿主事件契约（issue #47）
+
+把平台事件转成 `Tessell::Input::Event` 时，**必须透传平台时间戳**：
+
+```crystal
+# SDL2：MouseButtonEvent/KeyboardEvent 都有 timestamp（毫秒）
+dispatch(root, Tessell::Input::Event.pointer_down(button.x.to_f32,
+  button.y.to_f32, button.button.to_i32 - 1, modifiers(0),
+  button.timestamp.to_i64))   # ← 不传 = 双击判定退化
+```
+
+- `timestamp_ms == 0` 表示"平台未提供"。Router 不再把缺时间戳当成
+  "永不双击"——退化口径为**同目标 + 位移上限 + 同修饰键**（v0.4.1 起）；
+  透传了时间戳的宿主仍享受完整的时间窗判定。
+- `repeat`（键盘按住自动重复）同理：宿主不透传时按键重复语义静默失效，
+  请从平台事件的 repeat 标志映射（SDL 为 `KeyboardEvent#repeat != 0`）。
+- 官方示例宿主 `examples/lib/kit_sdl_host.cr` 已示范完整透传。
+
 ## 常见错误
 - `-1073741515`（0xC0000135）：缺少运行时 DLL。将 msys2 ucrt64 bin 加入
   PATH，或按 M4-WP2-packaging.md 将所需 DLL 放到 exe 同目录。

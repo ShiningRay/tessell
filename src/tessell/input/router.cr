@@ -24,6 +24,8 @@ module Tessell::Input
     # 点击语义（issue #4）：最近一次 PointerUp 的结果。
     #   last_click_count：0=非点击（无按压目标），1=单击，2=双击
     #     （同目标、double_click_window_ms 内、double_click_max_dist 内）。
+    #     宿主未透传时间戳（timestamp_ms==0，issue #47）时时间窗判定退化，
+    #     双击只要求同目标+位移+同修饰键——宿主应尽量透传平台时间戳。
     #   last_press_target：最近一次 PointerDown 命中的节点（= pressed 快照）。
     #   last_drag_distance：按下到释放的位移（拖拽判定的语义辅助）。
     getter last_click_count : Int32
@@ -134,10 +136,13 @@ module Tessell::Input
       if @last_drag_distance > @double_click_max_dist * 10.0_f32
         @last_click_count = 0
       else
+        # timestamp_ms == 0 = 平台未提供时间戳（issue #47）：退化为
+        # 「同目标 + 位移 + 同修饰键」判定，不再把缺时间戳当成"永不双击"
+        # ——此前真实宿主不透传时间戳时 click_count 恒为 1 且无任何信号。
+        has_time = event.timestamp_ms > 0 && @last_up_ts > 0
+        time_ok = !has_time || (event.timestamp_ms - @last_up_ts) <= @double_click_window_ms
         double = target == @last_up_target &&
-                 event.timestamp_ms > 0 &&
-                 @last_up_ts > 0 &&
-                 (event.timestamp_ms - @last_up_ts) <= @double_click_window_ms &&
+                 time_ok &&
                  @last_drag_distance <= @double_click_max_dist &&
                  event.modifiers == @last_up_modifiers
         @last_click_count = double ? 2 : 1

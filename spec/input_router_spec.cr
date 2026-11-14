@@ -188,3 +188,50 @@ describe "Router click semantics" do
     router.last_click_count.should eq(0)
   end
 end
+
+# issue #47：宿主不透传 timestamp_ms（默认 0）时双击判定退化——
+# 「缺时间戳」不再被当成「永不双击」：同目标 + 位移 + 同修饰键即成立。
+describe "Router timestamp-less double click (issue #47)" do
+  it "counts double click when timestamps are absent (degraded to target+dist+mods)" do
+    root, _a, _b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32), root)
+    router.last_click_count.should eq(1)
+
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32), root)
+    router.last_click_count.should eq(2) # 无时间戳：同目标+位移即双击
+  end
+
+  it "still blocks double when drag distance exceeds the limit" do
+    root, _a, _b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_up(60.0_f32, 10.0_f32), root)
+    router.last_click_count.should eq(1) # 位移超限
+  end
+
+  it "still blocks double when modifiers change between clicks (timestamp-less path)" do
+    root, _a, _b = build_router_tree
+    router = Router.new
+    shift = Modifiers.new(shift: true)
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32, 0, shift), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32, 0, shift), root)
+    router.last_click_count.should eq(1) # 无修饰 → Shift：修饰键变化打断双击
+  end
+
+  it "keeps the time window check when timestamps ARE provided" do
+    root, _a, _b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32, timestamp_ms: 100_i64), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32, timestamp_ms: 120_i64), root)
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32, timestamp_ms: 900_i64), root)
+    router.handle(Event.pointer_up(10.0_f32, 10.0_f32, timestamp_ms: 920_i64), root)
+    router.last_click_count.should eq(1) # 窗口外：有真实时间戳时照常阻断
+  end
+end
