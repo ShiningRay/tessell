@@ -100,6 +100,24 @@ UI.apply_auto_layout(buf, pool, viewport, measurer)  # 求解并写回 bounds
 陷阱：探针前预热 shaped run 并 sync atlas；热路径避免新建 `String`/`Array`/
 proc 捕获；复用缓冲与 sink；避免热循环内字符串插值。
 
+## 截图与 golden-image 回归（issue #9）
+- 截图三格式：`--screenshot=x.png` 直出 PNG（stored zlib，标准解码器可读）；
+  其他扩展名为 P6 PPM；`TessellShot.save`（tools/lib/shot.cr）输出 TSRAW
+  （top-down RGBA，`m3_*` 探针使用）。
+- 转换：`bin/golden --convert in.tsraw out.png`（也支持 .ppm）。
+- golden 比较：`bin/golden baseline current --diff out.png --max-diff N`；
+  退出码 0=pass / 1=fail / 2=用法错误；输出 diff_pixels / max_channel_diff
+  与差异标红、其余压暗的 diff 图。支持 .png/.tsraw/.ppm 互比。
+- CI smoke 示例：
+  ```sh
+  crystal build examples/app_calculator.cr -o bin/app_calculator
+  ./bin/app_calculator --frames=2 --screenshot=shot.png
+  crystal build tools/golden.cr -o bin/golden
+  ./bin/golden baseline.png shot.png --max-diff 0
+  ```
+- PNG 读取端仅支持本工具写出的 stored-zlib 格式；读到压缩 PNG 时明确报
+  错提示用本工具重生成（不假装支持任意 PNG）。
+
 ## 动态文本与 atlas 同步契约
 `GlyphAtlas` 会把新字形插进**既有页**，所以 `page_count` / `used_pixels` /
 `evicted_total` 只是观测计数，**不是**内容变化信号；只比较 `page_count` 的

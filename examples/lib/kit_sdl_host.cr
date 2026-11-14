@@ -17,6 +17,7 @@ require "../../src/tessell/render/text_renderer"
 require "../../src/tessell/text/ft_measurer"
 require "../../src/tessell/text/glyph_atlas"
 require "../../src/tessell/text/rasterizer"
+require "../../tools/lib/png"
 
 module TessellKitSdl
   @[Link("SDL2")]
@@ -453,7 +454,11 @@ module TessellKitSdl
 
         if path = screenshot_path
           if frames_limit == 0 || frames + 1 >= frames_limit
-            capture_ppm(path, drawable_w, drawable_h)
+            if path.ends_with?(".png")
+              capture_png(path, drawable_w, drawable_h)
+            else
+              capture_ppm(path, drawable_w, drawable_h)
+            end
             screenshot_path = nil
           end
         end
@@ -477,6 +482,27 @@ module TessellKitSdl
     @mouse_x : Int32 = 0
     @mouse_y : Int32 = 0
     @resize_pending : Bool = false
+
+    # PNG 截图（issue #9）：--screenshot=xxx.png 直接出 PNG（stored zlib，
+    # 标准解码器可读）；其他扩展名保留 P6 PPM。
+    private def capture_png(path : String, width : Int32, height : Int32) : Nil
+      return if width <= 0 || height <= 0
+      rgba = Bytes.new(width * height * 4)
+      TessellGL.glFinish
+      TessellGL.glPixelStorei(TessellGL::GL_PACK_ALIGNMENT, 1)
+      TessellGL.glReadPixels(0, 0, width, height, TessellGL::GL_RGBA,
+        TessellGL::GL_UNSIGNED_BYTE, rgba.to_unsafe.as(Void*))
+      top_down = Bytes.new(width * height * 4)
+      row = width * 4
+      y = 0
+      while y < height
+        src = (height - 1 - y) * row
+        dst = y * row
+        (top_down.to_unsafe + dst).copy_from(rgba.to_unsafe + src, row)
+        y += 1
+      end
+      TessellPNG.write(path, width, height, top_down)
+    end
 
     private def capture_ppm(path : String, width : Int32, height : Int32) : Nil
       return if width <= 0 || height <= 0
