@@ -10,6 +10,7 @@ module Tessell
       StrokeRect
       FillRoundRect
       StrokeRoundRect
+      Line
       Text
       PushClip
       PopClip
@@ -24,13 +25,16 @@ module Tessell
       getter text : String
       getter x : Float32
       getter y : Float32
+      getter x2 : Float32
+      getter y2 : Float32
       getter font_size : Float32
 
       def initialize(@kind : PaintKind, @rect : Rect = Rect.new,
                      @color : UInt32 = 0_u32, @width : Float32 = 0.0_f32,
                      @radius : Float32 = 0.0_f32, @text : String = "",
                      @x : Float32 = 0.0_f32, @y : Float32 = 0.0_f32,
-                     @font_size : Float32 = 0.0_f32)
+                     @font_size : Float32 = 0.0_f32,
+                     @x2 : Float32 = 0.0_f32, @y2 : Float32 = 0.0_f32)
       end
     end
 
@@ -105,6 +109,8 @@ module Tessell
       abstract def stroke_rect(rect : Rect, color : UInt32, width : Float32 = 1.0_f32) : Nil
       abstract def fill_round_rect(rect : Rect, radius : Float32, color : UInt32) : Nil
       abstract def stroke_round_rect(rect : Rect, radius : Float32, color : UInt32, width : Float32 = 1.0_f32) : Nil
+      abstract def line(x1 : Float32, y1 : Float32, x2 : Float32, y2 : Float32,
+                        color : UInt32, width : Float32 = 1.0_f32) : Nil
       abstract def text(x : Float32, baseline_y : Float32, text : String,
                         color : UInt32, size : Float32) : Nil
       abstract def push_clip(rect : Rect) : Nil
@@ -133,6 +139,12 @@ module Tessell
         @list.push(PaintCmd.new(PaintKind::StrokeRoundRect, rect, color, width, radius))
       end
 
+      def line(x1 : Float32, y1 : Float32, x2 : Float32, y2 : Float32,
+               color : UInt32, width : Float32 = 1.0_f32) : Nil
+        @list.push(PaintCmd.new(PaintKind::Line, color: color, width: width,
+          x: x1, y: y1, x2: x2, y2: y2))
+      end
+
       def text(x : Float32, baseline_y : Float32, text : String,
                color : UInt32, size : Float32) : Nil
         @list.push(PaintCmd.new(PaintKind::Text, Rect.new, color, text: text,
@@ -152,6 +164,10 @@ module Tessell
     module Geometry
       def self.inset(rect : Rect, all : Float32) : Rect
         inset(rect, all, all, all, all)
+      end
+
+      def self.inset(rect : Rect, insets : Insets) : Rect
+        inset(rect, insets.top, insets.right, insets.bottom, insets.left)
       end
 
       def self.inset(rect : Rect, top : Float32, right : Float32,

@@ -10,7 +10,12 @@ require "./kit/painter"
 require "./kit/draw_list_painter"
 require "./kit/context"
 require "./kit/component"
+require "./kit/container"
 require "./kit/button"
+require "./kit/checkbox"
+require "./kit/text"
+require "./kit/scroll_view"
+require "./kit/virtual_list"
 require "./kit/root"
 
 module Tessell

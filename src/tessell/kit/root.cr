@@ -19,6 +19,9 @@ module Tessell
       @buf : Array(UI::Decl)
       @builder : UI::Builder
       @node_components : Hash(Node, Component)
+      @component_roots : Hash(Node, Component)
+      @component_nodes : Hash(Component, Node)
+      @component_buf : Array(Component)
       @last_hover : Component?
       @focused_component : Component?
 
@@ -32,10 +35,13 @@ module Tessell
         @builder = UI::Builder.new(@buf, [] of UI::UiKey)
         @context = Context.new(@theme, @metrics, scale)
         @node_components = {} of Node => Component
+        @component_roots = {} of Node => Component
+        @component_nodes = {} of Component => Node
+        @component_buf = [] of Component
         @last_hover = nil
         @focused_component = nil
         @router = Input::Router.new do |target|
-          component = component_for_node(target)
+          component = @component_roots[target]?
           component ? component.focusable? : false
         end
         @a11y = A11y::Builder.new(@router.focus_manager)
@@ -62,6 +68,7 @@ module Tessell
       end
 
       def a11y_emit(sink : Array(A11y::Node)) : Int32
+        refresh_a11y_meta
         UI.a11y_emit(@node, @a11y, sink)
       end
 
@@ -106,6 +113,7 @@ module Tessell
         when Input::Event::Kind::PointerDown
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
+          focus_component(component)
           sync_focus
           return true if deliver(component, to_kit(event, Event::Kind::PointerDown, mods))
         when Input::Event::Kind::PointerUp
@@ -166,10 +174,44 @@ module Tessell
 
       private def rebuild_node_map : Nil
         @node_components.clear
-        @content.each_component do |component|
+        @component_roots.clear
+        @component_nodes.clear
+        @component_buf.clear
+        @content.collect_components(@component_buf)
+        @component_buf.each do |component|
           if target = @pool.map[component.key]?
             target.clip = component.clip_bounds
             @node_components[target] = component
+            @component_roots[target] = component
+            @component_nodes[component] = target
+            @a11y.set_meta(target.object_id.to_u64, component.a11y_role,
+              component.a11y_name, component.a11y_value, component.focusable?,
+              component.a11y_enabled, component.a11y_children_count,
+              component.a11y_scroll_offset)
+          end
+        end
+      end
+
+      private def focus_component(component : Component?) : Nil
+        current = component
+        while current
+          if current.focusable?
+            if target = @component_nodes[current]?
+              @router.focus_manager.focus(target)
+            end
+            return
+          end
+          current = current.parent
+        end
+      end
+
+      private def refresh_a11y_meta : Nil
+        @component_buf.each do |component|
+          if target = @component_nodes[component]?
+            @a11y.set_meta(target.object_id.to_u64, component.a11y_role,
+              component.a11y_name, component.a11y_value, component.focusable?,
+              component.a11y_enabled, component.a11y_children_count,
+              component.a11y_scroll_offset)
           end
         end
       end
@@ -194,8 +236,12 @@ module Tessell
       end
 
       private def deliver(component : Component?, event : Event) : Bool
-        return false unless component
-        component.handle(event, @context)
+        current = component
+        while current
+          return true if current.handle(event, @context)
+          current = current.parent
+        end
+        false
       end
 
       private def to_kit(event : Input::Event, kind : Event::Kind,

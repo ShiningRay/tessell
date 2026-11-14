@@ -401,6 +401,8 @@ module Tessell::UI
     focusable = m ? m.focusable : false
     enabled = m ? m.enabled : true
     focused = a11y.focused?(node)
+    children_count = m && m.children_count ? m.children_count.not_nil! : node.children.size
+    scroll_offset = m ? m.scroll_offset : 0
 
     if vlist && container && node.same?(container)
       sink << A11y::Node.new(
@@ -430,8 +432,8 @@ module Tessell::UI
     sink << A11y::Node.new(
       id: nid, role: role, name: name, value: value, bounds: node.bounds,
       focusable: focusable, focused: focused, enabled: enabled,
-      children_count: node.children.size, index_in_parent: idx,
-      scroll_offset: 0)
+      children_count: children_count, index_in_parent: idx,
+      scroll_offset: scroll_offset)
     children = node.children
     i = 0
     while i < children.size

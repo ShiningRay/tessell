@@ -50,6 +50,33 @@ describe "Tessell::Kit::Root" do
     root.focused_component.should be_nil
   end
 
+  it "routes clicks and Tab focus across a Column of components" do
+    col = Tessell::Kit::Column.new(KitSpecHelpers.key, Tessell::Insets.all(8.0_f32), 4.0_f32)
+    first = Tessell::Kit::Button.new(KitSpecHelpers.key.child(1_u64), "First")
+    second = Tessell::Kit::Button.new(KitSpecHelpers.key.child(2_u64), "Second")
+    first_clicks = 0
+    second_clicks = 0
+    first.on_click = -> { first_clicks += 1; nil }
+    second.on_click = -> { second_clicks += 1; nil }
+    col.add(first)
+    col.add(second)
+
+    root = Tessell::Kit::Root.new(col)
+    root.layout(200.0_f32, 200.0_f32)
+    root.build
+
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab)).should be_true
+    root.focused_component.should be(first)
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab)).should be_true
+    root.focused_component.should be(second)
+
+    center = second.bounds.origin.y + second.bounds.size.height / 2.0_f32
+    root.handle(Tessell::Input::Event.pointer_down(100.0_f32, center))
+    root.handle(Tessell::Input::Event.pointer_up(100.0_f32, center))
+    second_clicks.should eq(1)
+    first_clicks.should eq(0)
+  end
+
   it "switches theme through the root context" do
     button = Tessell::Kit::Button.new(KitSpecHelpers.key, "Save")
     root = Tessell::Kit::Root.new(button)

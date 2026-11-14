@@ -30,16 +30,24 @@
 
 ### 迭代记录
 
-#### K0（本轮）
+#### K0
 
 - 完成：`docs/kit/` 计划与契约文档；`src/tessell/kit.cr` 可选入口；Theme/token、Painter、Component、Context、Root、Button 最小闭环。
 - 验证：`crystal spec spec/kit` → 19 examples / 0 failures；`crystal build src/tessell.cr --no-codegen` 通过；`crystal tool format --check` 通过。
 - 未验证：真实窗口交互、GL 上屏、平台 a11y provider、Windows gate、完整 `crystal spec`（本机缺 Windows 字体）。
 - 提交：`918e7f7`。
 
-#### K1（本轮）
+#### K1
 
 - 完成：核心 `Input::Event` 增加 modifiers、wheel delta、PointerEnter/Leave/Cancel 与常用键码；`Router` 跟踪 enter/leave/cancel；`Node#clip` 与 `HitTest` 裁切；`DrawCmd` 增加 RoundRect/StrokeRect/StrokeRoundRect 与 radius/stroke_width；Kit 增加 `DrawListPainter`、核心 Theme 适配器与运行中换主题。
 - 验证：`crystal spec` 选定核心/Kit 用例 238 examples / 0 failures（不含 Windows 字体依赖文件）；`crystal build src/tessell.cr --no-codegen` 与 `examples/app_demo.cr --no-codegen` 通过。
 - 未验证：GL 后端尚未消费新增 DrawCmd；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。
 - 提交：`5c7270e`。
+
+#### K2（本轮）
+
+- 完成：`Kit::Container/Column/Row` 线性布局；`Kit::Text`（wrap/截断/max_lines）；`Kit::Checkbox`；`Kit::ScrollView`（裁切/滚动条/键盘）；`Kit::VirtualList` 适配（可见行、逻辑 children_count）；headless `examples/kit_gallery.cr` 与组件文档。
+- 核心补层：`Node#clip` 命中继承、`A11y::Meta` 逻辑 children_count/scroll_offset、`Widgets::VirtualList#resize_viewport`、Kit Painter `line` 命令。
+- 验证：选定核心/Kit 用例 261 examples / 0 failures；`kit_gallery --verify --frames=60 --theme=dark --dpi=1.5` 输出 `verify=pass`；`crystal build examples/kit_gallery.cr --no-codegen` 通过。
+- 未验证：真实窗口/GL 上屏、滚动条拖动、变量行高 Kit 入口、Windows 像素回读。
+- 提交：待回填。

@@ -33,7 +33,7 @@ module Tessell
       @height_proc : RowHeightProc?
       @fetch : Proc(Int32, Nil)
 
-      @prefix : Array(Int32)  # prefix sums, size row_count+1, prefix[0]=0
+      @prefix : Array(Int32) # prefix sums, size row_count+1, prefix[0]=0
       @prefix_valid : Bool
       @total_h : Int32
 
@@ -144,6 +144,17 @@ module Tessell
 
       def pool_size : Int32
         @pool_size
+      end
+
+      # 视口尺寸变化：更新可见窗口与回收池估算，不重建行数据。
+      def resize_viewport(width : Int32, height : Int32) : Nil
+        @viewport_w = width
+        @viewport_h = height
+        h = @fixed_height || average_height
+        @pool_size = default_pool_size(h)
+        ms = max_scroll
+        @scroll_y = ms if @scroll_y > ms
+        recompute_visible
       end
 
       def total_height : Int32

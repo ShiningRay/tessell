@@ -38,6 +38,15 @@ module Tessell
           clip: current_clip, radius: radius, stroke_width: width))
       end
 
+      def line(x1 : Float32, y1 : Float32, x2 : Float32, y2 : Float32,
+               color : UInt32, width : Float32 = 1.0_f32) : Nil
+        bounds = Rect.new(Math.min(x1, x2), Math.min(y1, y2),
+          (x2 - x1).abs, (y2 - y1).abs)
+        @list.push(Render::DrawCmd.new(Render::CmdKind::Line, bounds, color,
+          clip: current_clip, stroke_width: width,
+          p1: Point.new(x1, y1), p2: Point.new(x2, y2)))
+      end
+
       def text(x : Float32, baseline_y : Float32, text : String,
                color : UInt32, size : Float32) : Nil
         @list.push(Render::DrawCmd.new(Render::CmdKind::Text,

@@ -8,6 +8,11 @@ module Tessell
     abstract class TextMetrics
       abstract def measure(text : String, size : Float32) : Size
 
+      # 带可用宽度的测量；默认忽略 max_width，支持换行的实现应覆盖。
+      def measure(text : String, size : Float32, max_width : Float32) : Size
+        measure(text, size)
+      end
+
       def line_height(size : Float32) : Float32
         size * 1.25_f32
       end
@@ -18,9 +23,32 @@ module Tessell
       def measure(text : String, size : Float32) : Size
         width = 0.0_f32
         text.each_char do |ch|
-          width += ch.ascii? ? size * 0.6_f32 : size
+          width += advance(ch, size)
         end
         Size.new(width, line_height(size))
+      end
+
+      def measure(text : String, size : Float32, max_width : Float32) : Size
+        return measure(text, size) if max_width.infinite? || max_width <= 0.0_f32
+        line_width = 0.0_f32
+        max_line = 0.0_f32
+        lines = 1
+        text.each_char do |ch|
+          w = advance(ch, size)
+          if line_width > 0.0_f32 && line_width + w > max_width
+            max_line = line_width if line_width > max_line
+            lines += 1
+            line_width = w
+          else
+            line_width += w
+          end
+        end
+        max_line = line_width if line_width > max_line
+        Size.new(max_line, line_height(size) * lines)
+      end
+
+      def advance(ch : Char, size : Float32) : Float32
+        ch.ascii? ? size * 0.6_f32 : size
       end
     end
 
@@ -31,6 +59,10 @@ module Tessell
 
       def measure(text : String, size : Float32) : Size
         @measurer.measure(text, @font_id, size, Float32::INFINITY)
+      end
+
+      def measure(text : String, size : Float32, max_width : Float32) : Size
+        @measurer.measure(text, @font_id, size, max_width)
       end
     end
 
@@ -48,6 +80,10 @@ module Tessell
 
       def measure_text(text : String, size : Float32) : Size
         @metrics.measure(text, device_font_size(size))
+      end
+
+      def measure_text(text : String, size : Float32, max_width : Float32) : Size
+        @metrics.measure(text, device_font_size(size), max_width)
       end
 
       def line_height(size : Float32) : Float32

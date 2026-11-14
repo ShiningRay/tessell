@@ -16,8 +16,16 @@ module Tessell
       Group
       Text
       Button
+      CheckBox
+      RadioButton
+      TextField
+      ComboBox
+      Dialog
+      Tooltip
       List
       ListItem
+      ListBox
+      Option
       ScrollView
       Scrollbar
     end
@@ -28,12 +36,17 @@ module Tessell
       getter value : String
       getter focusable : Bool
       getter enabled : Bool
+      # nil = 使用 retained 子节点数；虚拟列表等可覆盖为逻辑总数。
+      getter children_count : Int32?
+      getter scroll_offset : Int32
 
       def initialize(@role : Role = Role::Group,
                      @name : String = "",
                      @value : String = "",
                      @focusable : Bool = false,
-                     @enabled : Bool = true)
+                     @enabled : Bool = true,
+                     @children_count : Int32? = nil,
+                     @scroll_offset : Int32 = 0)
       end
     end
 
@@ -74,8 +87,11 @@ module Tessell
 
       def set_meta(id : UInt64, role : Role = Role::Group,
                    name : String = "", value : String = "",
-                   focusable : Bool = false, enabled : Bool = true) : Nil
-        @meta[id] = Meta.new(role, name, value, focusable, enabled)
+                   focusable : Bool = false, enabled : Bool = true,
+                   children_count : Int32? = nil,
+                   scroll_offset : Int32 = 0) : Nil
+        @meta[id] = Meta.new(role, name, value, focusable, enabled,
+          children_count, scroll_offset)
       end
 
       def meta_for(id : UInt64) : Meta?
@@ -114,7 +130,8 @@ module Tessell
         focusable = m ? m.focusable : false
         enabled = m ? m.enabled : true
         focused = @focus.try(&.focused?(node)) || false
-        children_count = node.children.size
+        children_count = m && m.children_count ? m.children_count.not_nil! : node.children.size
+        scroll_offset = m ? m.scroll_offset : 0
         sink << A11y::Node.new(
           id: nid,
           role: role,
@@ -126,7 +143,7 @@ module Tessell
           enabled: enabled,
           children_count: children_count,
           index_in_parent: index_in_parent,
-          scroll_offset: 0
+          scroll_offset: scroll_offset
         )
         children = node.children
         i = 0

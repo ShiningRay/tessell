@@ -73,6 +73,14 @@ module Tessell
         @visible && @enabled
       end
 
+      def a11y_role : A11y::Role
+        A11y::Role::Button
+      end
+
+      def a11y_name : String
+        @label
+      end
+
       def handle(event : Event, ctx : Context) : Bool
         case event.kind
         when Event::Kind::PointerEnter

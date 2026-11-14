@@ -36,11 +36,15 @@ module Tessell
       getter clip : Rect?
       getter radius : Float32
       getter stroke_width : Float32
+      # Line 命令的端点；其他命令保留默认值。
+      getter p1 : Point
+      getter p2 : Point
 
       def initialize(@kind : CmdKind, @bounds : Rect, @color : UInt32,
                      @atlas_id : Int32 = -1, @clip : Rect? = nil,
                      @radius : Float32 = 0.0_f32,
-                     @stroke_width : Float32 = 0.0_f32)
+                     @stroke_width : Float32 = 0.0_f32,
+                     @p1 : Point = Point.new, @p2 : Point = Point.new)
       end
     end
 
