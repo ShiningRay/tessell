@@ -182,33 +182,61 @@ module Tessell
         ), dark: true)
       end
 
-      # Kit Theme → 核心 Theme：用于清屏/后端 begin_frame 的 6 个基础色。
+      # Kit Theme → 核心 Theme（issue #23）：全量映射，不再丢 surface。
+      # 语义对应：panel←surface、panel_alt←surface_raised、card←surface、
+      # grid/divider←border（Kit 无独立网格线 token）、focus_ring←focus、
+      # danger/success←同名。Kit 没有的 token（up/down/warning/hover/faint）
+      # 按核心 6 参构造的同款公式从映射后的 bg/fg 派生，口径与预设一致。
       def to_render : Tessell::Render::Theme
-        Tessell::Render::Theme.new(palette.canvas, palette.foreground,
-          palette.accent, palette.muted, palette.border, palette.selection)
+        bg = palette.canvas
+        fg = palette.foreground
+        Tessell::Render::Theme.new(
+          bg, fg, palette.accent, palette.muted, palette.border, palette.selection,
+          palette.surface,          # panel
+          palette.surface_raised,   # panel_alt
+          palette.surface,          # card
+          palette.border,           # grid
+          palette.border,           # divider
+          Tessell::Render::Theme.mix(0xd64545ff_u32, fg, 0.25_f32),      # up
+          Tessell::Render::Theme.mix(0x2e9e5bff_u32, fg, 0.25_f32),      # down
+          Tessell::Render::Theme.with_alpha(
+            Tessell::Render::Theme.mix(0xd64545ff_u32, fg, 0.25_f32), 0x66_u8), # up_soft
+          Tessell::Render::Theme.with_alpha(
+            Tessell::Render::Theme.mix(0x2e9e5bff_u32, fg, 0.25_f32), 0x66_u8), # down_soft
+          Tessell::Render::Theme.with_alpha(
+            Tessell::Render::Theme.mix(fg, bg, 0.5_f32), 0x14_u8),     # hover
+          palette.focus,          # focus_ring
+          Tessell::Render::Theme.mix(0xe0a13cff_u32, fg, 0.25_f32),      # warning
+          palette.danger,
+          palette.success,
+          Tessell::Render::Theme.mix(fg, bg, 0.55_f32)                   # faint
+        )
       end
 
-      # 核心 Theme → Kit Theme 适配器。核心只有 6 个颜色，其余语义色取
-      # 同模式默认主题，保证组件不会出现“半套主题”。
+      # 核心 Theme → Kit Theme 适配器（issue #23）：与 to_render 互逆。
+      # canvas←bg、surface←panel、surface_raised←panel_alt、focus←focus_ring、
+      # danger/success←同名。Render::Theme 没有的细分 token（accent_hover/
+      # accent_pressed/accent_foreground、danger_hover/pressed/foreground、
+      # scrim）取同明暗预设值——这是登记过的已知信息边界，见 spec/kit/theme_spec.cr。
       def self.from_render(render : Tessell::Render::Theme, dark : Bool = false) : Theme
         base = dark ? Theme.dark : Theme.light
         palette = Palette.new(
           render.bg,
-          render.bg,
-          base.palette.surface_raised,
+          render.panel,
+          render.panel_alt,
           render.fg,
           render.muted,
           render.border,
           render.accent,
-          dark ? 0x78a2ffff_u32 : 0x275fd4ff_u32,
-          dark ? 0x4878e0ff_u32 : 0x1f4fb5ff_u32,
+          base.palette.accent_hover,
+          base.palette.accent_pressed,
           base.palette.accent_foreground,
-          base.palette.danger,
+          render.danger,
           base.palette.danger_hover,
           base.palette.danger_pressed,
           base.palette.danger_foreground,
-          base.palette.success,
-          render.accent,
+          render.success,
+          render.focus_ring,
           render.selection,
           base.palette.scrim
         )

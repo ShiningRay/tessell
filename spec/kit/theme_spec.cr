@@ -62,3 +62,52 @@ describe "Kit::Context render_theme mirror" do
     ctx.render_theme.panel.should_not eq(ctx.render_theme.bg)
   end
 end
+
+# issue #23：to_render/from_render 往返丢信息（v0.2.0 surface 被 bg 覆盖）。
+describe "Kit::Theme ↔ Render::Theme round trip (issue #23)" do
+  it "carries Kit surface tokens into the render panel tokens" do
+    kit = Tessell::Kit::Theme.light
+    r = kit.to_render
+    r.panel.should eq(kit.palette.surface)
+    r.panel_alt.should eq(kit.palette.surface_raised)
+    r.card.should eq(kit.palette.surface)
+    r.focus_ring.should eq(kit.palette.focus)
+    r.danger.should eq(kit.palette.danger)
+    r.success.should eq(kit.palette.success)
+  end
+
+  it "preserves surface across to_render → from_render in light" do
+    kit = Tessell::Kit::Theme.light
+    rt = Tessell::Kit::Theme.from_render(kit.to_render, dark: false)
+    rt.palette.canvas.should eq(kit.palette.canvas)
+    rt.palette.surface.should eq(kit.palette.surface)
+    rt.palette.surface_raised.should eq(kit.palette.surface_raised)
+    rt.palette.foreground.should eq(kit.palette.foreground)
+    rt.palette.muted.should eq(kit.palette.muted)
+    rt.palette.border.should eq(kit.palette.border)
+    rt.palette.accent.should eq(kit.palette.accent)
+    rt.palette.focus.should eq(kit.palette.focus)
+    rt.palette.selection.should eq(kit.palette.selection)
+    rt.palette.danger.should eq(kit.palette.danger)
+    rt.palette.success.should eq(kit.palette.success)
+  end
+
+  it "preserves surface across to_render → from_render in dark" do
+    kit = Tessell::Kit::Theme.dark
+    rt = Tessell::Kit::Theme.from_render(kit.to_render, dark: true)
+    rt.palette.surface.should eq(kit.palette.surface)
+    rt.palette.surface_raised.should eq(kit.palette.surface_raised)
+    rt.palette.canvas.should eq(kit.palette.canvas)
+    rt.palette.focus.should eq(kit.palette.focus)
+    rt.dark.should be_true
+  end
+
+  it "documents the known loss boundary: hover/scrim/accent variants are preset-only" do
+    # Render::Theme 没有 accent_hover/pressed/foreground、danger_hover/pressed/
+    # foreground、scrim 概念——往返后这些取同明暗预设值，属登记过的已知边界。
+    kit = Tessell::Kit::Theme.light
+    rt = Tessell::Kit::Theme.from_render(kit.to_render, dark: false)
+    rt.palette.accent_hover.should eq(Tessell::Kit::Theme.light.palette.accent_hover)
+    rt.palette.scrim.should eq(Tessell::Kit::Theme.light.palette.scrim)
+  end
+end
