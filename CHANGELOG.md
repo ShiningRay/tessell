@@ -1,5 +1,97 @@
 # Changelog
 
+## 0.3.0 (2026-11-15)
+
+asuka 对照调研立项的 #19–#42 共 24 个 GitHub issue 处置完成（逐一提交关闭）。
+新增 Signal 响应式内核、外部纹理通道、布局增量层与平台宿主契约四大地基。
+
+### Bug 修复
+- **#27 键枚举漂移**：`Kit::Key` 收敛为 `Input::KeyCode` 的 alias（核心补
+  `Unknown` 占位），删除 21 分支手工映射表；spec 遍历全量键断言透传。
+  `F1` 保留给帧调试 overlay。
+- **#26 Focus 事件永不投递**：`Event::Kind::Focus` 真正投递给组件（与窗口级
+  Blur 对称）；投递顺序入契约并有 spec 锁住（转移 A→B：A 回调 false →
+  B 收 Focus → B 回调 true）。
+- **#25 Painter clip 语义不一致**：`PaintCmd` 增加 `clip` 字段，
+  `PaintListPainter` 维护 clip 栈——两 Painter 的 headless 裁切断言等价。
+- **#23 Theme 往返丢信息**：`to_render`/`from_render` 改全量映射
+  （panel←surface、panel_alt←surface_raised、focus_ring←focus），
+  surface 不再被 bg 覆盖；已知无损边界显式登记。
+- **#22 sync_atlas_dirty 不在抽象上**：提升到 `Backend` 基类（默认退化为
+  全量），宿主按抽象编程即可每帧增量同步，无需 GLBackend 强转。
+- **#20 Kit::Event 丢输入语义**：增加 `click_count` / `timestamp_ms` /
+  `repeat` / `drag_distance`，Root 透传 Router 判定结果；修饰键变化打断
+  双击链。组件区分单击/双击不再自存时间戳。
+- **#21 DrawList Text 命令丢文本**：`DrawCmd` 携带 `text` / `font_size`
+  载荷 + `DrawList#text_commands` 只读视图；示例宿主删除平行 batch 边界
+  数组，单遍按命令序提交。
+- **#24 测量缓存无界**：两代淘汰（上限 4096），键含文本内容——正确性不
+  依赖清空；增加 `text_cache_stats` 观测面；清空契约入 cookbook。
+- **#19 三套行高口径**：`CoreTextMetrics#line_height` 与 FT metrics 同源；
+  Kit 组件基线全部改 `text_metrics` 推导（删 `fs*0.1` / `top+fs` 经验式）。
+  14px 文本在 32px 容器几何居中有 spec。
+- **#30 DPI 变更只能重建 Root**：`Root#scale=` / `Context#scale=` 联动清
+  测量缓存并重排——组件树、焦点、编辑态跨 DPI 保留。
+- **（过程中发现）重复 UiKey 挂死节点遍历**：同 key 声明使节点父链成环，
+  `Root#build` 无限挂起。已复现并登记 issue #43（修复跟进）。
+
+### 新能力
+- **#33 Signal(T) 响应式内核**（`Tessell::Signal`）：拉取式依赖收集——
+  侵入式链表依赖图 + version 戳复用（稳态零分配）、两级脏标 push/pull、
+  memo 惰性重算 + 相等截断、有界 flush（100 pass raise 点名肇事 effect）、
+  render/user 双优先级、Owner 树 + effect 重跑前 clean()。六不变量 spec：
+  菱形 glitch-free、动态依赖、dispose、重跑清理等 12 例。
+- **#28 外部纹理通道**：`Backend` 新增 create/update/destroy_texture 与
+  `resolved_texture_external`（handle 独立命名空间）；`CmdKind::Image`
+  （tint + 源矩形）；SoftwareBackend 光栅化（premultiplied 语义，参与脏矩形
+  与 pixel() oracle）；`Kit::Image` 控件（Stretch/Contain/Cover，a11y
+  `Role::Image`）。
+- **#34 布局增量层**：`CachedNode` 每节点双层缓存（final 单槽 + 8 槽测量
+  环形缓冲）+ MarkDirty 父链早停 + 帧间 rect 变更上报；纯函数 `Layout.solve`
+  保留为 oracle，几何一致性有 spec。`CachingMeasurer` 补 8192 容量上限。
+- **#35 Platform 契约 + FakeHost**：`Tessell::Platform::Host` 最小契约与
+  记录式测试替身（虚拟时钟、事件注入、op 流记录、未实现能力显式 panic）。
+  内置组件 emit 补 visible 守卫——不可见组件不进命中树。Kit spec 全部
+  无窗口可跑。
+- **#39 重启式热重载第一期**：命名 signal JSON 快照/回填
+  （`Signal.snapshot_state`/`restore_state`，Runner#save_state/load_state）；
+  restore 走写路径失效下游（memo 跟随）。保留 signal 值不保留 views
+  （asuka RFC 0003 口径）；control socket/fd 继承属平台层后续。
+- **#29 字体 face 链路**：`Kit::FontWeight` → `FontStack#pick(text, weight)`
+  → `font_id` 一路传到 Painter（`DrawCmd#atlas_id`）；`Context#font_stack` +
+  `MultiFaceTextMetrics`；`Kit::Text/Button` 增加 `weight` 属性——
+  `Text.new(key, "Total", weight: :bold)` 渲出粗体，宿主只建 renderer 表。
+- **#31 A11y 二维网格**：`Role` 补 Grid/GridCell/RowHeader/ColumnHeader；
+  Meta/Node 补 row/col/row_count/col_count/index_text/selected/active/
+  first_visible_index（全默认 nil，既有节点零改动）；坐标不再拼进 value。
+- **#32 编辑态 Tab 语义**：`TextEditing#tabs`（Reject/Insert，	 展开为
+  tab_width 空格）+ `Input#submit_on_tab`（Tab 触发 on_submit 并消费，
+  wants_tab? 随动）；三种组合入契约文档。
+- **#41 建树期 signal 读告警（第一期）**：debug 检查下建树函数直读未追踪
+  signal 会被点名（消息自带修法与 peek 出口）；F1 overlay 可视化；
+  peek/untrack 永不报。
+- **#42 apply 重入隔离**：`UI.apply` 宿主回调缝 + Root 重入守卫——apply
+  期间失效进 pending 通道，外层返回后二段提交；8 次不收敛 raise
+  （宁报勿挂）。
+- **#36 计数断言**：性能正确性全部用计数表达（measure 调用数/批数/事件
+  路由/帧命令数 4 例）+ #34 布局计数 spec；「门禁看计数、优化看分布」
+  分工入 AGENTS.md 与 cookbook。
+- **#37 golden 探针模式**：注册标记定位 + Edge 0.5 交叉（亚像素）/Mix 混合
+  比例/σ 软边量测——同一组探针在 scale=1.0/1.5/2.0 全过，无需按 DPI 重录
+  golden；像素 golden 降级为失败诊断附件。
+- **#40 跨后端 conformance**：`KNOWN_DIFFERENCES` 差异清单（skip 必须带
+  理由，premultiplied/圆角登记为可断言）+ `compare_buffers` 双后端等价
+  harness；GL 腿 headless 显式 gated 不静默。
+- **#38 AGENTS.md**：仓库根新增协作约束——11 条可机械验证硬不变量 +
+  意图→命令速查表 + Conventions（断言优先级、平台门控 SKIP 写法、
+  新增组件固定步骤）。
+
+### 已知事项
+- #43（重复 UiKey 挂死）与 #44（Signal 接入 Kit：组件 Owner 绑定、三级
+  失效对接、For keyed 行复用）为后续跟进项。
+- Image 稳态重绘在 Windows 上 GC 统计残留 ≤256B/100 帧（平台统计口径，
+  blit 路径纯标量运算）；精确归零挂 TODO(M1-WP5)。
+
 ## 0.2.0 (2026-11-14)
 
 ShiningRay/tessell 全部 18 个 GitHub issue 处置完成（#1–#18，逐一提交关闭）。
