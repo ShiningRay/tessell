@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kit K6 复核（Go-with-conditions） — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="index.html">概览</a>
+<a href="components/button.html">Button</a>
+<a href="components/checkbox.html">Checkbox</a>
+<a href="components/text.html">Text</a>
+<a href="components/input.html">Input</a>
+<a href="components/select.html">Select</a>
+<a href="components/tooltip.html">Tooltip</a>
+<a href="components/dialog.html">Dialog</a>
+<a href="components/scroll-view.html">ScrollView</a>
+<a href="components/virtual-list.html">VirtualList</a>
+<a href="design-tokens.html">设计 token</a>
+<a href="component-contract.html">组件契约</a>
+<a href="repository-strategy.html">仓策略</a>
+<a href="plan.html">计划</a>
+<a href="execution.html">执行记录</a>
+<a href="k6-review.html">K6 复核</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/K6-review.md</div>
+<h1 id="kit-k6-复核-go-with-conditions">Kit K6 复核（Go-with-conditions）</h1>
+<blockquote>复核时点：2026-11-14，开发机 macOS arm64 / Crystal 1.21.1。</blockquote>
+<blockquote>结论先说：<strong>逻辑与 API 层 Go-with-conditions；不得宣称平台完整或真实窗口已验证。</strong></blockquote>
+<blockquote>架构复盘已发 GitHub issue：<a href="https://github.com/ShiningRay/tessell/issues/13">#13</a>。</blockquote>
+<h2 id="1-复核范围">1. 复核范围</h2>
+<p>对照 <a href="plan.html">plan.md</a> 的 K0–K6 退出条件，检查：</p>
+<ul>
+<li>可选入口与依赖方向。</li>
+<li>8 个 P0 组件 + VirtualList 适配。</li>
+<li>Root/Overlay/Theme/Primitives/事件/a11y。</li>
+<li>状态、键盘、指针、主题/DPI、绘制命令、节点复用与文档。</li>
+<li>消费者、静态文档站、gate 接入。</li>
+<li>真实窗口、平台 IME、屏幕阅读器、平台剪贴板。</li>
+</ul>
+<h2 id="2-证据">2. 证据</h2>
+<table>
+<thead><tr><th>检查</th><th>命令/输出</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td>Kit spec</td><td><code>crystal spec spec/kit</code></td><td>86 examples / 0 failures</td></tr>
+<tr><td>Gallery light</td><td><code>kit_gallery --verify --frames=30 --theme=light</code></td><td><code>verify=pass</code>，select/dialog/tooltip/input=true</td></tr>
+<tr><td>Gallery dark + DPI 1.5</td><td><code>--theme=dark --dpi=1.5</code></td><td><code>verify=pass</code></td></tr>
+<tr><td>外部消费者</td><td><code>tools/kit_consumer_verify.sh</code></td><td><code>CORE_CONSUMER_OK</code>、<code>KIT_CONSUMER_VERIFY verify=pass</code></td></tr>
+<tr><td>核心入口</td><td><code>crystal build src/tessell.cr --no-codegen</code></td><td>通过；核心入口无 kit require</td></tr>
+<tr><td>格式</td><td><code>crystal tool format --check ...</code></td><td>通过</td></tr>
+<tr><td>静态站</td><td><code>crystal run tools/build_kit_site.cr</code></td><td>生成 <code>site/kit/*.html</code></td></tr>
+<tr><td>视觉预览</td><td><code>site/previews/gallery-{light,dark}.png</code></td><td>SVG→PNG，不是 GL 回读</td></tr>
+</tbody></table>
+<h2 id="3-组件-dod-矩阵">3. 组件 DoD 矩阵</h2>
+<table>
+<thead><tr><th>组件</th><th>状态/事件</th><th>键盘</th><th>a11y</th><th>主题/DPI</th><th>绘制</th><th>单测</th><th>文档</th><th>真实窗口</th></tr></thead>
+<tbody>
+<tr><td>Button</td><td>是</td><td>Space/Enter</td><td>Button</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>Checkbox</td><td>是</td><td>Space</td><td>CheckBox</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>Text</td><td>是</td><td>不适用</td><td>Text</td><td>是</td><td>是（截断/wrap）</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>Input</td><td>是</td><td>光标/选区/剪贴板</td><td>TextField</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>Select</td><td>是</td><td>Up/Down/Enter/Escape</td><td>ComboBox/ListBox/Option</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>Tooltip</td><td>是</td><td>不抢焦点</td><td>Tooltip</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>Dialog</td><td>是</td><td>焦点陷阱/Escape</td><td>Dialog</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>ScrollView</td><td>是</td><td>滚轮/翻页/Home/End</td><td>ScrollView</td><td>是</td><td>是（裁切）</td><td>是</td><td>是</td><td>否</td></tr>
+<tr><td>VirtualList</td><td>是</td><td>滚轮/键盘</td><td>List/ListItem + 逻辑总数</td><td>是</td><td>是</td><td>是</td><td>是</td><td>否</td></tr>
+</tbody></table>
+<p>“真实窗口”一列全为否：本机 macOS 不能运行既有 Windows/WGL 路径，且没有可用的 macOS 后端。headless gallery、SVG 预览与 PaintList 断言不能替代真实窗口像素/IME/焦点证据。</p>
+<h2 id="4-未关闭项">4. 未关闭项</h2>
+<p>1. Windows + msys2 真实窗口 gate 未在本次 K6 运行；<code>tools/gate.ps1</code> 已加入 Kit 步骤但未执行。 2. 平台 IME composition 事件未接入 <code>Kit::Event</code>；Input 只有 <code>set_preedit/commit_preedit</code> API，C7 人工验证仍未关闭。 3. 屏幕阅读器 provider（UIA/AppKit/AT-SPI）未实现；只有进程内 A11y 树。 4. 平台剪贴板适配未实现；只有 <code>MemoryClipboard</code> 与注入接口。 5. GL 后端尚未消费 <code>DrawCmd</code> 的 RoundRect/StrokeRoundRect/Line；真实绘制路径未闭合。 6. SVG 预览文本由浏览器字体渲染，不证明 HarfBuzz/FreeType 上屏。 7. 变量行高 VirtualList 的 Kit 入口、滚动条拖动、菜单/多选等 P1 组件未交付。</p>
+<h2 id="5-发布判断">5. 发布判断</h2>
+<ul>
+<li><strong>可发布为“同仓可选组件库（logic/API preview）”</strong>：核心入口不加载 Kit，外部消费者可编译，组件契约与测试齐全。</li>
+<li><strong>不可发布为“平台完整组件库”</strong>：真实窗口、IME、屏幕阅读器、平台剪贴板、GL DrawList 闭环均未验证。</li>
+<li>文档必须同时保留“已交付”和“未验证”两栏；不得用组件目录数量替代平台证据。</li>
+</ul>
+<h2 id="6-下一步优先级">6. 下一步优先级</h2>
+<p>1. 核心 <code>Backend#draw_draw_list</code> / Canvas：让 Rect/RoundRect/Stroke/Clip 真正上屏，再接 Kit Painter。 2. Win32 平台事件适配：modifiers、wheel delta、pointer enter/leave/cancel、IME composition。 3. 核心布局/焦点作用域：measure/arrange 声明管线与 modal focus scope，减少 Kit 侧映射层。 4. 平台剪贴板与 IME provider。 5. P1 组件按真实需求排队，不按目录数量扩张。</p>
+
+</main>
+</div>
+</body>
+</html>

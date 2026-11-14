@@ -51,6 +51,9 @@ crystal run tools/build_kit_site.cr   # 输出 site/index.html
 
 预览：[light](site/previews/gallery-light.png)、[dark](site/previews/gallery-dark.png)。
 
+复核与内核建议：[K6-review](docs/kit/K6-review.md)、
+[GitHub issue #13](https://github.com/ShiningRay/tessell/issues/13)。
+
 限制：真实 Windows 窗口/GL 上屏、平台 IME 事件、屏幕阅读器 provider、
 平台剪贴板适配仍未验证；不得把 headless gallery 当作真实窗口证据。
 

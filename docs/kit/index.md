@@ -44,6 +44,11 @@ crystal run tools/build_kit_site.cr
 # 输出 site/index.html 与 site/kit/*.html
 ```
 
+## 复核与反馈
+
+- [K6 复核（Go-with-conditions）](K6-review.md)
+- [架构复盘 issue #13](https://github.com/ShiningRay/tessell/issues/13)
+
 ## 运行示例
 
 无窗口组件矩阵（可在 macOS/Linux 运行）：

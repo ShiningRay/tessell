@@ -26,6 +26,7 @@ module KitSite
     Page.new("仓策略", "docs/kit/repository-strategy.md", "repository-strategy.html"),
     Page.new("计划", "docs/kit/plan.md", "plan.html"),
     Page.new("执行记录", "docs/kit/execution.md", "execution.html"),
+    Page.new("K6 复核", "docs/kit/K6-review.md", "k6-review.html"),
   ]
 
   STYLE = <<-CSS

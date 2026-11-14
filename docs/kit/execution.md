@@ -66,9 +66,16 @@
 - 未验证：平台 IME 事件接入（C7 仍人工/未关闭）、平台剪贴板适配、密码模式、撤销/重做、Windows 真实窗口像素。
 - 提交：`b550bbb`。
 
-#### K5（本轮）
+#### K5
 
 - 完成：`tools/build_kit_site.cr` 生成 `site/kit/*.html` 静态文档站（中文导航、组件页、计划/契约/执行记录）；`Kit::SvgPainter` 无窗口 SVG 预览；`site/previews/gallery-light/dark.{svg,png}`；`tools/kit_consumer_verify.sh` 用临时 Shards path 消费者验证核心入口与 Kit 入口；README/usage 更新；`tools/gate.ps1` 加入 `spec_kit` 与 `kit_gallery --verify`。
 - 验证：`crystal spec spec/kit` 86 examples / 0 failures；`kit_gallery --verify` 输出 `verify=pass`（select/dialog/tooltip/input 全 true）；`kit_consumer_verify.sh` 输出 `CORE_CONSUMER_OK` 与 `KIT_CONSUMER_VERIFY verify=pass`；静态站生成成功。
 - 未验证：真实 Windows gate、站点部署、截图与真实窗口一致性；PNG 由 SVG 预览转换，不是 GL 回读。
 - 提交：`ef15e52`。
+
+#### K6（本轮）
+
+- 完成：独立复核 [K6-review.md](K6-review.md)；组件 DoD 矩阵、未关闭项与发布判断；架构复盘与下一步优先级已发 [#13](https://github.com/ShiningRay/tessell/issues/13)。
+- 复核证据：`crystal spec spec/kit` 86/0；light 与 dark/DPI 1.5 gallery `verify=pass`；消费者脚本通过；核心入口构建通过；格式检查通过。
+- 结论：逻辑/API 层 Go-with-conditions；平台完整 No-Go。真实 Windows gate、IME、屏幕阅读器、平台剪贴板、GL DrawList 闭环未验证。
+- 提交：待回填。
