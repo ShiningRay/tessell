@@ -100,6 +100,28 @@ UI.apply_auto_layout(buf, pool, viewport, measurer)  # 求解并写回 bounds
 陷阱：探针前预热 shaped run 并 sync atlas；热路径避免新建 `String`/`Array`/
 proc 捕获；复用缓冲与 sink；避免热循环内字符串插值。
 
+## 离屏测试（issue #10）
+`Render::SoftwareBackend`：纯 CPU 光栅到内存 RGBA 缓冲，无窗口/GPU/FFI，
+CI 可跑。与 GLBackend 同契约（draw_draw_list/draw_text/draw_polygon、
+per-command clip、premultiplied 混合、dirty 逐矩形清屏+重画）。
+
+```crystal
+backend = Tessell::Render::SoftwareBackend.new
+backend.init(160, 120)
+backend.attach_atlas(atlas)          # 文本采样需要页数据
+backend.begin_frame(nil, theme)
+backend.draw_draw_list(canvas.list)
+backend.draw_text(renderer.vertices, renderer.batch_runs, renderer.batch_count)
+backend.end_frame
+backend.pixel(50, 12)                # 0xRRGGBBAA 断言
+```
+
+- 命中测试照常走 Router/HitTest（同一棵 retained 树）。
+- 「脏区重绘 == 全量重绘」可在纯 spec 内断言（spec/software_backend_spec.cr
+  的 oracle 用例：多边形跨脏区 + 脏区外文本，inside==full、outside==bg）。
+- 边界：nearest 采样；draw_draw_list 的形状命令不受脏矩形裁剪（与 GL
+  行为一致）；文本/多边形受 dirty 裁剪。
+
 ## 截图与 golden-image 回归（issue #9）
 - 截图三格式：`--screenshot=x.png` 直出 PNG（stored zlib，标准解码器可读）；
   其他扩展名为 P6 PPM；`TessellShot.save`（tools/lib/shot.cr）输出 TSRAW

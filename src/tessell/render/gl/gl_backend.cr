@@ -225,11 +225,20 @@ module Tessell
             TessellGL.glClearStencil(0)
             TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
           else
-            # Dirty/partial: do not clear full framebuffer here.
-            # Each dirty rect is scissor-cleared in draw_batches_with_dirty so that
-            # pixels outside dirty regions remain intact (double-buffer base preserved
+            # Dirty/partial: do not clear full framebuffer here. Clear each dirty
+            # rect now (before any draw) so interleaved shape/text submission
+            # (issue #15) is not erased by a later draw_text clear pass. Pixels
+            # outside dirty regions remain intact (double-buffer base preserved
             # when caller avoids SwapBuffers between frames).
             TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST)
+            rects = @dirty.not_nil!
+            rects.each do |r|
+              sx, sy, sw, sh_i = scissor_params(r)
+              TessellGL.glScissor(sx, sy, sw, sh_i)
+              @scissor_calls += 1
+              TessellGL.glClearStencil(0)
+              TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
+            end
           end
         end
 
@@ -638,24 +647,10 @@ module Tessell
 
           rcount = rects.size
           TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST)
+          # 脏矩形清屏已在 begin_frame 完成（issue #15：交错提交不能被
+          # draw_text 的清屏擦掉形状）；这里只做逐矩形裁剪重画。
 
-          # Pass 1: clear all dirty rects first (preserve outside pixels). Doing this
-          # before any draw avoids a later rect's clear erasing boundary-spanning quads
-          # already drawn into an earlier rect.
-          ri = 0
-          while ri < rcount
-            r = clip ? intersect_rect(clip, rects[ri]) : rects[ri]
-            unless empty_rect?(r)
-              sx, sy, sw, sh_i = scissor_params(r)
-              TessellGL.glScissor(sx, sy, sw, sh_i)
-              @scissor_calls += 1
-              TessellGL.glClearStencil(0)
-              TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
-            end
-            ri += 1
-          end
-
-          # Pass 2: for each rect, draw all quads intersecting it. Scissor clips to the
+          # For each rect, draw all quads intersecting it. Scissor clips to the
           # rect; quads spanning multiple dirty rects are redrawn per intersecting rect
           # so their pixels inside every cleared dirty region are restored.
           ri = 0
