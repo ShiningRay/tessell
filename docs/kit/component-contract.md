@@ -37,6 +37,12 @@
   B 依次收到 `handle(Focus)` 与 `on_focus_changed(true)`；窗口级失焦时组件先收到
   `handle(Blur)` 再收到 `on_focus_changed(false)`。`Blur` 事件语义 = 窗口失焦，
   组件间转移不投递。顺序由 spec/kit/focus_events_spec.cr 锁住。
+- 编辑态 Tab 语义（issue #32）由 API 声明，组件不得在 key_down 里手写分支：
+  表单提交用 `Input#submit_on_tab = true`（Tab 触发 on_submit 并消费；
+  「提交并前进」在 on_submit 里自行 root.focus 下一字段）；代码编辑用
+  `TextEditing#tabs = Insert`（\t 展开 tab_width 个空格，文本永不出现 \t
+  字形，宽度与光标不依赖字体制表符）；表格类由父容器 `wants_tab?` 接管
+  提交与移动。默认 `TextEditing#tabs = Reject`，\t 整体拒绝。
 
 ## 绘制
 

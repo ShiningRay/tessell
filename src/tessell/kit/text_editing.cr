@@ -27,11 +27,27 @@ module Tessell
       end
     end
 
+    # 编辑态 Tab 语义（issue #32）：真正在编辑文本的组件，Tab 是「插入制表
+    # 宽度」还是「提交」由 API 声明，不再各自在 key_down 里手写分支。
+    #   Reject —— 默认。insert 遇 \t 整体拒绝（返回 false），Tab 交给组件/
+    #             父级处理（表单由 Input#submit_on_tab 提交，表格由父容器接管）。
+    #   Insert —— \t 换成 tab_width 个空格插入；文本里永不出现 \t 字形，
+    #             measure/光标定位按空格自然一致（不与制表字形宽度耦合）。
+    # 提交语义（Submit）属于组件回调层（Input#submit_on_tab），不进编辑状态。
+    enum TabBehavior
+      Reject
+      Insert
+    end
+
     class TextEditing
       getter text : String
       getter cursor : Int32
       getter anchor : Int32?
       getter preedit : String
+
+      # Tab 行为选项（issue #32）；tab_width 仅 Insert 生效。
+      property tabs : TabBehavior
+      property tab_width : Int32
 
       @bounds : Array(Int32)
       @bounds_valid : Bool
@@ -40,6 +56,8 @@ module Tessell
         @cursor = @text.bytesize
         @anchor = nil
         @preedit = ""
+        @tabs = TabBehavior::Reject
+        @tab_width = 4
         @bounds = [] of Int32
         @bounds_valid = false
       end
@@ -144,9 +162,15 @@ module Tessell
         @cursor = @text.bytesize
       end
 
-      # 返回 text 是否变化。
+      # 返回 text 是否变化。包含 \t 的插入按 tabs 语义守住（issue #32）：
+      # Reject 整体拒绝；Insert 把每个 \t 展开为 tab_width 个空格——文本
+      # 里永不出现 \t 字形，宽度与光标不依赖字体制表位。
       def insert(value : String) : Bool
         return false if value.empty?
+        if value.includes?('\t')
+          return false if @tabs == TabBehavior::Reject
+          value = value.gsub('\t', " " * @tab_width)
+        end
         replace_selection(value)
         true
       end

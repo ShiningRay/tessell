@@ -18,6 +18,11 @@ module Tessell
       property size : ControlSize
       property on_change : Proc(String, Nil)?
       property on_submit : Proc(String, Nil)?
+      # Tab 提交语义（issue #32）：true 时 KeyDown Tab 触发 on_submit 并消费
+      # 事件；wants_tab? 随之变 true，Root 会先把 Tab 投递给聚焦的 Input
+      # （否则走焦点环）。「提交并前进到下一字段」需应用在 on_submit 里
+      # 自行推进焦点（root.focus(next)）。
+      property submit_on_tab : Bool
       property clipboard : Clipboard
       getter hovered : Bool
       getter pressed : Bool
@@ -27,7 +32,7 @@ module Tessell
                      @placeholder : String = "", @label : String = "",
                      @size : ControlSize = ControlSize::Medium,
                      @read_only : Bool = false, @invalid : Bool = false,
-                     enabled : Bool = true)
+                     enabled : Bool = true, @submit_on_tab : Bool = false)
         super(@key, enabled)
         @editing = TextEditing.new(text)
         @error_text = ""
@@ -318,6 +323,16 @@ module Tessell
           when Key::Enter
             @on_submit.try(&.call(@editing.text))
             true
+          when Key::Tab
+            # issue #32：submit_on_tab 时 Tab 提交并消费；默认 false 保持
+            # 焦点环语义（Root 在 handle 入口已把 Tab 优先投递给 wants_tab?
+            # 组件，未声明时根本走不到这里）。
+            if @submit_on_tab && !@read_only
+              @on_submit.try(&.call(@editing.text))
+              true
+            else
+              false
+            end
           when Key::Escape
             @editing.collapse_selection
             true
@@ -325,6 +340,12 @@ module Tessell
             false
           end
         end
+      end
+
+      # issue #32：submit_on_tab 时声明 wants_tab?，Root 才会把 Tab 先投递
+      # 给本组件（普通 Tab 进入焦点环前先问焦点组件）。
+      def wants_tab? : Bool
+        @submit_on_tab && @enabled
       end
 
       private def notify_change : Nil
