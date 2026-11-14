@@ -276,8 +276,17 @@ root.handle(Tessell::Input::Event.text_input("hi"))
    caching = Tessell::Text::CachingMeasurer.new(ft)   # 布局/测量用
    ```
 
-## 已知 API 缺口（示例层，未改 src）
-- `Input::KeyCode` 无 `KeyT`：运行中 `T` 切换主题通过列表聚焦时的
-  `Event.text_input("T"/"t")` 处理（顶部输入框聚焦时 `T` 作为字符追加）。
-- `Event.wheel(x,y)` 无 delta 字段：示例按 y 符号约定滚动方向
-  （+1 向上 `row_h`，-1 向下）。
+## 已知 API 缺口（2026-11-14 更新，issue #12）
+已解决：KeyCode 补齐 KeyT/Digit/F1-F4（#4）、wheel dx/dy（K1）、
+DrawList 已接线并有 Canvas 门面（#2/#15）、动态文本 atlas 契约（#1）、
+文本度量/对齐（#6）、字体栈（#7）、语义主题 token（#8）、
+ScrollModel（#17）、自动布局（#5）、离屏后端（#10）、调试 overlay（#11）、
+PNG/golden 工具（#9）。
+仍开放：
+- Win32 平台层与 App Runner 收敛（issue #3）：WM_*→Input::Event 映射、
+  DPI 消息、截图模式仍散在示例；Windows 真机 gate 未跑。
+- IME composition 事件未接入 `Kit::Event`；Input 只有
+  `set_preedit/commit_preedit` API。
+- 屏幕阅读器 provider（UIA/AppKit/AT-SPI）未实现；只有进程内 A11y 树。
+- 平台剪贴板适配未实现；只有 `MemoryClipboard` 与注入接口。
+ cookbook 与全部临时写法见 [cookbook.md](cookbook.md)。

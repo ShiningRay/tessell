@@ -37,6 +37,11 @@ button = Tessell::Kit::Button.new(
 已交付：Button、Checkbox、Text、Input、Select、Tooltip、Dialog、ScrollView，
 以及 VirtualList 适配、Root Overlay、主题/尺寸 token、grapheme 光标/选区与
 剪贴板接口。组件文档见 [docs/kit/index.md](docs/kit/index.md)；
+应用开发 cookbook 见 [docs/cookbook.md](docs/cookbook.md)（最小窗口、文本/
+字体、Canvas、自动布局、主题 token、输入、atlas 同步、截图与 CI 测试、
+帧调试）；API reference 用 `bash tools/gen_api_docs.sh` 生成到 `site/api`；
+真实应用示例：[tessell-stock-demo](https://github.com/ShiningRay/tessell-stock-demo)、
+[tessell-sheet-demo](https://github.com/ShiningRay/tessell-sheet-demo)。
 计划、契约与执行记录见 [docs/kit/plan.md](docs/kit/plan.md)、
 [docs/kit/component-contract.md](docs/kit/component-contract.md)、
 [docs/kit/execution.md](docs/kit/execution.md)。
