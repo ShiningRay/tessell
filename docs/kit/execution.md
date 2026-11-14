@@ -42,4 +42,4 @@
 - 完成：核心 `Input::Event` 增加 modifiers、wheel delta、PointerEnter/Leave/Cancel 与常用键码；`Router` 跟踪 enter/leave/cancel；`Node#clip` 与 `HitTest` 裁切；`DrawCmd` 增加 RoundRect/StrokeRect/StrokeRoundRect 与 radius/stroke_width；Kit 增加 `DrawListPainter`、核心 Theme 适配器与运行中换主题。
 - 验证：`crystal spec` 选定核心/Kit 用例 238 examples / 0 failures（不含 Windows 字体依赖文件）；`crystal build src/tessell.cr --no-codegen` 与 `examples/app_demo.cr --no-codegen` 通过。
 - 未验证：GL 后端尚未消费新增 DrawCmd；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。
-- 提交：待回填。
+- 提交：`5c7270e`。
