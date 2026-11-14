@@ -159,7 +159,7 @@
 <li>完成：<code>tools/build_kit_site.cr</code> 增加构建期 Crystal 语法高亮：关键字、类型/常量、字符串、注释、数字、符号、注解、运算符；代码块输出 <code>language-crystal</code> 与 <code>tok-*</code> span；CSS 同时提供 light/dark token 颜色。非 Crystal 代码块保持原样转义。</li>
 <li>验证：重新生成 <code>site/kit/*.html</code>；<code>button.html</code> 等页面出现 <code>tok-kw/tok-type/tok-str/tok-num/tok-op</code>；浏览器截图确认颜色区分；<code>crystal run tools/build_kit_site.cr</code> 成功。</li>
 <li>未验证：未引入第三方高亮库，覆盖范围是常见 Crystal 语法而非完整 parser；复杂字符串插值/heredoc 可能按普通文本处理。</li>
-<li>提交：待回填。</li>
+<li>提交：<code>a34a83d</code>。</li>
 </ul>
 
 </main>
