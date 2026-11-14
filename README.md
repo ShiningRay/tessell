@@ -20,6 +20,25 @@ FreeType / HarfBuzz / OpenGL，**无第三方运行时绑定**，渲染与文本
 > COLRv0/CPAL + glReadPixels 数值回读；R8 灰度路径保留；不得外推为
 > 全域/跨平台/严格零分配。M3 为 S1 范围收口，不等于全平台完成。详见上表证据文件的「未验证」清单。
 
+## Kit 组件库（K0 起）
+
+组件库以同仓可选入口提供，核心入口不聚合：
+
+```crystal
+require "tessell/kit"
+
+button = Tessell::Kit::Button.new(
+  Tessell::UI::UiKey.root.child(1_u64),
+  "Save",
+  Tessell::Kit::Variant::Primary
+)
+```
+
+计划、契约与执行记录见 [docs/kit/plan.md](docs/kit/plan.md)、
+[docs/kit/component-contract.md](docs/kit/component-contract.md)、
+[docs/kit/execution.md](docs/kit/execution.md)。当前只完成 K0 契约与 Button
+纵向原型；真实窗口与平台 a11y 仍未验证。
+
 ## 快速开始
 
 环境：Windows + msys2 ucrt64，Crystal 1.22（`crystal --version` 可核对）。
