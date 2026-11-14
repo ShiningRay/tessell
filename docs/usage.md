@@ -128,6 +128,18 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 外部消费者验证：`bash tools/kit_consumer_verify.sh`（临时目录 + Shards path 依赖）。
 - 限制：真实窗口/GL、平台 IME、屏幕阅读器 provider、平台剪贴板未验证。
 
+## 字体栈与系统字体发现（issue #7）
+- `Tessell::Text::FontStack.open([{path, ttc_index, weight, label}, ...])`：
+  按优先级打开多张 face（regular/bold/fallback），`pick(text)` 用真实
+  cmap 覆盖（`FtMeasurer#covers?`）选出覆盖整段文本的第一张脸，未覆盖
+  返回 nil 由应用回退。
+- 共享一个 `GlyphAtlas`，每张 face 一个 `Rasterizer`/`TextRenderer`
+  （font_id 区分）；批按页合批，绘制按 #15 契约按序提交。
+- `Tessell::Text::SystemFonts.find(["msyh", "pingfang", ...])`：标准目录
+  扫描 + 文件名模式匹配，替代硬编码绝对路径；候选仍需 `covers?` 验证。
+- Fallback 边界：选脸粒度是整段文本而非逐字形；逐字形混排（emoji+中文）
+  需应用按段拆分分别 pick。语义化 family 匹配（sfnt name 表）留待后续。
+
 ## 文本 API（issue #6）
 - 测量：`ctx.measure_text(text, size[, max_width])` 返回**逻辑**尺寸并内建
   缓存（key=(text,size,max_width)，文本集合变化时 `ctx.clear_text_cache`）；

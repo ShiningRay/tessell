@@ -270,6 +270,18 @@ module Tessell
         FontMetrics.new(ascent, descent, line_height)
       end
 
+      # cmap 覆盖检测（issue #7）：text 的每个码点在当前 face 的 cmap 中
+      # 都有非零 glyph id 才返回 true。FontStack 按它选脸，零 FFI 新声明。
+      def covers?(text : String) : Bool
+        return false if @closed
+        return true if text.empty?
+        text.each_char do |ch|
+          cp = ch.ord.to_u32
+          return false if FT::Lib.get_char_index(@ft_face, cp) == 0
+        end
+        true
+      end
+
       # 测量辅助：返回 HB shaping 的 glyph ids 与 x_advances(px) 供 spec 验证
       def shape_info(text : String, size : Float32) : NamedTuple(glyph_ids: Array(UInt32), advances_px: Array(Float32), ft_char_index: Hash(UInt32, UInt32))
         result_ids = [] of UInt32
