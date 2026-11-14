@@ -48,6 +48,8 @@ crystal run tools/build_kit_site.cr
 ## 示例应用
 
 - [计算器与文本编辑器](apps.md)：SDL2 窗口 + OpenGL，真实可交互；含运行命令、截图与限制。
+- [自定义大控件 cookbook](cookbook-custom-widget.md)：表格/时间线类控件的
+  滚动/命中/裁切/键盘/a11y 清单，复用 `Kit::ScrollModel`（issue #17）。
 
 ## 复核与反馈
 

@@ -7,8 +7,9 @@ module Tessell
   module Kit
     class ScrollView < Component
       getter child : Component
-      property scroll_x : Float32
-      property scroll_y : Float32
+      # 滚动数学委托给 ScrollModel（issue #17）；公开 API 保持不变。
+      getter model_x : ScrollModel
+      getter model_y : ScrollModel
       getter content_size : Size
       property horizontal : Bool
       property vertical : Bool
@@ -20,13 +21,29 @@ module Tessell
                      @horizontal : Bool = false, @vertical : Bool = true,
                      enabled : Bool = true)
         super(@key, enabled)
-        @scroll_x = 0.0_f32
-        @scroll_y = 0.0_f32
+        @model_x = ScrollModel.new
+        @model_y = ScrollModel.new
         @content_size = Size.new
         @scrollbar_width = 10.0_f32
         @wheel_step = 1.0_f32
         @preferred_height = 240.0_f32
         attach(@child)
+      end
+
+      def scroll_x : Float32
+        @model_x.offset
+      end
+
+      def scroll_x=(value : Float32) : Nil
+        @model_x.offset = value
+      end
+
+      def scroll_y : Float32
+        @model_y.offset
+      end
+
+      def scroll_y=(value : Float32) : Nil
+        @model_y.offset = value
       end
 
       def measure(ctx : Context, constraints : Constraints) : Size
@@ -46,10 +63,15 @@ module Tessell
         content_w = @horizontal ? Math.max(child_size.width, bounds.size.width) : bounds.size.width
         content_h = @vertical ? Math.max(child_size.height, bounds.size.height) : bounds.size.height
         @content_size = Size.new(content_w, content_h)
-        clamp_scroll
+        @model_y.content_size = content_h
+        @model_y.viewport_size = bounds.size.height
+        @model_x.content_size = content_w
+        @model_x.viewport_size = bounds.size.width
+        @model_y.offset = @model_y.offset
+        @model_x.offset = @model_x.offset
         child_bounds = Rect.new(
-          bounds.origin.x - @scroll_x,
-          bounds.origin.y - @scroll_y,
+          bounds.origin.x - @model_x.offset,
+          bounds.origin.y - @model_y.offset,
           content_w,
           content_h
         )
@@ -112,31 +134,29 @@ module Tessell
       end
 
       def scroll_by(dy : Float32) : Float32
-        scroll_to(@scroll_y + dy)
+        scroll_to(@model_y.offset + dy)
       end
 
       def scroll_by_x(dx : Float32) : Float32
-        scroll_to_x(@scroll_x + dx)
+        scroll_to_x(@model_x.offset + dx)
       end
 
       def scroll_to(y : Float32) : Float32
-        @scroll_y = y.clamp(0.0_f32, max_scroll_y)
-        @scroll_y
+        @model_y.offset = y
+        @model_y.offset
       end
 
       def scroll_to_x(x : Float32) : Float32
-        @scroll_x = x.clamp(0.0_f32, max_scroll_x)
-        @scroll_x
+        @model_x.offset = x
+        @model_x.offset
       end
 
       def max_scroll_y : Float32
-        value = @content_size.height - @bounds.size.height
-        value < 0.0_f32 ? 0.0_f32 : value
+        @model_y.max_offset
       end
 
       def max_scroll_x : Float32
-        value = @content_size.width - @bounds.size.width
-        value < 0.0_f32 ? 0.0_f32 : value
+        @model_x.max_offset
       end
 
       def can_scroll_y? : Bool
@@ -153,15 +173,10 @@ module Tessell
       end
 
       def paint_token : UInt32
-        token = @scroll_y.to_u32
-        token ^= (@scroll_x.to_u32 << 7)
+        token = @model_y.offset.to_u32
+        token ^= (@model_x.offset.to_u32 << 7)
         token ^= (@content_size.height.to_u32 << 13)
         token
-      end
-
-      private def clamp_scroll : Nil
-        @scroll_y = @scroll_y.clamp(0.0_f32, max_scroll_y)
-        @scroll_x = @scroll_x.clamp(0.0_f32, max_scroll_x)
       end
 
       private def handle_key(key : Key?) : Bool
@@ -195,24 +210,22 @@ module Tessell
           track_x = @bounds.max_x - track_w
           track = Rect.new(track_x, @bounds.origin.y, track_w, @bounds.size.height)
           p.fill_rect(track, ctx.theme.palette.surface_raised)
-          ratio = @bounds.size.height / @content_size.height
-          thumb_h = Math.max(20.0_f32, @bounds.size.height * ratio)
-          travel = @bounds.size.height - thumb_h
-          thumb_y = @bounds.origin.y + (max_scroll_y > 0.0_f32 ? travel * (@scroll_y / max_scroll_y) : 0.0_f32)
-          thumb = Rect.new(track_x + 2.0_f32, thumb_y, track_w - 4.0_f32, thumb_h)
-          p.fill_round_rect(thumb, 3.0_f32, ctx.theme.palette.muted)
+          thumb = @model_y.thumb(@bounds.size.height)
+          thumb_y = @bounds.origin.y + thumb.pos
+          p.fill_round_rect(
+            Rect.new(track_x + 2.0_f32, thumb_y, track_w - 4.0_f32, thumb.size),
+            3.0_f32, ctx.theme.palette.muted)
         end
         if @horizontal && max_scroll_x > 0.0_f32
           track_h = @scrollbar_width
           track_y = @bounds.max_y - track_h
           track = Rect.new(@bounds.origin.x, track_y, @bounds.size.width, track_h)
           p.fill_rect(track, ctx.theme.palette.surface_raised)
-          ratio = @bounds.size.width / @content_size.width
-          thumb_w = Math.max(20.0_f32, @bounds.size.width * ratio)
-          travel = @bounds.size.width - thumb_w
-          thumb_x = @bounds.origin.x + (max_scroll_x > 0.0_f32 ? travel * (@scroll_x / max_scroll_x) : 0.0_f32)
-          thumb = Rect.new(thumb_x, track_y + 2.0_f32, thumb_w, track_h - 4.0_f32)
-          p.fill_round_rect(thumb, 3.0_f32, ctx.theme.palette.muted)
+          thumb = @model_x.thumb(@bounds.size.width)
+          thumb_x = @bounds.origin.x + thumb.pos
+          p.fill_round_rect(
+            Rect.new(thumb_x, track_y + 2.0_f32, thumb.size, track_h - 4.0_f32),
+            3.0_f32, ctx.theme.palette.muted)
         end
       end
     end
