@@ -20,7 +20,8 @@ private class StubBackend < Tessell::Render::Backend
 
   def draw_text(vertices : Array(Tessell::Render::Vertex),
                 batches : Array(Tessell::Render::TextBatch),
-                batch_count : Int32 = batches.size) : Int32
+                batch_count : Int32 = batches.size, from_batch : Int32 = 0,
+                clip : Tessell::Rect? = nil) : Int32
     0
   end
 

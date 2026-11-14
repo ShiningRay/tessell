@@ -27,7 +27,13 @@ module Tessell
       abstract def resize(width : Int32, height : Int32) : Nil
       abstract def begin_frame(dirty : Array(Tessell::Rect)? = nil, theme : Tessell::Render::Theme = Tessell::Render::Theme.light) : Nil
       abstract def sync_atlas(atlas : Text::GlyphAtlas) : Nil
-      abstract def draw_text(vertices : Array(Vertex), batches : Array(TextBatch), batch_count : Int32 = batches.size) : Int32
+      # Issue #15 contract: text is part of the command order — a host may draw
+      # text segments interleaved with draw_draw_list segments. `from_batch`
+      # selects the unsubmitted suffix of `batches`; `clip` restricts the text
+      # segment to a scissor rect (nil = unclipped).
+      abstract def draw_text(vertices : Array(Vertex), batches : Array(TextBatch),
+                             batch_count : Int32 = batches.size, from_batch : Int32 = 0,
+                             clip : Tessell::Rect? = nil) : Int32
       abstract def end_frame : Nil
       abstract def close : Nil
       abstract def stats : FrameStats
@@ -41,9 +47,12 @@ module Tessell
 
       # Draw a command list. Backends that support 2D primitives implement this;
       # base returns 0 = unsupported rather than silently claiming success.
-      # Text commands are rendered separately via draw_text; implementations may
-      # skip them. Returns number of non-text commands actually submitted.
-      def draw_draw_list(list : Tessell::Render::DrawList) : Int32
+      # Text commands are skipped here (rendered via draw_text) so a host can
+      # interleave shape/text segments in command order. `from`/`count` select
+      # a sub-range of the list (count < 0 = to the end). Returns number of
+      # non-text commands actually submitted.
+      def draw_draw_list(list : Tessell::Render::DrawList, from : Int32 = 0,
+                         count : Int32 = -1) : Int32
         0
       end
 

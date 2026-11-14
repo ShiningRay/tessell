@@ -62,7 +62,7 @@ class RecordingBackend < Tessell::Render::Backend
     end
   end
 
-  def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch), batch_count : Int32 = batches.size) : Int32
+  def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch), batch_count : Int32 = batches.size, from_batch : Int32 = 0, clip : Tessell::Rect? = nil) : Int32
     @calls << "draw_text" if @record_calls
     dirty = @last_dirty
     if dirty.nil?
@@ -194,7 +194,8 @@ class NoPolyBackend < Tessell::Render::Backend
   def sync_atlas(atlas : Tessell::Text::GlyphAtlas) : Nil; end
   def draw_text(vertices : Array(Tessell::Render::Vertex),
                 batches : Array(Tessell::Render::TextBatch),
-                batch_count : Int32 = batches.size) : Int32
+                batch_count : Int32 = batches.size, from_batch : Int32 = 0,
+                clip : Tessell::Rect? = nil) : Int32
     0
   end
   def end_frame : Nil; end

@@ -104,6 +104,17 @@ module Tessell
       end
     end
 
+    # 绘制契约（issue #15， Painter 实现与宿主必须共同遵守）：
+    #
+    # 1. z-order：调用顺序即绘制顺序。text 与形状命令可任意交错，后提交者
+    #    覆盖先提交者——「先画文字再画不透明覆盖层」必须能盖住文字。
+    #    宿主禁止把文本收集后统一放到形状之后上屏（那会把 z-order 变成
+    #    「所有形状 → 所有文本」）。
+    # 2. clip：push_clip/pop_clip 同时约束形状与文本；嵌套 clip 取交集。
+    #    滚动容器边缘的文本由后端 scissor 裁切，组件不得依赖“只发完全可见
+    #    文本”的 workaround。
+    # 3. 文本基线：text(x, baseline_y, ...) 的坐标是基线起点（y-down），
+    #    与 Render::TextRenderer 的顶点生成约定一致。
     abstract class Painter
       abstract def fill_rect(rect : Rect, color : UInt32) : Nil
       abstract def stroke_rect(rect : Rect, color : UInt32, width : Float32 = 1.0_f32) : Nil

@@ -206,15 +206,20 @@ module TessellKitSdl
     @width : Int32
     @height : Int32
     @scale : Float32
-    @text_clips : Array(Tessell::Rect)
     @sink : Array(Tessell::Text::GlyphPlacement)
+    # per-text-call batch boundary snapshots (issue #15): text quads stay
+    # batched, but flush splits them at each text() call site so shapes and
+    # text submit in exact command order
+    @text_marks : Array(Int32)
+    @submitted_batches : Int32
 
     def initialize(@renderer : Tessell::Render::TextRenderer,
                    @atlas : Tessell::Text::GlyphAtlas,
                    @width : Int32, @height : Int32, @scale : Float32)
       @draw = Tessell::Kit::DrawListPainter.new
-      @text_clips = [] of Tessell::Rect
       @sink = [] of Tessell::Text::GlyphPlacement
+      @text_marks = [] of Int32
+      @submitted_batches = 0
     end
 
     def resize(width : Int32, height : Int32, scale : Float32) : Nil
@@ -248,23 +253,24 @@ module TessellKitSdl
 
     def text(x : Float32, baseline_y : Float32, text : String,
              color : UInt32, size : Float32) : Nil
-      if clip = @text_clips.last?
-        return if baseline_y < clip.origin.y - size || baseline_y > clip.max_y + size
-        return if x > clip.max_x
-      end
       px_size = (size * @scale).round.to_i
       return if px_size <= 0
-      @renderer.append_text_cached(@sink, text, x * @scale, baseline_y * @scale,
-        px_size, @width, @height, color)
+      dx = x * @scale
+      dy = baseline_y * @scale
+      @renderer.append_text_cached(@sink, text, dx, dy, px_size, @width, @height, color)
+      # Marker in the command list keeps call-order z-order and carries the
+      # active clip for scissoring (issue #15). draw_draw_list skips Text
+      # commands, so the marker is never drawn as geometry. The mark snapshot
+      # lets flush submit exactly this call's text batches.
+      @draw.text(dx, dy, text, color, px_size.to_f32)
+      @text_marks << @renderer.batch_count
     end
 
     def push_clip(rect : Tessell::Rect) : Nil
-      @text_clips << rect
       @draw.push_clip(scale_rect(rect))
     end
 
     def pop_clip : Nil
-      @text_clips.pop unless @text_clips.empty?
       @draw.pop_clip
     end
 
@@ -273,15 +279,35 @@ module TessellKitSdl
       # change signal (issue #1). sync_atlas_dirty re-uploads only pages whose
       # content revision changed.
       backend.sync_atlas_dirty(@atlas)
-      backend.draw_draw_list(@draw.list)
-      backend.draw_text(@renderer.vertices, @renderer.batch_runs, @renderer.batch_count)
+      # Issue #15: command order == paint order. Walk the list; a Text marker
+      # flushes the pending shape segment first, then exactly the text batches
+      # recorded for that call (scissored to the marker's clip). Later fills
+      # cover earlier text; text is clipped at scroll edges by the backend.
+      @submitted_batches = 0
+      list = @draw.list
+      seg = 0
+      i = 0
+      mark = 0
+      while i < list.size
+        cmd = list[i]
+        if cmd.kind == Tessell::Render::CmdKind::Text && mark < @text_marks.size
+          backend.draw_draw_list(list, seg, i - seg) if i > seg
+          backend.draw_text(@renderer.vertices, @renderer.batch_runs,
+            @text_marks[mark], @submitted_batches, cmd.clip)
+          @submitted_batches = @text_marks[mark]
+          mark += 1
+          seg = i + 1
+        end
+        i += 1
+      end
+      backend.draw_draw_list(list, seg, list.size - seg) if list.size > seg
       @draw.reset
       @renderer.reset
-      @text_clips.clear
+      @text_marks.clear
     end
 
     def clip_depth : Int32
-      @text_clips.size
+      @draw.clip_depth
     end
 
     private def scale_rect(rect : Tessell::Rect) : Tessell::Rect

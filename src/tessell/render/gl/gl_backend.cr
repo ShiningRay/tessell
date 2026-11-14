@@ -406,9 +406,11 @@ module Tessell
           end
         end
 
-        def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch), batch_count : Int32 = batches.size) : Int32
+        def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch),
+                      batch_count : Int32 = batches.size, from_batch : Int32 = 0,
+                      clip : Tessell::Rect? = nil) : Int32
           if @dirty.nil?
-            draw_batches_all(vertices, batches, batch_count)
+            draw_batches_all(vertices, batches, batch_count, from_batch, clip)
           else
             rects = @dirty.not_nil!
             if rects.empty?
@@ -416,7 +418,7 @@ module Tessell
               @culled_quads = total_quads(batches, batch_count)
               @submitted_quads = 0
             else
-              draw_batches_with_dirty(vertices, batches, batch_count, rects)
+              draw_batches_with_dirty(vertices, batches, batch_count, rects, from_batch, clip)
             end
           end
           @submitted_quads
@@ -424,15 +426,18 @@ module Tessell
 
         # Draw Kit/core primitive commands. Colors are 0xRRGGBBAA, alpha-premultiplied
         # before submit because begin_frame uses (GL_ONE, GL_ONE_MINUS_SRC_ALPHA).
-        # Text commands are skipped: text is submitted by draw_text with atlas batches.
+        # Text commands are skipped: text is submitted by draw_text with atlas batches,
+        # allowing a host to interleave shape/text segments in command order (issue #15).
         # Returns non-text commands submitted; clip is applied per command.
-        def draw_draw_list(list : Tessell::Render::DrawList) : Int32
+        def draw_draw_list(list : Tessell::Render::DrawList, from : Int32 = 0,
+                           count : Int32 = -1) : Int32
           submitted = 0
           TessellGL.glEnable(TessellGL::GL_BLEND)
           TessellGL.glBlendFunc(TessellGL::GL_ONE, TessellGL::GL_ONE_MINUS_SRC_ALPHA)
           TessellGL.glDisable(TessellGL::GL_TEXTURE_2D)
-          i = 0
-          while i < list.size
+          last = count < 0 ? list.size : Math.min(from + count, list.size)
+          i = from
+          while i < last
             cmd = list[i]
             apply_clip(cmd.clip)
             case cmd.kind
@@ -577,12 +582,14 @@ module Tessell
           sum
         end
 
-        private def draw_batches_all(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch), batch_count : Int32) : Nil
-          TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST)
+        private def draw_batches_all(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch),
+                                     batch_count : Int32, from_batch : Int32 = 0,
+                                     clip : Tessell::Rect? = nil) : Nil
+          apply_clip(clip)
           @submitted_quads = 0
           @culled_quads = 0
           @scissor_calls = 0
-          i = 0
+          i = from_batch
           while i < batch_count
             b = batches[i]
             if b.count > 0
@@ -617,9 +624,14 @@ module Tessell
             end
             i += 1
           end
+          if clip
+            TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST)
+          end
         end
 
-        private def draw_batches_with_dirty(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch), batch_count : Int32, rects : Array(Tessell::Rect)) : Nil
+        private def draw_batches_with_dirty(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch),
+                                            batch_count : Int32, rects : Array(Tessell::Rect),
+                                            from_batch : Int32 = 0, clip : Tessell::Rect? = nil) : Nil
           @scissor_calls = 0
           @culled_quads = 0
           @submitted_quads = 0
@@ -632,12 +644,14 @@ module Tessell
           # already drawn into an earlier rect.
           ri = 0
           while ri < rcount
-            r = rects[ri]
-            sx, sy, sw, sh_i = scissor_params(r)
-            TessellGL.glScissor(sx, sy, sw, sh_i)
-            @scissor_calls += 1
-            TessellGL.glClearStencil(0)
-            TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
+            r = clip ? intersect_rect(clip, rects[ri]) : rects[ri]
+            unless empty_rect?(r)
+              sx, sy, sw, sh_i = scissor_params(r)
+              TessellGL.glScissor(sx, sy, sw, sh_i)
+              @scissor_calls += 1
+              TessellGL.glClearStencil(0)
+              TessellGL.glClear(TessellGL::GL_COLOR_BUFFER_BIT | TessellGL::GL_STENCIL_BUFFER_BIT)
+            end
             ri += 1
           end
 
@@ -646,74 +660,76 @@ module Tessell
           # so their pixels inside every cleared dirty region are restored.
           ri = 0
           while ri < rcount
-            r = rects[ri]
-            sx, sy, sw, sh_i = scissor_params(r)
-            TessellGL.glScissor(sx, sy, sw, sh_i)
+            r = clip ? intersect_rect(clip, rects[ri]) : rects[ri]
+            unless empty_rect?(r)
+              sx, sy, sw, sh_i = scissor_params(r)
+              TessellGL.glScissor(sx, sy, sw, sh_i)
 
-            bi = 0
-            while bi < batch_count
-              b = batches[bi]
-              if b.count > 0
-                if b.color
-                  tex = resolved_texture(b.page, true)
-                  TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
-                  TessellGL.glColor4f(1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32)
-                  TessellGL.glBegin(TessellGL::GL_QUADS)
-                  vi = b.start
-                  vend = b.start + b.count
-                  while vi < vend
-                    v0 = vertices[vi]
-                    v1 = vertices[vi + 1]
-                    v2 = vertices[vi + 2]
-                    v3 = vertices[vi + 3]
-                    ql = min4(v0.x, v1.x, v2.x, v3.x)
-                    qt = min4(v0.y, v1.y, v2.y, v3.y)
-                    qr = max4(v0.x, v1.x, v2.x, v3.x)
-                    qb = max4(v0.y, v1.y, v2.y, v3.y)
-                    if quad_intersects_rect(ql, qt, qr, qb, r)
-                      emit_vertex_color(v0)
-                      emit_vertex_color(v1)
-                      emit_vertex_color(v2)
-                      emit_vertex_color(v3)
-                      @submitted_quads += 1
+              bi = from_batch
+              while bi < batch_count
+                b = batches[bi]
+                if b.count > 0
+                  if b.color
+                    tex = resolved_texture(b.page, true)
+                    TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
+                    TessellGL.glColor4f(1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32)
+                    TessellGL.glBegin(TessellGL::GL_QUADS)
+                    vi = b.start
+                    vend = b.start + b.count
+                    while vi < vend
+                      v0 = vertices[vi]
+                      v1 = vertices[vi + 1]
+                      v2 = vertices[vi + 2]
+                      v3 = vertices[vi + 3]
+                      ql = min4(v0.x, v1.x, v2.x, v3.x)
+                      qt = min4(v0.y, v1.y, v2.y, v3.y)
+                      qr = max4(v0.x, v1.x, v2.x, v3.x)
+                      qb = max4(v0.y, v1.y, v2.y, v3.y)
+                      if quad_intersects_rect(ql, qt, qr, qb, r)
+                        emit_vertex_color(v0)
+                        emit_vertex_color(v1)
+                        emit_vertex_color(v2)
+                        emit_vertex_color(v3)
+                        @submitted_quads += 1
+                      end
+                      vi += 4
                     end
-                    vi += 4
-                  end
-                  TessellGL.glEnd
-                else
-                  tex = resolved_texture(b.page)
-                  TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
-                  TessellGL.glBegin(TessellGL::GL_QUADS)
-                  vi = b.start
-                  vend = b.start + b.count
-                  while vi < vend
-                    v0 = vertices[vi]
-                    v1 = vertices[vi + 1]
-                    v2 = vertices[vi + 2]
-                    v3 = vertices[vi + 3]
-                    ql = min4(v0.x, v1.x, v2.x, v3.x)
-                    qt = min4(v0.y, v1.y, v2.y, v3.y)
-                    qr = max4(v0.x, v1.x, v2.x, v3.x)
-                    qb = max4(v0.y, v1.y, v2.y, v3.y)
-                    if quad_intersects_rect(ql, qt, qr, qb, r)
-                      emit_vertex(v0)
-                      emit_vertex(v1)
-                      emit_vertex(v2)
-                      emit_vertex(v3)
-                      @submitted_quads += 1
+                    TessellGL.glEnd
+                  else
+                    tex = resolved_texture(b.page)
+                    TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex.to_u32)
+                    TessellGL.glBegin(TessellGL::GL_QUADS)
+                    vi = b.start
+                    vend = b.start + b.count
+                    while vi < vend
+                      v0 = vertices[vi]
+                      v1 = vertices[vi + 1]
+                      v2 = vertices[vi + 2]
+                      v3 = vertices[vi + 3]
+                      ql = min4(v0.x, v1.x, v2.x, v3.x)
+                      qt = min4(v0.y, v1.y, v2.y, v3.y)
+                      qr = max4(v0.x, v1.x, v2.x, v3.x)
+                      qb = max4(v0.y, v1.y, v2.y, v3.y)
+                      if quad_intersects_rect(ql, qt, qr, qb, r)
+                        emit_vertex(v0)
+                        emit_vertex(v1)
+                        emit_vertex(v2)
+                        emit_vertex(v3)
+                        @submitted_quads += 1
+                      end
+                      vi += 4
                     end
-                    vi += 4
+                    TessellGL.glEnd
                   end
-                  TessellGL.glEnd
                 end
+                bi += 1
               end
-              bi += 1
             end
             ri += 1
           end
 
           # culled = quads intersecting no dirty rect
-          bi = 0
+          bi = from_batch
           while bi < batch_count
             b = batches[bi]
             if b.count > 0
@@ -736,6 +752,18 @@ module Tessell
             end
             bi += 1
           end
+        end
+
+        private def intersect_rect(a : Tessell::Rect, b : Tessell::Rect) : Tessell::Rect
+          x0 = Math.max(a.origin.x, b.origin.x)
+          y0 = Math.max(a.origin.y, b.origin.y)
+          x1 = Math.min(a.max_x, b.max_x)
+          y1 = Math.min(a.max_y, b.max_y)
+          Tessell::Rect.new(x0, y0, x1 - x0, y1 - y0)
+        end
+
+        private def empty_rect?(r : Tessell::Rect) : Bool
+          r.size.width <= 0.0_f32 || r.size.height <= 0.0_f32
         end
 
         private def scissor_params(r : Tessell::Rect) : {Int32, Int32, Int32, Int32}
