@@ -49,6 +49,20 @@ module Tessell
         false
       end
 
+      # ---- 状态快照（issue #39 第一期：重启式热重载）----
+      # 退出前 save_state → 重启后 load_state：保留的是命名 signal 值，
+      # views 全量 remount（asuka RFC 0003 口径）。control socket + fd
+      # 继承两件套属平台层后续工作（POSIX fd 与 Windows 语义不同）。
+      def save_state(path : String) : Nil
+        File.write(path, Tessell::Signal.snapshot_state)
+      end
+
+      # 返回恢复的 signal 数；文件不存在返回 0（首次启动）。
+      def load_state(path : String) : Int32
+        return 0 unless File.exists?(path)
+        Tessell::Signal.restore_state(File.read(path))
+      end
+
       # 平台每帧调用一次：now_ms 为平台单调时钟。返回 should_stop?，
       # 平台据此退出泵循环并清理。
       def advance(now_ms : Int64) : Bool

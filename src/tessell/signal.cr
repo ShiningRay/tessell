@@ -20,6 +20,8 @@
 # 单线程纪律：一个图只在其创建的执行上下文使用（UI 循环在 Isolated
 # context；跨线程各自建图，跨界用 Channel 传不可变快照——architecture §4.2）。
 
+require "json"
+
 module Tessell
   module Signal
     # 一轮追踪运行的 id；link.run_stamp != 当前 id 的链在 run 结束时摘除。
@@ -41,7 +43,25 @@ module Tessell
       end
     end
 
+    # 命名 signal 注册表（issue #39 第一期）：重启式热重载的状态快照/回填
+    # 只覆盖显式命名的 Signal(T)（label 非空）。保留的是 signal 值，不保留
+    # views（重启后全树 remount）——asuka RFC 0003 口径。Memo/Effect 是派生
+    # 物，不参与快照。
+    private NAMED = Hash(String, Node).new
+
     abstract class Node
+      # 快照契约：返回 JSON 字符串或 nil（不支持/派生节点）。restore 回填
+      # 成功返回 true。默认 nil/false（Memo/Effect 不参与）。
+      def snapshot_json : String?
+        nil
+      end
+
+      def restore_json(value : ::JSON::Any) : Bool
+        false
+      end
+
+      def unregister_named : Nil
+      end
       property first_sub : Link? = nil
       property last_sub : Link? = nil
       property first_dep : Link? = nil
@@ -105,10 +125,11 @@ module Tessell
         link.next_dep = nil
       end
 
-      # dispose：从所有上游退订（双向链摘除），幂等。
+      # dispose：从所有上游退订（双向链摘除），幂等；命名注册同步注销。
       def dispose : Nil
         return if @disposed
         @disposed = true
+        unregister_named
         link = @first_dep
         while link
           nxt = link.next_dep
@@ -125,6 +146,7 @@ module Tessell
       def initialize(@value : T, label : String = "", owner : Owner? = nil)
         @label = label
         Tessell::Signal.bind(self, owner)
+        Tessell::Signal.register_named(@label, self)
       end
 
       # 追踪读：处于 effect/memo 计算内时建立依赖。
@@ -149,6 +171,28 @@ module Tessell
 
       def update(&f : T -> T) : Nil
         set(f.call(@value))
+      end
+
+      # 快照（issue #39）：T 必须支持 to_json/from_json（基本类型与
+      # JSON-mappable 类型）；不支持的 T 在实例化处编译报错。
+      def snapshot_json : String?
+        @value.to_json
+      end
+
+      def restore_json(value : ::JSON::Any) : Bool
+        return false if @disposed
+        new_value = T.from_json(value.to_json)
+        return true if new_value == @value
+        @value = new_value
+        @version += 1
+        # 回填必须走写路径失效下游（memo 派生值跟随），否则下游读旧值
+        Tessell::Signal.push_dirty(self)
+        Tessell::Signal.flush
+        true
+      end
+
+      def unregister_named : Nil
+        Tessell::Signal.unregister_named(@label)
       end
     end
 
@@ -613,6 +657,54 @@ module Tessell
         GRAPH.current_owner = prev_owner
         end_tracking(effect, prev_tracker)
       end
+    end
+
+    # ---- 状态快照/回填（issue #39 第一期）----
+
+    def self.register_named(label : String, node : Node) : Nil
+      NAMED[label] = node unless label.empty?
+    end
+
+    def self.unregister_named(label : String) : Nil
+      NAMED.delete(label) unless label.empty?
+    end
+
+    def self.named_count : Int32
+      NAMED.size
+    end
+
+    # 清空命名注册表（测试隔离/整树销毁后重置用；dispose 亦会自动注销）。
+    def self.reset_named_registry! : Nil
+      NAMED.clear
+    end
+
+    # 导出全部命名 signal 的当前值为 JSON（应用退出前调用；重启后回填）。
+    def self.snapshot_state : String
+      ::JSON.build do |json|
+        json.object do
+          NAMED.each do |name, node|
+            if (v = node.snapshot_json)
+              json.field(name) do
+                json.raw(v)
+              end
+            end
+          end
+        end
+      end
+    end
+
+    # 回填：返回恢复的 signal 数。未知名字忽略（源码已改名/删除的信号）。
+    def self.restore_state(text : String) : Int32
+      parsed = ::JSON.parse(text)
+      count = 0
+      parsed.as_h.each do |name, value|
+        node = NAMED[name]?
+        if node && node.restore_json(value)
+          count += 1
+        end
+      end
+      GRAPH.tracking = nil # 回填不改依赖图；防御性复位
+      count
     end
 
     def self.batch(&) : Nil

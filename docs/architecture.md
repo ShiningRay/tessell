@@ -169,6 +169,12 @@ Process
   Owner 树 + effect 重跑前 clean()（cleanups LIFO、对象复用稳态零分配）。
   六不变量 spec：spec/signal_spec.cr。
 - 与 Kit 的集成（组件 Owner 绑定、三级失效对接、For keyed 行复用）立项 issue #44。
+- 重启式热重载第一期（issue #39）：命名 signal 的状态快照/回填（JSON，
+  `Signal.snapshot_state`/`restore_state`，Runner#save_state/load_state）。
+  保留的是 signal 值，不保留 views——重启后全树 remount（asuka RFC 0003
+  口径：闭包打不了补丁，最常编辑的代码恰是够不着的）。restore 走写路径
+  失效下游（memo 跟随）。control socket + fd 继承两件套属平台层后续
+  （POSIX fd 与 Windows 语义不同，不假装跨平台）。
 - 状态计算在 Default context；UI 侧只取结果快照，避免在绘制路径里跑用户代码。
 - 大列表必须走虚拟化容器（视口内实例化 + 缓存位移），不提供“一次性建十万节点”的用法。
 
