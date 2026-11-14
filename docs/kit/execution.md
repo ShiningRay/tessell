@@ -85,4 +85,4 @@
 - 完成：`Backend#draw_draw_list` 默认契约与 `GLBackend#draw_draw_list` 源码实现（Rect/Line/RoundRect/StrokeRect/StrokeRoundRect、每命令 scissor、premultiplied 颜色）；`DrawCmd` 颜色格式明确为 0xRRGGBBAA；默认 unsupported 返回 0 的协议测试。
 - 验证：`crystal spec spec/render_backend_draw_list_spec.cr spec/kit` 87 examples / 0 failures；`crystal build examples/app_demo.cr --no-codegen` 通过。
 - 未验证：GL 路径未在 Windows 真机运行/像素回读；仍不能据此宣称平台完整。
-- 提交：待回填。
+- 提交：`25c9a6c`。
