@@ -71,6 +71,7 @@
 <a href="execution.html">执行记录</a>
 <a href="k6-review.html">K6 复核</a>
 <a href="apps.html">示例应用</a>
+<a href="cookbook-custom-widget.html">自定义大控件</a>
 </nav>
 <main>
 <div class="meta">来源：docs/kit/K6-review.md</div>
@@ -128,6 +129,21 @@
 </ul>
 <h2 id="6-下一步优先级">6. 下一步优先级</h2>
 <p>1. 核心 <code>Backend#draw_draw_list</code> / Canvas：让 Rect/RoundRect/Stroke/Clip 真正上屏，再接 Kit Painter。 2. Win32 平台事件适配：modifiers、wheel delta、pointer enter/leave/cancel、IME composition。 3. 核心布局/焦点作用域：measure/arrange 声明管线与 modal focus scope，减少 Kit 侧映射层。 4. 平台剪贴板与 IME provider。 5. P1 组件按真实需求排队，不按目录数量扩张。</p>
+<h2 id="7-复盘问题处置状态-2026-11-14-issue-13-关闭时回填">7. 复盘问题处置状态（2026-11-14，issue #13 关闭时回填）</h2>
+<p>K0–K5 复盘提出的 7 个内核问题，处置映射如下（hash 为主分支提交）：</p>
+<table>
+<thead><tr><th>#</th><th>问题</th><th>处置</th><th>证据</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>扁平 DSL 迫使 Kit 自建布局</td><td>issue #5：DSL 接入两遍内核（vstack/hstack/auto_text + <code>UI.apply_auto_layout</code>，内核 gap 支持），布局与命中树同源</td><td>ec27e48；spec/ui_auto_layout_spec.cr</td></tr>
+<tr><td>2</td><td>DrawList 有命令无执行者</td><td>issue #2：<code>Render::Canvas</code> 门面 + <code>draw_polygon</code> dirty 裁剪；issue #15：文本按命令序交错上屏、per-marker scissor。GL 像素证据为 macOS SDL 真机（计算器/编辑器截图、m3_sdl_dirty_probe 脏区像素对比）；<strong>Windows 真机 gate 仍未跑，平台完整 No-Go 维持</strong></td><td>1c456ee、7fde2a3；spec/render_canvas_spec.cr、spec/kit/painter_contract_spec.cr</td></tr>
+<tr><td>3</td><td>事件模型平台闭环</td><td>issue #4：KeyT/Digit0-9、timestamp/repeat、Router click/double-click/drag 语义 + SDL 宿主透传；**Win32 WM_* 收敛仍归 issue #3（未关闭）**</td><td>acdbf31；spec/input_*</td></tr>
+<tr><td>4</td><td>焦点作用域</td><td>issue #16：<code>Component#wants_tab?</code> 组件根先拿 Tab、Ctrl/Meta+Tab 保留焦点环出口。Node 级 focus scope 仍留后续</td><td>001e37d；spec/kit/root_spec.cr</td></tr>
+<tr><td>5</td><td>裁切语义下沉</td><td>issue #15：Painter 契约成文（调用顺序即绘制顺序、clip 同时约束形状与文本），GL per-command scissor；issue #2：draw_polygon dirty 覆盖逐脏矩形裁剪。不支持的默认后端 <code>draw_draw_list</code> 返回 0（显式不支持）</td><td>同上</td></tr>
+<tr><td>6</td><td>a11y 逻辑子节点数/滚动偏移</td><td>核心契约已在位：<code>A11y::Meta.children_count/scroll_offset</code>，Kit 组件经 <code>a11y_children_count/a11y_scroll_offset</code> 覆盖；平台 provider 仍单独立项（第 4 节限制不解除）</td><td>tree.cr L40-49</td></tr>
+<tr><td>7</td><td>主题 token 太薄</td><td>issue #8：核心 Theme 扩展 panel/grid/up/down 等 15 token，Kit <code>ctx.render_theme</code> 镜像</td><td>f2059dc；spec/theme_spec.cr</td></tr>
+</tbody></table>
+<p>「下一步优先级」更新：1→已交付（#2/#15）；2→事件字段已补、平台层收敛归</p>
+<h1 id="3-3-dsl-管线已交付-5-焦点作用域部分交付-16-4-5-维持">3；3→DSL 管线已交付（#5）、焦点作用域部分交付（#16）；4/5 维持。</h1>
 
 </main>
 </div>

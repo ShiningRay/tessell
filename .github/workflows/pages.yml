@@ -1,0 +1,69 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "src/**"
+      - "tools/build_kit_site.cr"
+      - "tools/fix_api_docs.cr"
+      - "tools/gen_api_docs.sh"
+      - "shard.yml"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: 1.21
+
+      - name: Build Kit docs site
+        run: crystal run tools/build_kit_site.cr
+
+      - name: Build API reference
+        run: bash tools/gen_api_docs.sh
+
+      - name: Rewrite API doc repo-relative links
+        run: crystal run tools/fix_api_docs.cr
+
+      - name: Assemble site artifact
+        run: |
+          rm -rf _site
+          cp -R site _site
+          touch _site/.nojekyll
+          du -sh _site
+          find _site -name '*.html' | wc -l
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
