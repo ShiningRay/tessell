@@ -21,16 +21,55 @@ module Tessell::Input
     getter hover : Node?
     getter pressed : Node?
 
+    # 点击语义（issue #4）：最近一次 PointerUp 的结果。
+    #   last_click_count：0=非点击（无按压目标），1=单击，2=双击
+    #     （同目标、double_click_window_ms 内、double_click_max_dist 内）。
+    #   last_press_target：最近一次 PointerDown 命中的节点（= pressed 快照）。
+    #   last_drag_distance：按下到释放的位移（拖拽判定的语义辅助）。
+    getter last_click_count : Int32
+    getter last_drag_distance : Float32
+
+    # 双击判定参数：时间窗（毫秒）与位移上限（逻辑像素）。
+    property double_click_window_ms : Int64
+    property double_click_max_dist : Float32
+
+    @last_up_target : Node?
+    @last_up_ts : Int64
+    @last_up_x : Float32
+    @last_up_y : Float32
+    @down_x : Float32
+    @down_y : Float32
+
     def initialize
       @focus_manager = FocusManager.new
       @hover = nil
       @pressed = nil
+      @last_click_count = 0
+      @last_drag_distance = 0.0_f32
+      @double_click_window_ms = 500_i64
+      @double_click_max_dist = 6.0_f32
+      @last_up_target = nil
+      @last_up_ts = 0_i64
+      @last_up_x = 0.0_f32
+      @last_up_y = 0.0_f32
+      @down_x = 0.0_f32
+      @down_y = 0.0_f32
     end
 
     def initialize(&focusable : Node -> Bool)
       @focus_manager = FocusManager.new { |node| focusable.call(node) }
       @hover = nil
       @pressed = nil
+      @last_click_count = 0
+      @last_drag_distance = 0.0_f32
+      @double_click_window_ms = 500_i64
+      @double_click_max_dist = 6.0_f32
+      @last_up_target = nil
+      @last_up_ts = 0_i64
+      @last_up_x = 0.0_f32
+      @last_up_y = 0.0_f32
+      @down_x = 0.0_f32
+      @down_y = 0.0_f32
     end
 
     def handle(event : Event, root : Node) : Node?
@@ -41,6 +80,8 @@ module Tessell::Input
           @focus_manager.focus(target)
         end
         @pressed = target
+        @down_x = event.x
+        @down_y = event.y
         target
       when Event::Kind::PointerEnter, Event::Kind::PointerMove
         @hover = HitTest.deepest(root, Point.new(event.x, event.y))
@@ -51,10 +92,13 @@ module Tessell::Input
       when Event::Kind::PointerUp
         target = @pressed
         @pressed = nil
+        register_click(target, event)
         target
       when Event::Kind::PointerCancel
         target = @pressed
         @pressed = nil
+        @last_click_count = 0
+        @last_drag_distance = 0.0_f32
         target
       when Event::Kind::Wheel
         @hover || @focus_manager.focused
@@ -69,6 +113,33 @@ module Tessell::Input
       else
         nil
       end
+    end
+
+    private def register_click(target : Node?, event : Event) : Nil
+      unless target
+        @last_click_count = 0
+        @last_drag_distance = 0.0_f32
+        return
+      end
+      # 按下→释放位移（拖拽判定），不是与上次释放位置的距离。
+      dx = event.x - @down_x
+      dy = event.y - @down_y
+      @last_drag_distance = Math.sqrt(dx * dx + dy * dy)
+      # 按压-释放位移超过上限不算点击（拖拽收尾）。
+      if @last_drag_distance > @double_click_max_dist * 10.0_f32
+        @last_click_count = 0
+      else
+        double = target == @last_up_target &&
+                 event.timestamp_ms > 0 &&
+                 @last_up_ts > 0 &&
+                 (event.timestamp_ms - @last_up_ts) <= @double_click_window_ms &&
+                 @last_drag_distance <= @double_click_max_dist
+        @last_click_count = double ? 2 : 1
+      end
+      @last_up_target = target
+      @last_up_ts = event.timestamp_ms
+      @last_up_x = event.x
+      @last_up_y = event.y
     end
   end
 end

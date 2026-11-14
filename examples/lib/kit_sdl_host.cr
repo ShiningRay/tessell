@@ -179,9 +179,20 @@ module TessellKitSdl
   SDLK_a         =         97
   SDLK_b         =         98
   SDLK_c         =         99
+  SDLK_t         =        116
   SDLK_v         =        118
   SDLK_x         =        120
   SDLK_z         =        122
+  SDLK_0         =         48
+  SDLK_1         =         49
+  SDLK_2         =         50
+  SDLK_3         =         51
+  SDLK_4         =         52
+  SDLK_5         =         53
+  SDLK_6         =         54
+  SDLK_7         =         55
+  SDLK_8         =         56
+  SDLK_9         =         57
 
   class SdlClipboard < Tessell::Kit::Clipboard
     def get : String?
@@ -551,12 +562,14 @@ module TessellKitSdl
         when SDL_KEYDOWN
           key = pointerof(event).as(LibSDL::KeyboardEvent*).value
           if code = map_key(key.keysym.sym)
-            dispatch(root, Tessell::Input::Event.key_down(code, modifiers(key.keysym.mod)))
+            dispatch(root, Tessell::Input::Event.key_down(code, modifiers(key.keysym.mod),
+              key.timestamp.to_i64, key.repeat != 0))
           end
         when SDL_KEYUP
           key = pointerof(event).as(LibSDL::KeyboardEvent*).value
           if code = map_key(key.keysym.sym)
-            dispatch(root, Tessell::Input::Event.key_up(code, modifiers(key.keysym.mod)))
+            dispatch(root, Tessell::Input::Event.key_up(code, modifiers(key.keysym.mod),
+              key.timestamp.to_i64))
           end
         when SDL_TEXTINPUT
           text_event = pointerof(event).as(LibSDL::TextInputEvent*).value
@@ -571,13 +584,13 @@ module TessellKitSdl
           @mouse_x = button.x
           @mouse_y = button.y
           dispatch(root, Tessell::Input::Event.pointer_down(button.x.to_f32, button.y.to_f32,
-            button.button.to_i32 - 1))
+            button.button.to_i32 - 1, modifiers(0), button.timestamp.to_i64))
         when SDL_MOUSEBUTTONUP
           button = pointerof(event).as(LibSDL::MouseButtonEvent*).value
           @mouse_x = button.x
           @mouse_y = button.y
           dispatch(root, Tessell::Input::Event.pointer_up(button.x.to_f32, button.y.to_f32,
-            button.button.to_i32 - 1))
+            button.button.to_i32 - 1, modifiers(0), button.timestamp.to_i64))
         when SDL_MOUSEWHEEL
           wheel = pointerof(event).as(LibSDL::MouseWheelEvent*).value
           dispatch(root, Tessell::Input::Event.wheel(@mouse_x.to_f32, @mouse_y.to_f32,
@@ -619,9 +632,20 @@ module TessellKitSdl
       when SDLK_a         then Tessell::Input::KeyCode::KeyA
       when SDLK_b         then Tessell::Input::KeyCode::KeyB
       when SDLK_c         then Tessell::Input::KeyCode::KeyC
+      when SDLK_t         then Tessell::Input::KeyCode::KeyT
       when SDLK_v         then Tessell::Input::KeyCode::KeyV
       when SDLK_x         then Tessell::Input::KeyCode::KeyX
       when SDLK_z         then Tessell::Input::KeyCode::KeyZ
+      when SDLK_0         then Tessell::Input::KeyCode::Digit0
+      when SDLK_1         then Tessell::Input::KeyCode::Digit1
+      when SDLK_2         then Tessell::Input::KeyCode::Digit2
+      when SDLK_3         then Tessell::Input::KeyCode::Digit3
+      when SDLK_4         then Tessell::Input::KeyCode::Digit4
+      when SDLK_5         then Tessell::Input::KeyCode::Digit5
+      when SDLK_6         then Tessell::Input::KeyCode::Digit6
+      when SDLK_7         then Tessell::Input::KeyCode::Digit7
+      when SDLK_8         then Tessell::Input::KeyCode::Digit8
+      when SDLK_9         then Tessell::Input::KeyCode::Digit9
       else
         nil
       end

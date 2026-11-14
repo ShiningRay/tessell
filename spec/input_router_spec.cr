@@ -128,3 +128,63 @@ describe "Router (M2-WP1)" do
     pe.button.should eq 0
   end
 end
+
+# issue #4：click/double-click/drag 语义辅助。
+describe "Router click semantics" do
+  it "single click on pressed target reports count=1" do
+    root, a, b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_up(16.0_f32, 16.0_f32, 0, Modifiers.none, 100_i64), root)
+    router.last_click_count.should eq(1)
+    router.last_drag_distance.should be < 6.0_f32
+  end
+
+  it "two rapid clicks on the same target report count=2" do
+    root, a, b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_up(15.0_f32, 15.0_f32, 0, Modifiers.none, 100_i64), root)
+    router.last_click_count.should eq(1)
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_up(15.5_f32, 15.5_f32, 0, Modifiers.none, 400_i64), root)
+    router.last_click_count.should eq(2)
+  end
+
+  it "clicks beyond the time window report count=1" do
+    root, a, b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_up(15.0_f32, 15.0_f32, 0, Modifiers.none, 100_i64), root)
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_up(15.0_f32, 15.0_f32, 0, Modifiers.none, 900_i64), root)
+    router.last_click_count.should eq(1)
+  end
+
+  it "drag release (large down-up distance) is not a click" do
+    root, a, b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(10.0_f32, 10.0_f32), root)
+    router.handle(Event.pointer_up(80.0_f32, 80.0_f32, 0, Modifiers.none, 100_i64), root)
+    router.last_click_count.should eq(0)
+    router.last_drag_distance.should be > 60.0_f32
+  end
+
+  it "double click requires the same target" do
+    root, a, b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_up(15.0_f32, 15.0_f32, 0, Modifiers.none, 100_i64), root)
+    router.handle(Event.pointer_down(40.0_f32, 40.0_f32), root)
+    router.handle(Event.pointer_up(40.0_f32, 40.0_f32, 0, Modifiers.none, 200_i64), root)
+    router.last_click_count.should eq(1)
+  end
+
+  it "pointer cancel resets click state" do
+    root, a, b = build_router_tree
+    router = Router.new
+    router.handle(Event.pointer_down(15.0_f32, 15.0_f32), root)
+    router.handle(Event.pointer_cancel(15.0_f32, 15.0_f32), root)
+    router.last_click_count.should eq(0)
+  end
+end

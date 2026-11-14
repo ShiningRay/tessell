@@ -54,3 +54,43 @@ describe "Router K1 extensions" do
     router.pressed.should be_nil
   end
 end
+
+# issue #4：KeyT/Digit0-9、timestamp、repeat。
+describe "Input event model (issue #4)" do
+  it " KeyCode has KeyT and digits" do
+    Tessell::Input::KeyCode::KeyT.should_not be_nil
+    Tessell::Input::KeyCode::Digit0.should_not be_nil
+    Tessell::Input::KeyCode::Digit9.should_not be_nil
+  end
+
+  it "key events carry timestamp and repeat" do
+    e = Tessell::Input::Event.key_down(Tessell::Input::KeyCode::KeyT,
+      Tessell::Input::Modifiers.none, 1234_i64, true)
+    e.timestamp_ms.should eq(1234_i64)
+    e.repeat.should be_true
+    e.key.should eq(Tessell::Input::KeyCode::KeyT)
+
+    e2 = Tessell::Input::Event.key_up(Tessell::Input::KeyCode::Space,
+      Tessell::Input::Modifiers.none, 5678_i64)
+    e2.timestamp_ms.should eq(5678_i64)
+    e2.repeat.should be_false
+  end
+
+  it "pointer events carry timestamp" do
+    e = Tessell::Input::Event.pointer_down(1.0_f32, 2.0_f32, 0,
+      Tessell::Input::Modifiers.none, 999_i64)
+    e.timestamp_ms.should eq(999_i64)
+    e.x.should eq(1.0_f32)
+
+    e2 = Tessell::Input::Event.pointer_up(3.0_f32, 4.0_f32, 0,
+      Tessell::Input::Modifiers.none, 1000_i64)
+    e2.timestamp_ms.should eq(1000_i64)
+  end
+
+  it "wheel keeps dx/dy and gains timestamp via generic path" do
+    e = Tessell::Input::Event.wheel(5.0_f32, 6.0_f32, 12.0_f32, -40.0_f32)
+    e.wheel_dx.should eq(12.0_f32)
+    e.wheel_dy.should eq(-40.0_f32)
+    e.timestamp_ms.should eq(0_i64)
+  end
+end
