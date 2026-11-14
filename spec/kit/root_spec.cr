@@ -107,4 +107,63 @@ describe "Tessell::Kit::Root" do
     painter.list.size.should be > 0
     painter.list.clip_depth.should eq(0)
   end
+
+  # issue #16：wants_tab? 组件先拿 Tab，Ctrl/Meta+Tab 恒定留给焦点环。
+  it "a wants_tab? component consumes Tab and keeps focus" do
+    tabs = 0
+    grid = TabEaterComponent.new(KitSpecHelpers.key)
+    grid.on_tab = -> { tabs += 1; true }
+    root = Tessell::Kit::Root.new(grid)
+    root.layout(300.0_f32, 100.0_f32)
+    root.build
+    root.focus(grid).should be_true
+    root.focused_component.should be(grid)
+
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab)).should be_true
+    tabs.should eq(1)
+    root.focused_component.should be(grid)
+
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab,
+      Tessell::Input::Modifiers.new(shift: true))).should be_true
+    tabs.should eq(2)
+    root.focused_component.should be(grid)
+  end
+
+  it "a component that declares wants_tab? but does not consume falls back to the focus ring" do
+    grid, button = KitSpecHelpers.tab_eater_column(KitSpecHelpers.key)
+    root = Tessell::Kit::Root.new(grid.parent.not_nil!)
+    root.layout(300.0_f32, 100.0_f32)
+    root.build
+    root.focus(grid).should be_true
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab)).should be_true
+    root.focused_component.should be(button)
+  end
+
+  it "Ctrl+Tab bypasses a tab-consuming component and moves focus" do
+    tabs = 0
+    grid, button = KitSpecHelpers.tab_eater_column(KitSpecHelpers.key)
+    grid.on_tab = -> { tabs += 1; true }
+    root = Tessell::Kit::Root.new(grid.parent.not_nil!)
+    root.layout(300.0_f32, 100.0_f32)
+    root.build
+    root.focus(grid).should be_true
+
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab,
+      Tessell::Input::Modifiers.new(ctrl: true))).should be_true
+    tabs.should eq(0)
+    root.focused_component.should be(button)
+  end
+
+  it "Tab still moves the focus ring for components that do not declare wants_tab?" do
+    first = Tessell::Kit::Button.new(KitSpecHelpers.key.child(1_u64), "First")
+    second = Tessell::Kit::Button.new(KitSpecHelpers.key.child(2_u64), "Second")
+    col = Tessell::Kit::Column.new(KitSpecHelpers.key, Tessell::Insets.all(8.0_f32), 4.0_f32)
+    col.add(first)
+    col.add(second)
+    root = Tessell::Kit::Root.new(col)
+    root.layout(200.0_f32, 200.0_f32)
+    root.build
+    root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab)).should be_true
+    root.focused_component.should be(first)
+  end
 end

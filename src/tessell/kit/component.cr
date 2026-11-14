@@ -48,6 +48,14 @@ module Tessell
         false
       end
 
+      # Tab 键语义（issue #16）：默认 false——Tab 由 Root 走焦点环。
+      # 内部自带 Tab 导航的组件（表格、代码编辑器、树控件）覆盖为 true，
+      # Root 会先把 Tab/Shift+Tab 投递给当前焦点组件，组件返回 true 即消费。
+      # Ctrl/Meta+Tab 恒定保留给焦点环，是键盘用户离开该组件的出口。
+      def wants_tab? : Bool
+        false
+      end
+
       def handle(event : Event, ctx : Context) : Bool
         false
       end

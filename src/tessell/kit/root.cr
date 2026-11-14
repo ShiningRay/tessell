@@ -165,6 +165,15 @@ module Tessell
         end
 
         if event.kind == Tessell::Input::Event::Kind::KeyDown && event.key == Tessell::Input::KeyCode::Tab
+          # issue #16：声明 wants_tab? 的焦点组件先拿到 Tab/Shift+Tab，消费即止；
+          # 未声明或未消费再走焦点环。Ctrl/Meta+Tab 恒定走焦点环——组件吃掉
+          # 普通 Tab 后键盘用户的退出路径。
+          unless mods.ctrl || mods.meta
+            if (focused = @focused_component) && focused.wants_tab?
+              kit_tab = to_kit(event, Event::Kind::KeyDown, mods)
+              return true if deliver(focused, kit_tab)
+            end
+          end
           scope = focus_scope_node
           if mods.shift
             @router.focus_manager.prev(scope)
