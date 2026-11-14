@@ -1,7 +1,7 @@
 # Tessell::Kit::Root — 组件树宿主（K0–K3）
 #
 # 职责：布局 → 声明 → UI.apply → Node/Component 映射 → 输入路由 → 绘制。
-# 不新建平行焦点系统：焦点仍由核心 Input::Router/FocusManager 管，Kit 只做
+# 不新建平行焦点系统：焦点仍由核心 Tessell::Input::Router/FocusManager 管，Kit 只做
 # Node ↔ Component 映射与组件状态同步。
 # Overlay：Root 持有 OverlayHost；模态屏障、焦点圈定/恢复、Tooltip 延迟在这里统一处理。
 
@@ -14,7 +14,7 @@ module Tessell
       getter context : Context
       getter node : Node
       getter pool : UI::Pool
-      getter router : Input::Router
+      getter router : Tessell::Input::Router
       getter a11y : A11y::Builder
       getter overlay_host : OverlayHost
 
@@ -54,7 +54,7 @@ module Tessell
         @tooltip_owner = nil
         @tooltip_due_ms = 0_i64
         @tooltip_entry = nil
-        @router = Input::Router.new do |target|
+        @router = Tessell::Input::Router.new do |target|
           component = @component_roots[target]?
           component ? component.focusable? : false
         end
@@ -135,10 +135,10 @@ module Tessell
       end
 
       # 核心事件入口。优先使用 Event 自带的 modifiers；显式参数用于旧调用点。
-      def handle(event : Input::Event, modifiers : Modifiers? = nil) : Bool
+      def handle(event : Tessell::Input::Event, modifiers : Modifiers? = nil) : Bool
         mods = modifiers || event.modifiers
 
-        if event.kind == Input::Event::Kind::KeyDown && event.key == Input::KeyCode::Escape
+        if event.kind == Tessell::Input::Event::Kind::KeyDown && event.key == Tessell::Input::KeyCode::Escape
           if entry = @overlay_host.top
             if entry.dismiss_on_escape
               close_overlay(entry)
@@ -147,7 +147,7 @@ module Tessell
           end
         end
 
-        if event.kind == Input::Event::Kind::PointerDown
+        if event.kind == Tessell::Input::Event::Kind::PointerDown
           if entry = @overlay_host.top
             if !entry.modal && entry.dismiss_on_outside &&
                !entry.contains?(Point.new(event.x, event.y))
@@ -157,14 +157,14 @@ module Tessell
           end
         end
 
-        if event.kind == Input::Event::Kind::Blur
+        if event.kind == Tessell::Input::Event::Kind::Blur
           while entry = @overlay_host.top
             break unless entry.dismiss_on_blur
             close_overlay(entry)
           end
         end
 
-        if event.kind == Input::Event::Kind::KeyDown && event.key == Input::KeyCode::Tab
+        if event.kind == Tessell::Input::Event::Kind::KeyDown && event.key == Tessell::Input::KeyCode::Tab
           scope = focus_scope_node
           if mods.shift
             @router.focus_manager.prev(scope)
@@ -176,52 +176,52 @@ module Tessell
         end
 
         case event.kind
-        when Input::Event::Kind::PointerEnter
+        when Tessell::Input::Event::Kind::PointerEnter
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           sync_hover(component)
           true
-        when Input::Event::Kind::PointerMove
+        when Tessell::Input::Event::Kind::PointerMove
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           sync_hover(component)
           return true if deliver(component, to_kit(event, Event::Kind::PointerMove, mods))
-        when Input::Event::Kind::PointerLeave
+        when Tessell::Input::Event::Kind::PointerLeave
           @router.handle(event, @node)
           sync_hover(nil)
           true
-        when Input::Event::Kind::PointerDown
+        when Tessell::Input::Event::Kind::PointerDown
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           focus_component(component)
           sync_focus
           return true if deliver(component, to_kit(event, Event::Kind::PointerDown, mods))
-        when Input::Event::Kind::PointerUp
+        when Tessell::Input::Event::Kind::PointerUp
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           sync_focus
           return true if deliver(component, to_kit(event, Event::Kind::PointerUp, mods))
-        when Input::Event::Kind::PointerCancel
+        when Tessell::Input::Event::Kind::PointerCancel
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           return true if deliver(component, to_kit(event, Event::Kind::PointerCancel, mods))
-        when Input::Event::Kind::Wheel
+        when Tessell::Input::Event::Kind::Wheel
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           return true if deliver(component, to_kit(event, Event::Kind::Wheel, mods))
-        when Input::Event::Kind::KeyDown
+        when Tessell::Input::Event::Kind::KeyDown
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           return true if deliver(component, to_kit(event, Event::Kind::KeyDown, mods))
-        when Input::Event::Kind::KeyUp
+        when Tessell::Input::Event::Kind::KeyUp
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           return true if deliver(component, to_kit(event, Event::Kind::KeyUp, mods))
-        when Input::Event::Kind::TextInput
+        when Tessell::Input::Event::Kind::TextInput
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           return true if deliver(component, to_kit(event, Event::Kind::TextInput, mods))
-        when Input::Event::Kind::Blur
+        when Tessell::Input::Event::Kind::Blur
           old = @router.focus_manager.focused
           @router.handle(event, @node)
           if old
@@ -412,36 +412,36 @@ module Tessell
         false
       end
 
-      private def to_kit(event : Input::Event, kind : Event::Kind,
+      private def to_kit(event : Tessell::Input::Event, kind : Event::Kind,
                          modifiers : Modifiers) : Event
         Event.new(kind, event.x, event.y, event.button,
           map_key(event.key), event.text, modifiers,
           event.wheel_dx, event.wheel_dy)
       end
 
-      private def map_key(key : Input::KeyCode?) : Key?
+      private def map_key(key : Tessell::Input::KeyCode?) : Key?
         return nil unless key
         case key
-        when Input::KeyCode::Tab       then Key::Tab
-        when Input::KeyCode::Enter     then Key::Enter
-        when Input::KeyCode::Escape    then Key::Escape
-        when Input::KeyCode::Space     then Key::Space
-        when Input::KeyCode::Left      then Key::Left
-        when Input::KeyCode::Right     then Key::Right
-        when Input::KeyCode::Up        then Key::Up
-        when Input::KeyCode::Down      then Key::Down
-        when Input::KeyCode::Home      then Key::Home
-        when Input::KeyCode::End       then Key::End
-        when Input::KeyCode::PageUp    then Key::PageUp
-        when Input::KeyCode::PageDown  then Key::PageDown
-        when Input::KeyCode::Backspace then Key::Backspace
-        when Input::KeyCode::Delete    then Key::Delete
-        when Input::KeyCode::KeyA      then Key::KeyA
-        when Input::KeyCode::KeyB      then Key::KeyB
-        when Input::KeyCode::KeyC      then Key::KeyC
-        when Input::KeyCode::KeyV      then Key::KeyV
-        when Input::KeyCode::KeyX      then Key::KeyX
-        when Input::KeyCode::KeyZ      then Key::KeyZ
+        when Tessell::Input::KeyCode::Tab       then Key::Tab
+        when Tessell::Input::KeyCode::Enter     then Key::Enter
+        when Tessell::Input::KeyCode::Escape    then Key::Escape
+        when Tessell::Input::KeyCode::Space     then Key::Space
+        when Tessell::Input::KeyCode::Left      then Key::Left
+        when Tessell::Input::KeyCode::Right     then Key::Right
+        when Tessell::Input::KeyCode::Up        then Key::Up
+        when Tessell::Input::KeyCode::Down      then Key::Down
+        when Tessell::Input::KeyCode::Home      then Key::Home
+        when Tessell::Input::KeyCode::End       then Key::End
+        when Tessell::Input::KeyCode::PageUp    then Key::PageUp
+        when Tessell::Input::KeyCode::PageDown  then Key::PageDown
+        when Tessell::Input::KeyCode::Backspace then Key::Backspace
+        when Tessell::Input::KeyCode::Delete    then Key::Delete
+        when Tessell::Input::KeyCode::KeyA      then Key::KeyA
+        when Tessell::Input::KeyCode::KeyB      then Key::KeyB
+        when Tessell::Input::KeyCode::KeyC      then Key::KeyC
+        when Tessell::Input::KeyCode::KeyV      then Key::KeyV
+        when Tessell::Input::KeyCode::KeyX      then Key::KeyX
+        when Tessell::Input::KeyCode::KeyZ      then Key::KeyZ
         else
           Key::Unknown
         end

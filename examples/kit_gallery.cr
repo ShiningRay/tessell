@@ -16,18 +16,22 @@ module KitGallery
     getter checkbox : Tessell::Kit::Checkbox
     getter list : Tessell::Kit::VirtualList
     getter select : Tessell::Kit::Select
+    getter input : Tessell::Kit::Input
     getter dialog : Tessell::Kit::Dialog
     getter dialog_button : Tessell::Kit::Button
     getter clicks : Int32
     getter changes : Int32
+    getter input_changes : Int32
 
     @clicks = 0
     @changes = 0
+    @input_changes = 0
 
     def initialize(theme : Tessell::Kit::Theme, scale : Float32)
       @buttons = [] of Tessell::Kit::Button
       @clicks = 0
       @changes = 0
+      @input_changes = 0
 
       column = Tessell::Kit::Column.new(
         Tessell::UI::UiKey.root.child(1_u64),
@@ -94,6 +98,12 @@ module KitGallery
       )
       column.add(@select)
 
+      @input = Tessell::Kit::Input.new(
+        Tessell::UI::UiKey.root.child(12_u64), "", "Type here…", "Name"
+      )
+      @input.on_change = ->(value : String) { @input_changes += 1; nil }
+      column.add(@input)
+
       @list = Tessell::Kit::VirtualList.new(
         Tessell::UI::UiKey.root.child(10_u64), 1000, 22,
         ->(index : Int32) { "Row #{index + 1}" }, name: "Gallery rows"
@@ -133,7 +143,7 @@ module KitGallery
       root.paint(painter)
     end
 
-    def verify_actions : NamedTuple(select_ok: Bool, dialog_ok: Bool, tooltip_ok: Bool)
+    def verify_actions : NamedTuple(select_ok: Bool, dialog_ok: Bool, tooltip_ok: Bool, input_ok: Bool)
       first = @buttons[0]
       x = first.bounds.origin.x + first.bounds.size.width / 2.0_f32
       y = first.bounds.origin.y + first.bounds.size.height / 2.0_f32
@@ -144,6 +154,15 @@ module KitGallery
       cy = @checkbox.bounds.origin.y + @checkbox.bounds.size.height / 2.0_f32
       root.handle(Tessell::Input::Event.pointer_down(cx, cy))
       root.handle(Tessell::Input::Event.pointer_up(cx, cy))
+
+      ix = @input.bounds.origin.x + 24.0_f32
+      iy = @input.bounds.origin.y + @input.bounds.size.height - 16.0_f32
+      root.handle(Tessell::Input::Event.pointer_down(ix, iy))
+      root.handle(Tessell::Input::Event.pointer_up(ix, iy))
+      root.handle(Tessell::Input::Event.text_input("Hi"))
+      root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Backspace))
+      build
+      input_ok = @input.text == "H" && @input_changes == 2
 
       sx = @select.bounds.origin.x + @select.bounds.size.width / 2.0_f32
       sy = @select.bounds.origin.y + @select.bounds.size.height / 2.0_f32
@@ -184,7 +203,7 @@ module KitGallery
       @list.list.scroll_by(220)
       @list.on_focus_changed(true)
       @list.handle(Tessell::Kit::Event.key_down(Tessell::Kit::Key::End), root.context)
-      {select_ok: select_ok, dialog_ok: dialog_ok, tooltip_ok: tooltip_ok}
+      {select_ok: select_ok, dialog_ok: dialog_ok, tooltip_ok: tooltip_ok, input_ok: input_ok}
     end
 
     def node_count : Int32
@@ -246,13 +265,13 @@ module KitGallery
            rows > 0 && rows < 30 &&
            list_node && list_node.children_count == 1000 &&
            painter.clip_depth == 0 &&
-           actions[:select_ok] && actions[:dialog_ok] && actions[:tooltip_ok]
+           actions[:select_ok] && actions[:dialog_ok] && actions[:tooltip_ok] && actions[:input_ok]
 
       puts "KIT_GALLERY_VERIFY verify=#{ok ? "pass" : "fail"} frames=#{frames} " \
            "nodes=#{node_count} paint=#{paint_count} a11y=#{a11y.size} " \
            "visible=#{visible} rows=#{rows} clicks=#{app.clicks} changes=#{app.changes} " \
            "scroll=#{app.list.list.scroll_y} clip=#{clip_depth} " \
-           "select=#{actions[:select_ok]} dialog=#{actions[:dialog_ok]} tooltip=#{actions[:tooltip_ok]} " \
+           "select=#{actions[:select_ok]} dialog=#{actions[:dialog_ok]} tooltip=#{actions[:tooltip_ok]} input=#{actions[:input_ok]} " \
            "theme=#{theme.dark ? "dark" : "light"} dpi=#{scale}"
       return ok ? 0 : 1
     end

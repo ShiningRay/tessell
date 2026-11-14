@@ -52,9 +52,16 @@
 - 未验证：真实窗口/GL 上屏、滚动条拖动、变量行高 Kit 入口、Windows 像素回读。
 - 提交：`cdcf4df`。
 
-#### K3（本轮）
+#### K3
 
 - 完成：`Kit::OverlayPlacement/OverlayEntry/OverlayHost/Barrier`；Root 统一处理浮层层级、模态屏障、Escape/外部点击/blur dismiss、焦点圈定与恢复；`Kit::Tooltip` hover 延迟；`Kit::Dialog` 标题/内容/动作区与焦点陷阱；`Kit::Select` 触发区 + Popover 列表、键盘/指针选择与选中回调。
 - 验证：`crystal spec spec/kit` 62 examples / 0 failures；`kit_gallery --verify` 输出 `select=true dialog=true tooltip=true`；Dialog 背景点击被屏障阻断、Escape 恢复焦点、Tab 不逃逸。
 - 未验证：真实窗口上屏、浮层像素裁切/翻转、Windows GL 路径、屏幕阅读器。
 - 提交：`e0dbf50`。
+
+#### K4（本轮）
+
+- 完成：`Kit::Graphemes` 常见 cluster 边界；`Kit::TextEditing` 光标/选区/插入/删除/剪贴板/preedit；`Kit::Clipboard` 与 `MemoryClipboard`；`Kit::Input` 单行输入、label/placeholder/read-only/invalid/error、水平滚动、光标与选区绘制、IME 预览 API。
+- 验证：`crystal spec spec/kit`（含 grapheme/editing/input）通过；`kit_gallery --verify` 输出 `input=true`；Root 焦点路由下 TextInput 写入。
+- 未验证：平台 IME 事件接入（C7 仍人工/未关闭）、平台剪贴板适配、密码模式、撤销/重做、Windows 真实窗口像素。
+- 提交：待回填。

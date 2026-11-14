@@ -20,6 +20,8 @@ require "./kit/virtual_list"
 require "./kit/tooltip"
 require "./kit/dialog"
 require "./kit/select"
+require "./kit/text_editing"
+require "./kit/input"
 require "./kit/root"
 
 module Tessell
