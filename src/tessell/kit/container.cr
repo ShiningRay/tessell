@@ -40,6 +40,15 @@ module Tessell
         children.each { |child| add(child) }
       end
 
+      # 移除子组件（动态树，issue #44）：detach + 断父链。返回是否存在。
+      # Root#build 会对移出的组件调用 dispose（停其 Signal Owner）。
+      def remove(child : Component) : Bool
+        return false unless @children.includes?(child)
+        @children.delete(child)
+        child.parent = nil
+        true
+      end
+
       def measure(ctx : Context, constraints : Constraints) : Size
         inner_w = inner_limit(constraints.max_width, @padding.horizontal)
         inner_h = inner_limit(constraints.max_height, @padding.vertical)

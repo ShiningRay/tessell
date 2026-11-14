@@ -40,6 +40,11 @@ module Tessell
       # 外层返回后二段提交——回调不许触碰正在被消费的批缓冲。
       @applying : Bool
       @pending_build : Bool
+      # 上一帧的组件全集合（issue #44）：build 后与当前集合差分，
+      # 移出树的组件 dispose（停掉其 Signal Owner）
+      @attached : Array(Component)
+      # dispose 差分用的当前集合（复用容量，稳态零分配）
+      @current_components : Set(Component)
       # 连续二段提交深度：不收敛（回调每轮再失效）到上限即 raise——宁报勿挂
       @deferred_depth : Int32
 
@@ -70,6 +75,8 @@ module Tessell
         @applying = false
         @pending_build = false
         @deferred_depth = 0
+        @attached = [] of Component
+        @current_components = Set(Component).new
         @router = Tessell::Input::Router.new do |target|
           component = @component_roots[target]?
           component ? component.focusable? : false
@@ -131,6 +138,7 @@ module Tessell
         end
         rebuild_node_map
         apply_pending_overlay_focus
+        dispose_detached_components
         if @pending_build
           @pending_build = false
           @deferred_depth += 1
@@ -353,6 +361,21 @@ module Tessell
           current = current.parent
         end
         nil
+      end
+
+      # 移出树的组件 dispose（issue #44）：其 Signal Owner 同步销毁，
+      # signal 写不再触发已卸载组件的 effect（泄漏契约）。
+      # Reference 身份比较（无自定义 ==）；重挂树的组件需重建 watch。
+      private def dispose_detached_components : Nil
+        return if @attached.empty?
+        @current_components.clear
+        @component_buf.each { |c| @current_components.add(c) }
+        @attached.each do |c|
+          c.dispose unless @current_components.includes?(c)
+        end
+      ensure
+        @attached.clear
+        @attached.concat(@component_buf)
       end
 
       private def rebuild_node_map : Nil

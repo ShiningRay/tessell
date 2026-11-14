@@ -168,7 +168,11 @@ Process
   memo 惰性重算 + 相等截断、有界 flush（100 pass raise）+ render/user 双优先级、
   Owner 树 + effect 重跑前 clean()（cleanups LIFO、对象复用稳态零分配）。
   六不变量 spec：spec/signal_spec.cr。
-- 与 Kit 的集成（组件 Owner 绑定、三级失效对接、For keyed 行复用）立项 issue #44。
+- 与 Kit 的集成已落地（issue #44）：组件 `signal_owner` 懒创建 + `watch` 效应，
+  移出树自动 dispose（泄漏契约）；signal 写 → effect 更新组件状态 → decl diff
+  产出 Layout/Paint 失效（复用既有三级失效，effect 不直连后端）；`Kit::For(T)`
+  keyed 行复用只 Set item/index 可写 signal——LIS 省略（retained 树每帧重 emit，
+  重排 = 数组重排，无逐行移动成本，commit 有记录）。
 - 重启式热重载第一期（issue #39）：命名 signal 的状态快照/回填（JSON，
   `Signal.snapshot_state`/`restore_state`，Runner#save_state/load_state）。
   保留的是 signal 值，不保留 views——重启后全树 remount（asuka RFC 0003

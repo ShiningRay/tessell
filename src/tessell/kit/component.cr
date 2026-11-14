@@ -156,6 +156,39 @@ module Tessell
       def a11y_first_visible_index : Int32?
         nil
       end
+
+      # ---- 响应式作用域（issue #44，对接 #33 Signal 内核）----
+      #
+      # 组件持有懒创建的 Signal::Owner：组件内注册的 effect/memo 都挂在这棵
+      # owner 树上；组件移出树时 Root 调用 dispose，owner 同步销毁——
+      # 此后 signal 写不再触发本组件的任何 effect（泄漏契约，spec 锁住）。
+
+      @signal_owner : Tessell::Signal::Owner? = nil
+
+      # 懒创建的响应式作用域。首次 watch 时才分配（不用响应式的组件零开销）。
+      def signal_owner : Tessell::Signal::Owner
+        @signal_owner ||= Tessell::Signal::Owner.new
+      end
+
+      # 非创建读取（For 行复用把组件 owner 收编到行 owner 时用）。
+      def signal_owner? : Tessell::Signal::Owner?
+        @signal_owner
+      end
+
+      # 在组件作用域注册 effect（Solid 语义：创建即首跑）。handler 更新组件
+      # 状态 → 下一帧 Root#build 的 decl diff 自动产出失效（Layout/Paint），
+      # 与 #42 重入守卫安全组合（effect 内直接调 root.build 也只延迟为二段
+      # 提交）。组件销毁时 effect 自动停止。
+      def watch(&handler : -> Nil) : Tessell::Signal::Effect
+        Tessell::Signal.effect(owner: signal_owner) { handler.call }
+      end
+
+      # 组件销毁：停掉其响应式作用域（幂等）。Root 在组件移出树时调用；
+      # 重新挂回树的组件需重建 watch（与 Node 生命周期同口径）。
+      def dispose : Nil
+        @signal_owner.try(&.dispose)
+        @signal_owner = nil
+      end
     end
   end
 end

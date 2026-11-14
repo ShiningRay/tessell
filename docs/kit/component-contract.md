@@ -28,6 +28,13 @@
 ## 输入
 
 - 组件不直接读 Win32/WGL/Cocoa 事件；输入来自 `Kit::Event`，由 `Root` 统一路由。
+- 响应式状态（issue #44）：组件经 `signal_owner`（懒创建）持有响应式作用域，
+  `watch { ... }` 注册 effect（创建即首跑，Solid 语义）；handler 更新组件状态，
+  下一帧 Root#build 的 decl diff 自动产出失效。组件移出树时 Root 调用 dispose
+  ——此后 signal 写不再触发该组件的任何 effect（泄漏契约，spec/kit/
+  signal_kit_spec.cr 锁住）；重挂树的组件需重建 watch（与 Node 生命周期同口径）。
+  列表行复用用 `Kit::For(T)`：keyed 只 Set item/index 两个可写 signal，组件
+  实例跨帧保留；重复行 key 与 #43 同性质，reconcile fail-fast。
 - 按用户所见驱动（issue #35）：`visible = false` 的组件不 emit 声明、不进
   命中树（内置组件 emit 与 paint 同口径守卫；自定义组件必须遵守——不可见
   即不存在）。焦点环已由 `focusable?` 排除不可见组件。
