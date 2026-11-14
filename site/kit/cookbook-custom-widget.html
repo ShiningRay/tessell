@@ -80,56 +80,41 @@
 <h2 id="1-滚动数学-复用-scrollmodel">1. 滚动数学（复用 ScrollModel）</h2>
 <ul>
 <li><code>content_size</code> / <code>viewport_size</code> / <code>offset</code>（写入即 clamp）；</li>
-<li><code>visible_range(item_size, total_count)</code>：等高行/列的可见区间（含端点、</li>
-</ul>
-<p>尾部收敛到 total-1）；</p>
-<ul>
-<li><code>offset_at(index, item_size)</code> / <code>index_at(coord, item_size)</code>：坐标↔索引</li>
-</ul>
-<p>双向换算（坐标相对 viewport 起点）；</p>
-<ul>
+<li><code>visible_range(item_size, total_count)</code>：等高行/列的可见区间（含端点、 尾部收敛到 total-1）；</li>
+<li><code>offset_at(index, item_size)</code> / <code>index_at(coord, item_size)</code>：坐标↔索引 双向换算（坐标相对 viewport 起点）；</li>
 <li><code>thumb(track_len)</code> / <code>offset_for_thumb(pos, track_len)</code>：滚动条几何。</li>
 </ul>
 <h2 id="2-命中">2. 命中</h2>
 <ul>
-<li>组件维护 Node↔Component 映射（Root 自动做）；命中子项时回退到最近的</li>
-</ul>
-<p>可聚焦祖先（<code>wants_tab?</code>、<code>focusable?</code>）。</p>
-<ul>
+<li>组件维护 Node↔Component 映射（Root 自动做）；命中子项时回退到最近的 可聚焦祖先（<code>wants_tab?</code>、<code>focusable?</code>）。</li>
 <li>clip：<code>clip_bounds</code> 返回可视区，Root 同步到 Node#clip，HitTest 继承。</li>
 </ul>
 <h2 id="3-绘制与裁切">3. 绘制与裁切</h2>
 <ul>
 <li><code>paint</code> 里 <code>push_clip(viewport)</code> → 内容 → 滚动条 → <code>pop_clip</code>。</li>
-<li>文本裁切依赖后端 scissor（issue #15 契约）：半可见行的文本直接发命令，</li>
+<li>文本裁切依赖后端 scissor（issue #15 契约）：半可见行的文本直接发命令， 不需要自己算可见性；<code>text</code> 调用顺序即绘制顺序。</li>
 </ul>
-<p>不需要自己算可见性；<code>text</code> 调用顺序即绘制顺序。</p>
 <h2 id="4-键盘与滚动">4. 键盘与滚动</h2>
 <ul>
 <li><code>focusable?</code> = 有可滚动内容或行可聚焦；</li>
-<li>Key Down/Up/PageUp/PageDown/Home/End 与 wheel 的 delta（<code>event.wheel_dy</code>，</li>
+<li>Key Down/Up/PageUp/PageDown/Home/End 与 wheel 的 delta（<code>event.wheel_dy</code>， issue #4 语义）映射到 <code>model.scroll_by</code>。</li>
 </ul>
-<p>issue #4 语义）映射到 <code>model.scroll_by</code>。</p>
 <h2 id="5-a11y">5. a11y</h2>
 <ul>
-<li>虚拟化控件必须报告逻辑总数：<code>a11y_children_count</code>（逻辑行数）与</li>
+<li>虚拟化控件必须报告逻辑总数：<code>a11y_children_count</code>（逻辑行数）与 <code>a11y_scroll_offset</code>（当前 offset 取整）；进程内树 ≠ 平台 provider， 文档不得暗示屏幕阅读器可用。</li>
+<li>二维网格控件（issue #31）：坐标/选区/表头走结构化字段，<strong>不拼 value 字符串</strong>。 容器声明 <code>a11y_role = Grid</code> + <code>a11y_row_count</code>/<code>a11y_col_count</code> + <code>a11y_first_visible_index</code>（可视窗口起点，provider 据此定位在逻辑总量中 的位置）；单元格声明 <code>a11y_role = GridCell</code> + <code>a11y_row</code>/<code>a11y_col</code> + <code>a11y_row_index_text</code>/<code>a11y_col_index_text</code>（&quot;1&quot;/&quot;A&quot; 的朗读文本）+ <code>a11y_selected</code>/<code>a11y_active_cell</code>；行/列标头声明 <code>RowHeader</code>/<code>ColumnHeader</code> + 对应 index_text。全部字段默认 nil， 非网格组件零改动。读方语义（对齐 UIA <code>DataItem</code>/NSAccessibility <code>GridCell</code>/AT-SPI <code>TableCell</code>）：当前活动单元格 = active_cell=true 的 GridCell，&quot;我在 B4&quot; = row_index_text+col_index_text，不再出现 <code>&quot;A1 42&quot;</code>。</li>
 </ul>
-<p><code>a11y_scroll_offset</code>（当前 offset 取整）；进程内树 ≠ 平台 provider， 文档不得暗示屏幕阅读器可用。</p>
 <h2 id="6-半可见与边界">6. 半可见与边界</h2>
 <ul>
-<li>行坐标 = <code>offset_at(index) - model.offset</code>；首末行允许部分可见，交给</li>
-</ul>
-<p>后端 scissor 裁切。</p>
-<ul>
+<li>行坐标 = <code>offset_at(index) - model.offset</code>；首末行允许部分可见，交给 后端 scissor 裁切。</li>
 <li>内容尺寸变化后重新 clamp：<code>model.offset = model.offset</code>。</li>
 </ul>
 <h2 id="参考">参考</h2>
 <ul>
 <li>单轴模型与全部数学：<code>src/tessell/kit/scroll_model.cr</code></li>
 <li>委托示例：<code>src/tessell/kit/scroll_view.cr</code></li>
-<li>二维用法：x/y 两个 <code>ScrollModel</code>；冻结表头 = 表头区域不应用 y 模型</li>
+<li>二维用法：x/y 两个 <code>ScrollModel</code>；冻结表头 = 表头区域不应用 y 模型 的 offset，仅 body 应用。</li>
 </ul>
-<p>的 offset，仅 body 应用。</p>
 
 </main>
 </div>

@@ -163,6 +163,7 @@ HTML
     out = String::Builder.new
     paragraph = [] of String
     list_open = false
+    list_item : String? = nil
     table_lines = [] of String
     code_open = false
     code_lang = ""
@@ -174,8 +175,15 @@ HTML
         paragraph.clear
       end
     end
+    flush_item = -> do
+      if item = list_item
+        out << "<li>" << inline(item) << "</li>\n"
+        list_item = nil
+      end
+    end
     close_list = -> do
       if list_open
+        flush_item.call
         out << "</ul>\n"
         list_open = false
       end
@@ -237,15 +245,19 @@ HTML
         out << "<h#{level} id=\"#{slug}\">#{inline(text)}</h#{level}>\n"
       elsif stripped.starts_with?("- ")
         flush_paragraph.call
+        flush_item.call
         unless list_open
           out << "<ul>\n"
           list_open = true
         end
-        out << "<li>" << inline(stripped[2..]) << "</li>\n"
+        list_item = stripped[2..]
       elsif stripped.starts_with?("> ")
         flush_paragraph.call
         close_list.call
         out << "<blockquote>" << inline(stripped[2..]) << "</blockquote>\n"
+      elsif item = list_item
+        # 列表项软换行：续行并入上一条，避免拆成「ul + p + ul」
+        list_item = "#{item} #{stripped}"
       else
         close_list.call
         paragraph << stripped

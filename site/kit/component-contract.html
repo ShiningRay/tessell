@@ -79,7 +79,7 @@
 <blockquote>这是 Kit 组件的公共约定，不是某个组件的实现说明。组件文档可以补充，但不能削弱这里的规则。</blockquote>
 <h2 id="身份与状态">身份与状态</h2>
 <ul>
-<li>每个组件必须有一个跨帧稳定的 <code>Tessell::UI::UiKey</code>。子部件从组件根 key 派生子 key，禁止用显示文本生成身份。</li>
+<li>每个组件必须有一个跨帧稳定且<strong>唯一</strong>的 <code>Tessell::UI::UiKey</code>。子部件从组件根 key 派生子 key（<code>key.child(n)</code>），禁止用显示文本生成身份。同帧两组件共用 key 会让 节点父链成环（曾导致遍历无限挂死，issue #43）——<code>UI.apply</code> 现在任何变更前 fail-fast raise <code>ArgumentError</code>；跨帧同 key 稳定复用是正常语义，不受影响。</li>
 <li>应用持有业务值（输入文本、选中项、开关值）；组件只持有 <code>hovered/pressed/focused/open/scroll</code> 等瞬态。首版默认受控。</li>
 <li>组件统一识别：<code>disabled</code>、<code>read_only</code>、<code>hovered</code>、<code>pressed</code>、<code>focused</code>、<code>selected</code>、<code>open</code>、<code>invalid</code>。不适用时显式忽略，不把 <code>disabled</code> 与 <code>read_only</code> 混用。</li>
 <li>一次用户动作最多触发一次语义回调。指针抬起与键盘激活不得双发；程序化 setter 是否触发回调必须逐组件写明。</li>
@@ -100,10 +100,15 @@
 <h2 id="输入">输入</h2>
 <ul>
 <li>组件不直接读 Win32/WGL/Cocoa 事件；输入来自 <code>Kit::Event</code>，由 <code>Root</code> 统一路由。</li>
+<li>响应式状态（issue #44）：组件经 <code>signal_owner</code>（懒创建）持有响应式作用域， <code>watch { ... }</code> 注册 effect（创建即首跑，Solid 语义）；handler 更新组件状态， 下一帧 Root#build 的 decl diff 自动产出失效。组件移出树时 Root 调用 dispose ——此后 signal 写不再触发该组件的任何 effect（泄漏契约，spec/kit/ signal_kit_spec.cr 锁住）；重挂树的组件需重建 watch（与 Node 生命周期同口径）。 列表行复用用 <code>Kit::For(T)</code>：keyed 只 Set item/index 两个可写 signal，组件 实例跨帧保留；重复行 key 与 #43 同性质，reconcile fail-fast。</li>
+<li>按用户所见驱动（issue #35）：<code>visible = false</code> 的组件不 emit 声明、不进 命中树（内置组件 emit 与 paint 同口径守卫；自定义组件必须遵守——不可见 即不存在）。焦点环已由 <code>focusable?</code> 排除不可见组件。</li>
 <li>指针按下前必须命中组件 bounds；按压释放只有在同一组件内才算激活。</li>
 <li>键盘激活键：按钮用 <code>Space/Enter</code>；复选框用 <code>Space</code>；Select/Dialog/Tooltip 的键位在各自文档写明。</li>
 <li><code>disabled</code> 组件不进入焦点环、不接收激活；<code>read_only</code> 仍可聚焦、可选择、可复制，但不可修改值。</li>
 <li>Tab/Shift+Tab 的焦点顺序由 Root 的焦点环决定，组件不得自建平行焦点系统。</li>
+<li>键盘键的唯一真相是 <code>Tessell::Input::KeyCode</code>；<code>Kit::Key</code> 是它的 alias（issue #27）， 核心新增键自动对组件可见，不存在&quot;核心已支持、Kit 收到 Unknown&quot;的漂移 （spec/kit/key_mapping_spec.cr 全量锁住）。例外：<code>F1</code> 被 Root 预留给帧调试 overlay 开关，不投递给组件；<code>Unknown</code> 表示宿主无法识别的 keysym 占位值。</li>
+<li>焦点投递契约（issue #26）：组件间转移 A→B 时 A 先收到 <code>on_focus_changed(false)</code>， B 依次收到 <code>handle(Focus)</code> 与 <code>on_focus_changed(true)</code>；窗口级失焦时组件先收到 <code>handle(Blur)</code> 再收到 <code>on_focus_changed(false)</code>。<code>Blur</code> 事件语义 = 窗口失焦， 组件间转移不投递。顺序由 spec/kit/focus_events_spec.cr 锁住。</li>
+<li>编辑态 Tab 语义（issue #32）由 API 声明，组件不得在 key_down 里手写分支： 表单提交用 <code>Input#submit_on_tab = true</code>（Tab 触发 on_submit 并消费； 「提交并前进」在 on_submit 里自行 root.focus 下一字段）；代码编辑用 <code>TextEditing#tabs = Insert</code>（\t 展开 tab_width 个空格，文本永不出现 \t 字形，宽度与光标不依赖字体制表符）；表格类由父容器 <code>wants_tab?</code> 接管 提交与移动。默认 <code>TextEditing#tabs = Reject</code>，\t 整体拒绝。</li>
 </ul>
 <h2 id="绘制">绘制</h2>
 <ul>
@@ -117,6 +122,7 @@
 <li>可访问名称是必需契约。无可见文本的按钮必须提供名称；Input 必须关联 label/description/error。</li>
 <li><code>a11y_role/name/value/focusable/enabled</code> 随声明同步；装饰性子节点不重复曝光。</li>
 <li>本库只产出进程内 a11y 树，不承诺 UIA/AppKit/AT-SPI provider。文档必须写明这个限制。</li>
+<li>二维网格 a11y（issue #31）：坐标/选区/表头用 Meta 结构化字段 （a11y_row/col/row_count/col_count/row_index_text/col_index_text/selected/ active_cell/first_visible_index），禁止把坐标拼进 a11y_value 字符串； Role 用 Grid/GridCell/RowHeader/ColumnHeader。</li>
 </ul>
 <h2 id="测试门槛">测试门槛</h2>
 <p>每个组件至少具备：</p>
