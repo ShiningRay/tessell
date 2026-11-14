@@ -82,8 +82,12 @@ module Tessell
       end
     end
 
-    # 缓存装饰器：先查后算，统计 hits/misses/evictions
+    # 缓存装饰器：先查后算，统计 hits/misses/evictions。
+    # 容量有界（issue #34）：超过 CACHE_CAP 整体清空（内核级全有全无口径；
+    # Kit Context 层的两代淘汰缓存见 src/tessell/kit/context.cr）。
     class CachingMeasurer < Measurer
+      CACHE_CAP = 8192
+
       def initialize(@inner : Measurer)
         @cache = Hash(MeasureKey, Size).new
         @hits = 0
@@ -99,6 +103,7 @@ module Tessell
         else
           @misses += 1
           sz = @inner.measure(text, font_id, size, max_width)
+          @cache.clear if @cache.size >= CACHE_CAP
           @cache[key] = sz
           sz
         end
