@@ -21,6 +21,13 @@ module Tessell
     end
 
     module TextDrawing
+      # 单行文本在 rect 内垂直居中的基线（逻辑单位，issue #19）。
+      # 与 draw_in_rect 的 VAlign::Middle 同口径：按 ascent/descent 视觉盒
+      # 居中，替代组件里 (h + fs)/2 - fs*0.1 一类的经验系数。
+      def self.middle_baseline(rect : Rect, m : Tessell::Text::FontMetrics) : Float32
+        rect.origin.y + (rect.size.height - (m.ascent + m.descent)) / 2.0_f32 + m.ascent
+      end
+
       # 在 rect 内画单行文本：halign 决定 x，valign 决定 baseline。
       # size 为逻辑字号；坐标全部为逻辑单位（与组件 bounds 同系）。
       def self.draw_in_rect(ctx : Context, p : Painter, rect : Rect,

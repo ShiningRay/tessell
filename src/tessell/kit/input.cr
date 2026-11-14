@@ -93,7 +93,8 @@ module Tessell
         p.push_clip(area)
         paint_selection(p, ctx, area, fs)
         text_x = area.origin.x - @scroll_x
-        baseline = field.origin.y + (field.size.height + fs) / 2.0_f32 - fs * 0.1_f32
+        # 垂直居中走 text_metrics 口径（issue #19），不用 fs*0.1 经验系数
+        baseline = TextDrawing.middle_baseline(field, ctx.text_metrics(fs))
         if @editing.text.empty? && !@placeholder.empty?
           p.text(text_x, baseline, @placeholder, ctx.theme.palette.muted, fs)
         else
@@ -109,7 +110,10 @@ module Tessell
 
         if @invalid && !@error_text.empty?
           err_fs = ctx.theme.font_size(ControlSize::Small)
-          p.text(@bounds.origin.x, field.max_y + ctx.theme.metrics.spacing_xs + err_fs,
+          # 错误行基线 = 区域 top + ascent（issue #19），不用 +fs 经验口径
+          err_baseline = field.max_y + ctx.theme.metrics.spacing_xs +
+                         ctx.text_metrics(err_fs).ascent
+          p.text(@bounds.origin.x, err_baseline,
             @error_text, ctx.theme.palette.danger, err_fs)
         end
       end
@@ -345,7 +349,7 @@ module Tessell
       private def paint_preedit(p : Painter, ctx : Context, area : Rect, fs : Float32) : Nil
         return unless @editing.preedit?
         x = area.origin.x - @scroll_x + ctx.measure_text(prefix, fs).width
-        y = area.origin.y + (area.size.height + fs) / 2.0_f32 - fs * 0.1_f32
+        y = TextDrawing.middle_baseline(area, ctx.text_metrics(fs))
         p.text(x, y, @editing.preedit, ctx.theme.palette.accent, fs)
         width = ctx.measure_text(@editing.preedit, fs).width
         p.line(x, y + 2.0_f32, x + width, y + 2.0_f32, ctx.theme.palette.accent, 1.0_f32)

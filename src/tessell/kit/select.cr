@@ -64,7 +64,7 @@ module Tessell
                   ctx.theme.palette.muted
                 end
         p.text(@bounds.origin.x + ctx.theme.padding_x(ControlSize::Medium),
-          @bounds.origin.y + (@bounds.size.height + fs) / 2.0_f32 - fs * 0.1_f32,
+          TextDrawing.middle_baseline(@bounds, ctx.text_metrics(fs)),
           selected_text, color, fs)
         cx = @bounds.max_x - 16.0_f32
         cy = @bounds.origin.y + @bounds.size.height / 2.0_f32
@@ -261,6 +261,7 @@ module Tessell
         p.stroke_round_rect(@bounds, radius, ctx.theme.palette.border,
           ctx.theme.metrics.border_width)
         fs = ctx.theme.font_size(ControlSize::Small)
+        m = ctx.text_metrics(fs)
         @options.each_with_index do |option, index|
           rect = row_rect(index)
           if index == @highlighted
@@ -268,7 +269,7 @@ module Tessell
           end
           color = index == @selected_index ? ctx.theme.palette.accent : ctx.theme.palette.foreground
           p.text(rect.origin.x + ctx.theme.metrics.spacing_md,
-            rect.origin.y + (rect.size.height + fs) / 2.0_f32 - fs * 0.1_f32,
+            TextDrawing.middle_baseline(rect, m),
             option, color, fs)
         end
       end

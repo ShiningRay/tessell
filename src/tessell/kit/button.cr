@@ -65,7 +65,8 @@ module Tessell
 
         text_size = ctx.measure_text(@label, fs)
         tx = @bounds.origin.x + (@bounds.size.width - text_size.width) / 2.0_f32
-        baseline = @bounds.origin.y + (@bounds.size.height + fs) / 2.0_f32 - fs * 0.1_f32
+        # 垂直居中走 text_metrics 口径（issue #19），不用 fs*0.1 经验系数
+        baseline = TextDrawing.middle_baseline(@bounds, ctx.text_metrics(fs))
         p.text(tx, baseline, @label, colors.foreground, fs)
       end
 

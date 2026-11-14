@@ -30,6 +30,9 @@ module Tessell
     end
 
     # 确定性桩：ASCII 0.6*size，非 ASCII 1.0*size。仅用于布局/测试。
+    # 行高口径（issue #19）：桩显式走基类 1.25*size 系数（line_height 与
+    # font_metrics 同为 1.25*size，与单行 measure 高度一致）——这是桩的
+    # 已文档化口径，不跟随真实字体 FT metrics。
     class StubTextMetrics < TextMetrics
       def measure(text : String, size : Float32) : Size
         width = 0.0_f32
@@ -68,6 +71,13 @@ module Tessell
     # (font_id, size, text_hash, max_width) 的测量缓存（issue #6）。
     class CoreTextMetrics < TextMetrics
       def initialize(@measurer : Tessell::Text::Measurer, @font_id : Int32 = 0)
+      end
+
+      # 行高唯一真相（issue #19）：与 font_metrics/measure 同源
+      # （FT size metrics）。此前 CoreTextMetrics 不覆盖 line_height，
+      # 真实字体永远走 1.25 经验系数，与 measure_text 高度差 8%+。
+      def line_height(size : Float32) : Float32
+        @measurer.font_metrics(@font_id, size).line_height
       end
 
       def measure(text : String, size : Float32) : Size

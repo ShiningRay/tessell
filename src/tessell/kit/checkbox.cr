@@ -76,7 +76,7 @@ module Tessell
 
         fs = ctx.theme.font_size(@size)
         color = @enabled ? ctx.theme.palette.foreground : ctx.theme.palette.muted
-        baseline = @bounds.origin.y + (@bounds.size.height + fs) / 2.0_f32 - fs * 0.1_f32
+        baseline = TextDrawing.middle_baseline(@bounds, ctx.text_metrics(fs))
         p.text(box_rect.max_x + ctx.theme.metrics.spacing_sm, baseline, @label, color, fs)
       end
 

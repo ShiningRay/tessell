@@ -64,8 +64,11 @@ module Tessell
         fs = ctx.theme.font_size(@size)
         color = resolve_color(ctx)
         lines = layout_lines(ctx, fs)
+        m = ctx.text_metrics(fs)
         line_h = ctx.line_height(fs)
-        baseline = @bounds.origin.y + fs
+        # 行距与测量同源（issue #19）：基线 = top + ascent，行距 = line_height；
+        # 不再用 top + fs 的第三种口径。
+        baseline = @bounds.origin.y + m.ascent
         lines.each_with_index do |line, index|
           break if index >= (@max_lines || Int32::MAX)
           p.text(@bounds.origin.x, baseline + index * line_h, line, color, fs)

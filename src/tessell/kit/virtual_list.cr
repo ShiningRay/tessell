@@ -60,12 +60,13 @@ module Tessell
         first = @list.visible_first
         last = @list.visible_last
         fs = ctx.theme.font_size(ControlSize::Medium)
+        m = ctx.text_metrics(fs)
         if last >= first
           i = first
           while i <= last
             rect = row_bounds(i)
             p.text(rect.origin.x + 8.0_f32,
-              rect.origin.y + (rect.size.height + fs) / 2.0_f32 - fs * 0.1_f32,
+              TextDrawing.middle_baseline(rect, m),
               @label_for.call(i), ctx.theme.palette.foreground, fs)
             i += 1
           end
