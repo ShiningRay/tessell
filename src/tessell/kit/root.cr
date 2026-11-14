@@ -466,11 +466,22 @@ module Tessell
 
       # Kit::Key 是 Input::KeyCode 的 alias（issue #27）：核心事件原样透传，
       # 不再经过手工映射表——映射表正是两套枚举漂移的源头。
+      # 输入语义（issue #20）：click_count/drag_distance 只在 PointerUp 有效，
+      # 读 Router 的点击判定结果；timestamp_ms/repeat 全 kind 透传。
       private def to_kit(event : Tessell::Input::Event, kind : Event::Kind,
                          modifiers : Modifiers) : Event
-        Event.new(kind, event.x, event.y, event.button,
-          event.key, event.text, modifiers,
-          event.wheel_dx, event.wheel_dy)
+        if kind == Event::Kind::PointerUp
+          Event.new(kind, event.x, event.y, event.button,
+            event.key, event.text, modifiers,
+            event.wheel_dx, event.wheel_dy,
+            @router.last_click_count, event.timestamp_ms, event.repeat,
+            @router.last_drag_distance)
+        else
+          Event.new(kind, event.x, event.y, event.button,
+            event.key, event.text, modifiers,
+            event.wheel_dx, event.wheel_dy,
+            1, event.timestamp_ms, event.repeat, 0.0_f32)
+        end
       end
     end
   end

@@ -43,11 +43,22 @@ module Tessell
       getter modifiers : Modifiers
       getter wheel_dx : Float32
       getter wheel_dy : Float32
+      # 输入语义透传（issue #20）：组件只看 Event 即可判定单击/双击与
+      # 按住重复，不必自存时间戳或反向拿 Root/Router。
+      # click_count：PointerUp 有效——1=单击，2=双击（同目标、时间窗、位移
+      # 上限内）；其他 kind 恒为 1。0 表示非点击。
+      getter click_count : Int32
+      getter timestamp_ms : Int64
+      getter repeat : Bool
+      # 按下到释放的位移（PointerUp 有效），拖选与点击区分用。
+      getter drag_distance : Float32
 
       def initialize(@kind : Kind, @x : Float32 = 0.0_f32, @y : Float32 = 0.0_f32,
                      @button : Int32 = 0, @key : Key? = nil, @text : String? = nil,
                      @modifiers : Modifiers = Modifiers.none,
-                     @wheel_dx : Float32 = 0.0_f32, @wheel_dy : Float32 = 0.0_f32)
+                     @wheel_dx : Float32 = 0.0_f32, @wheel_dy : Float32 = 0.0_f32,
+                     @click_count : Int32 = 1, @timestamp_ms : Int64 = 0_i64,
+                     @repeat : Bool = false, @drag_distance : Float32 = 0.0_f32)
       end
 
       def shift? : Bool

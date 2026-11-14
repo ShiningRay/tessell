@@ -37,6 +37,9 @@ module Tessell::Input
     @last_up_ts : Int64
     @last_up_x : Float32
     @last_up_y : Float32
+    # 修饰键参与双击判定（issue #20）：Shift/Ctrl 等变化打断双击链，
+    # 否则组件层无法区分「双击」与「两次带修饰的单击」。
+    @last_up_modifiers : Modifiers
     @down_x : Float32
     @down_y : Float32
 
@@ -52,6 +55,7 @@ module Tessell::Input
       @last_up_ts = 0_i64
       @last_up_x = 0.0_f32
       @last_up_y = 0.0_f32
+      @last_up_modifiers = Modifiers.none
       @down_x = 0.0_f32
       @down_y = 0.0_f32
     end
@@ -68,6 +72,7 @@ module Tessell::Input
       @last_up_ts = 0_i64
       @last_up_x = 0.0_f32
       @last_up_y = 0.0_f32
+      @last_up_modifiers = Modifiers.none
       @down_x = 0.0_f32
       @down_y = 0.0_f32
     end
@@ -133,13 +138,15 @@ module Tessell::Input
                  event.timestamp_ms > 0 &&
                  @last_up_ts > 0 &&
                  (event.timestamp_ms - @last_up_ts) <= @double_click_window_ms &&
-                 @last_drag_distance <= @double_click_max_dist
+                 @last_drag_distance <= @double_click_max_dist &&
+                 event.modifiers == @last_up_modifiers
         @last_click_count = double ? 2 : 1
       end
       @last_up_target = target
       @last_up_ts = event.timestamp_ms
       @last_up_x = event.x
       @last_up_y = event.y
+      @last_up_modifiers = event.modifiers
     end
   end
 end
