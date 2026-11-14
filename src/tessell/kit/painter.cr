@@ -28,13 +28,17 @@ module Tessell
       getter x2 : Float32
       getter y2 : Float32
       getter font_size : Float32
+      # 命令生效时的裁切矩形（push_clip/pop_clip 交集结果），与
+      # DrawListPainter 的 DrawCmd#clip 同语义（issue #25）。nil = 无裁切。
+      getter clip : Rect?
 
       def initialize(@kind : PaintKind, @rect : Rect = Rect.new,
                      @color : UInt32 = 0_u32, @width : Float32 = 0.0_f32,
                      @radius : Float32 = 0.0_f32, @text : String = "",
                      @x : Float32 = 0.0_f32, @y : Float32 = 0.0_f32,
                      @font_size : Float32 = 0.0_f32,
-                     @x2 : Float32 = 0.0_f32, @y2 : Float32 = 0.0_f32)
+                     @x2 : Float32 = 0.0_f32, @y2 : Float32 = 0.0_f32,
+                     @clip : Rect? = nil)
       end
     end
 
@@ -128,46 +132,75 @@ module Tessell
       abstract def pop_clip : Nil
     end
 
+    # PaintListPainter 与 DrawListPainter 的 clip 语义一致（issue #25）：
+    # push_clip/pop_clip 同时约束形状与文本，命令携带解析后的 clip 矩形。
+    # 此前文本/形状完全不看 clip，headless 断言会误报通过。
     class PaintListPainter < Painter
       getter list : PaintList
 
+      @clips : Array(Rect)
+
       def initialize(@list : PaintList = PaintList.new)
+        @clips = [] of Rect
       end
 
       def fill_rect(rect : Rect, color : UInt32) : Nil
-        @list.push(PaintCmd.new(PaintKind::FillRect, rect, color))
+        @list.push(PaintCmd.new(PaintKind::FillRect, rect, color, clip: current_clip))
       end
 
       def stroke_rect(rect : Rect, color : UInt32, width : Float32 = 1.0_f32) : Nil
-        @list.push(PaintCmd.new(PaintKind::StrokeRect, rect, color, width))
+        @list.push(PaintCmd.new(PaintKind::StrokeRect, rect, color, width,
+          clip: current_clip))
       end
 
       def fill_round_rect(rect : Rect, radius : Float32, color : UInt32) : Nil
-        @list.push(PaintCmd.new(PaintKind::FillRoundRect, rect, color, radius: radius))
+        @list.push(PaintCmd.new(PaintKind::FillRoundRect, rect, color,
+          radius: radius, clip: current_clip))
       end
 
       def stroke_round_rect(rect : Rect, radius : Float32, color : UInt32, width : Float32 = 1.0_f32) : Nil
-        @list.push(PaintCmd.new(PaintKind::StrokeRoundRect, rect, color, width, radius))
+        @list.push(PaintCmd.new(PaintKind::StrokeRoundRect, rect, color, width, radius,
+          clip: current_clip))
       end
 
       def line(x1 : Float32, y1 : Float32, x2 : Float32, y2 : Float32,
                color : UInt32, width : Float32 = 1.0_f32) : Nil
         @list.push(PaintCmd.new(PaintKind::Line, color: color, width: width,
-          x: x1, y: y1, x2: x2, y2: y2))
+          x: x1, y: y1, x2: x2, y2: y2, clip: current_clip))
       end
 
       def text(x : Float32, baseline_y : Float32, text : String,
                color : UInt32, size : Float32) : Nil
         @list.push(PaintCmd.new(PaintKind::Text, Rect.new, color, text: text,
-          x: x, y: baseline_y, font_size: size))
+          x: x, y: baseline_y, font_size: size, clip: current_clip))
       end
 
       def push_clip(rect : Rect) : Nil
+        @clips << current_clip_or(rect)
         @list.push(PaintCmd.new(PaintKind::PushClip, rect))
       end
 
       def pop_clip : Nil
+        @clips.pop unless @clips.empty?
         @list.push(PaintCmd.new(PaintKind::PopClip))
+      end
+
+      def clip_depth : Int32
+        @clips.size
+      end
+
+      def reset : Nil
+        @list.clear
+        @clips.clear
+      end
+
+      private def current_clip : Rect?
+        @clips.empty? ? nil : @clips.last
+      end
+
+      private def current_clip_or(rect : Rect) : Rect
+        return rect if @clips.empty?
+        Geometry.intersect(@clips.last, rect)
       end
     end
 
