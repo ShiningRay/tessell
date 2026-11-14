@@ -268,6 +268,25 @@ describe "Kit::Image control (issue #28)" do
     image.bounds.should eq(logical)
   end
 
+  it "skips painting when the backend lacks the texture channel (issue #45)" do
+    image = Tessell::Kit::Image.new(KitSpecHelpers.key, 7, 4, 4)
+    root = Tessell::Kit::Root.new(image)
+    root.layout(200.0_f32, 100.0_f32)
+    root.build
+    ctx = root.context
+    ctx.supports_external_texture.should be_true # 内置后端默认支持
+
+    ctx.supports_external_texture = false
+    d = Tessell::Kit::DrawListPainter.new
+    image.paint(d, ctx)
+    d.list.size.should eq(0) # 不再静默画不出——直接不进命令列表
+
+    # a11y 仍报 Role::Image（宿主可据此显示占位/告警）
+    sink = [] of Tessell::A11y::Node
+    root.a11y_emit(sink)
+    sink.any? { |n| n.role == Tessell::A11y::Role::Image }.should be_true
+  end
+
   it "emits an a11y Image node" do
     image = Tessell::Kit::Image.new(KitSpecHelpers.key, 7, 100, 50)
     root = Tessell::Kit::Root.new(image)

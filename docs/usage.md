@@ -231,6 +231,24 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
   调用顺序即绘制顺序，同 clip 内自动合批）。
 
+## 外部纹理契约（issue #28/#45）
+
+位图内容（`Kit::Image`）走 `Backend` 外部纹理通道：
+
+```crystal
+handle = backend.create_texture(w, h, rgba_bytes)   # straight RGBA8；handle 独立命名空间
+backend.update_texture(handle, x, y, w, h, patch)    # 增量区域更新
+backend.destroy_texture(handle)                      # 销毁；handle 不复用
+```
+
+- 内置 Software/GL 后端均实现（GL 以 straight-alpha blend 绘制 Image 命令，
+  与帧级 premultiplied blend 正确切换）；`GLBackend#resolved_texture_external`
+  返回 GL texture name，0 = handle 不存在。
+- 宿主自建不支持纹理的后端时，置 `ctx.supports_external_texture = false`：
+  `Kit::Image` 跳过绘制（a11y 仍报 `Role::Image`），不再静默空白。
+- 宿主 Painter（参照 `examples/lib/kit_sdl_host.cr` 的 `GLPainter#image`）
+  把命令转发进 `DrawListPainter`，flush 交后端 Image 通道。
+
 ## 宿主事件契约（issue #47）
 
 把平台事件转成 `Tessell::Input::Event` 时，**必须透传平台时间戳**：

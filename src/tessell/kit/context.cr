@@ -199,6 +199,10 @@ module Tessell
       # 多 face 字体栈（issue #29）：nil = 单 face。设置后组件的 FontWeight
       # 经 font_id_for 解析为 face 的 font_id，一路传到 Painter。
       property font_stack : Tessell::Text::FontStack? = nil
+      # 后端是否支持外部纹理通道（issue #45）：内置 Software/GL 后端均为
+      # true；宿主自建不支持纹理的后端时置 false——Kit::Image 据此跳过
+      # 绘制（a11y 仍报 Role::Image），消除"静默空白"。
+      property supports_external_texture : Bool = true
 
       def initialize(theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,

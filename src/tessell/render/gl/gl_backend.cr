@@ -146,6 +146,10 @@ module Tessell
           @rgba_page_texture_ids_arr = [] of UInt32
           @page_synced_revisions = [] of UInt64
           @rgba_page_synced_revisions = [] of UInt64
+          # 外部纹理表（issue #45/#28）：handle → {w, h, GL texture name}。
+          # handle 独立命名空间（从 1 起），不与 glyph atlas 页号混用。
+          @ext_textures = {} of Int32 => Tuple(Int32, Int32, UInt32)
+          @ext_seq = 0
           @viewport_w = 0
           @viewport_h = 0
           @dirty = nil
@@ -415,6 +419,52 @@ module Tessell
           end
         end
 
+        # ---- 外部纹理生命周期（issue #45/#28）----
+        # pixels 为 straight RGBA8；上传保持 straight，绘制 Image 命令时
+        # 临时切换 blend 为 straight-alpha 语义（见 draw_image_cmd）。
+        def create_texture(width : Int32, height : Int32, pixels : Bytes) : Int32
+          raise ArgumentError.new("texture pixel size mismatch") if pixels.size < width * height * 4
+          tex = 0_u32
+          TessellGL.glGenTextures(1, pointerof(tex))
+          TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex)
+          TessellGL.glPixelStorei(TessellGL::GL_UNPACK_ALIGNMENT, 1)
+          TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MIN_FILTER, TessellGL::GL_LINEAR.to_i32)
+          TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MAG_FILTER, TessellGL::GL_LINEAR.to_i32)
+          TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_S, TessellGL::GL_CLAMP.to_i32)
+          TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_T, TessellGL::GL_CLAMP.to_i32)
+          TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_RGBA.to_i32,
+            width, height, 0,
+            TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
+            pixels.to_unsafe.as(Void*))
+          @ext_seq += 1
+          handle = @ext_seq
+          @ext_textures[handle] = {width, height, tex}
+          handle
+        end
+
+        def update_texture(handle : Int32, x : Int32, y : Int32,
+                           width : Int32, height : Int32, pixels : Bytes) : Nil
+          entry = @ext_textures[handle]?
+          return unless entry
+          TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, entry[2])
+          TessellGL.glPixelStorei(TessellGL::GL_UNPACK_ALIGNMENT, 1)
+          TessellGL.glTexSubImage2D(TessellGL::GL_TEXTURE_2D, 0, x, y,
+            width, height, TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
+            pixels.to_unsafe.as(Void*))
+        end
+
+        def destroy_texture(handle : Int32) : Nil
+          if (entry = @ext_textures.delete(handle))
+            tex = entry[2]
+            TessellGL.glDeleteTextures(1, pointerof(tex))
+          end
+        end
+
+        # 返回 GL texture name（宿主可据此判断支持；0 = handle 不存在）。
+        def resolved_texture_external(handle : Int32) : Int32
+          @ext_textures[handle]?.try(&.[2].to_i32) || 0
+        end
+
         def draw_text(vertices : Array(Tessell::Render::Vertex), batches : Array(Tessell::Render::TextBatch),
                       batch_count : Int32 = batches.size, from_batch : Int32 = 0,
                       clip : Tessell::Rect? = nil) : Int32
@@ -468,6 +518,9 @@ module Tessell
               submitted += 1
             when Tessell::Render::CmdKind::Text
               # Rendered via draw_text; keep the command list backend-agnostic.
+            when Tessell::Render::CmdKind::Image
+              draw_image_cmd(cmd)
+              submitted += 1
             else
             end
             i += 1
@@ -476,6 +529,53 @@ module Tessell
           TessellGL.glLineWidth(1.0_f32)
           TessellGL.glEnable(TessellGL::GL_TEXTURE_2D)
           submitted
+        end
+
+        # Image 命令（issue #45）：绑定外部纹理画一个带 UV 的四边形。
+        # 纹理数据是 straight RGBA 而 frame blend 是 premultiplied 口径
+        # （GL_ONE, GL_ONE_MINUS_SRC_ALPHA）——本命令内临时切换为
+        # straight-alpha（GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA），
+        # tint 走 GL_MODULATE（vertex color × texel），结束后恢复。
+        # UV：纹理内存首行经 glTexImage2D 落在 GL 纹理底部，v 轴翻转。
+        private def draw_image_cmd(cmd : Tessell::Render::DrawCmd) : Nil
+          entry = @ext_textures[cmd.texture_id]?
+          return unless entry
+          tw, th, tex = entry
+          bounds = cmd.bounds
+          return if bounds.size.width <= 0.0_f32 || bounds.size.height <= 0.0_f32
+
+          sx0 = cmd.p1.x.round.to_i.clamp(0, tw)
+          sy0 = cmd.p1.y.round.to_i.clamp(0, th)
+          sx1 = cmd.p2.x.round.to_i
+          sx1 = tw if sx1 <= 0
+          sy1 = cmd.p2.y.round.to_i
+          sy1 = th if sy1 <= 0
+          sx1 = sx1.clamp(sx0, tw)
+          sy1 = sy1.clamp(sy0, th)
+          return if sx1 <= sx0 || sy1 <= sy0
+
+          u0 = sx0.to_f32 / tw.to_f32
+          u1 = sx1.to_f32 / tw.to_f32
+          v0 = 1.0_f32 - sy0.to_f32 / th.to_f32
+          v1 = 1.0_f32 - sy1.to_f32 / th.to_f32
+
+          TessellGL.glEnable(TessellGL::GL_TEXTURE_2D)
+          TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex)
+          TessellGL.glBlendFunc(TessellGL::GL_SRC_ALPHA, TessellGL::GL_ONE_MINUS_SRC_ALPHA)
+          emit_cmd_color(cmd.color)
+          TessellGL.glBegin(TessellGL::GL_QUADS)
+          TessellGL.glTexCoord2f(u0, v0)
+          TessellGL.glVertex2f(bounds.origin.x, bounds.origin.y)
+          TessellGL.glTexCoord2f(u1, v0)
+          TessellGL.glVertex2f(bounds.max_x, bounds.origin.y)
+          TessellGL.glTexCoord2f(u1, v1)
+          TessellGL.glVertex2f(bounds.max_x, bounds.max_y)
+          TessellGL.glTexCoord2f(u0, v1)
+          TessellGL.glVertex2f(bounds.origin.x, bounds.max_y)
+          TessellGL.glEnd
+          TessellGL.glBlendFunc(TessellGL::GL_ONE, TessellGL::GL_ONE_MINUS_SRC_ALPHA)
+          TessellGL.glDisable(TessellGL::GL_TEXTURE_2D)
+          @submitted_quads += 1
         end
 
         private def apply_clip(clip : Tessell::Rect?) : Nil

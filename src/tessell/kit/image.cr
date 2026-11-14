@@ -82,6 +82,9 @@ module Tessell
       def paint(p : Painter, ctx : Context) : Nil
         return unless @visible
         return if @texture_id == 0
+        # 后端不支持外部纹理时跳过绘制（issue #45 B 项）：不再静默空白，
+        # a11y 树仍报 Role::Image（宿主可据此显示占位/告警）。
+        return unless ctx.supports_external_texture
         return if @bounds.size.width <= 0 || @bounds.size.height <= 0
         src = fit_source_rect
         p.image(@texture_id, @bounds, 0xffffffff_u32, src)

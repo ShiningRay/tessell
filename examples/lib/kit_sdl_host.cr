@@ -274,6 +274,14 @@ module TessellKitSdl
       @draw.text(dx, dy, text, color, px_size.to_f32)
     end
 
+    # 外部纹理四边形（issue #45）：进 DrawList，flush 交后端的 Image 通道。
+    # 纹理由应用经 Backend#create_texture 创建（handle 跨帧稳定）。
+    def image(texture_id : Int32, bounds : Tessell::Rect,
+              tint : UInt32 = 0xffffffff_u32, src : Tessell::Rect? = nil) : Nil
+      @draw.image(texture_id, scale_rect(bounds), tint,
+        src.try { |r| scale_rect(r) })
+    end
+
     def push_clip(rect : Tessell::Rect) : Nil
       @draw.push_clip(scale_rect(rect))
     end
@@ -297,7 +305,7 @@ module TessellKitSdl
         if cmd.kind == Tessell::Render::CmdKind::Text
           backend.draw_draw_list(list, seg, i - seg) if i > seg
           before = @renderer.batch_count
-          @renderer.append_text_cached(@sink, cmd.text, cmd.bounds.x, cmd.bounds.y,
+          @renderer.append_text_cached(@sink, cmd.text, cmd.bounds.origin.x, cmd.bounds.origin.y,
             cmd.font_size.round.to_i, @width, @height, cmd.color)
           delta = @renderer.batch_count - before
           if delta > 0
@@ -478,7 +486,7 @@ module TessellKitSdl
       LibSDL.SDL_GL_DeleteContext(context)
       LibSDL.SDL_DestroyWindow(window)
       LibSDL.SDL_Quit
-      puts "KIT_DEMO_RUN app=#{title} frames=#{frames} size=#{logical_w}x#{logical_h} scale=#{scale}"
+      puts "KIT_DEMO_RUN app=#{title} frames=#{runner.frame_count} size=#{logical_w}x#{logical_h} scale=#{scale}"
     end
 
     @root : Tessell::Kit::Root?
