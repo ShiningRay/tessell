@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.4.0 (2026-11-15)
+
+跟进项 #43 / #44 处置完成，GitHub issue 全部清零。
+
+### Bug 修复
+- **#43 重复 UiKey 挂死节点遍历**：同帧两组件共用 UiKey 曾使节点父链成环
+  （`component_for_node` / HitTest / a11y 沿 parent 上溯无限挂死，编译期
+  无法发现）。`UI.apply` 现在在任何 pool 变更前预检单帧 decl 缓冲内的
+  重复 key，fail-fast `ArgumentError` 并点名修复方式（`key.child` 派生）；
+  异常路径不留下半套 pool 状态；跨帧同 key 稳定复用（identity 语义）不受
+  影响。`Container` 新增 `remove`（动态树 detach）。
+
+### 新能力
+- **#44 Signal 接入 Kit**：
+  - 组件响应式作用域：`Component#signal_owner` 懒创建 + `watch`（创建即
+    首跑，Solid 语义）；组件移出树时 Root 差分自动 `dispose`——signal 写
+    不再触发已卸载组件（泄漏契约有 spec）。
+  - 三级失效对接：signal 写 → effect 更新组件状态 → 下一帧 Root#build 的
+    decl diff 自动产出 Layout/Paint 失效（复用既有失效体系，effect 不直连
+    后端）；稳态帧计数与直连状态组件一致（#36 口径）；与 #42 重入守卫
+    安全组合。
+  - `Kit::For(T)` keyed 行复用：keyed 只 Set item/index 两个可写 signal，
+    组件实例跨帧保留（行内状态不丢）；移除行 dispose；重复行 key 与 #43
+    同性质 fail-fast。LIS 省略（retained 树每帧重 emit，重排 = 数组重排，
+    无逐行移动成本），commit 有记录。
+
 ## 0.3.0 (2026-11-15)
 
 asuka 对照调研立项的 #19–#42 共 24 个 GitHub issue 处置完成（逐一提交关闭）。
