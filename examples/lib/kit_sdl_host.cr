@@ -223,19 +223,12 @@ module TessellKitSdl
     @height : Int32
     @scale : Float32
     @sink : Array(Tessell::Text::GlyphPlacement)
-    # per-text-call batch boundary snapshots (issue #15): text quads stay
-    # batched, but flush splits them at each text() call site so shapes and
-    # text submit in exact command order
-    @text_marks : Array(Int32)
-    @submitted_batches : Int32
 
     def initialize(@renderer : Tessell::Render::TextRenderer,
                    @atlas : Tessell::Text::GlyphAtlas,
                    @width : Int32, @height : Int32, @scale : Float32)
       @draw = Tessell::Kit::DrawListPainter.new
       @sink = [] of Tessell::Text::GlyphPlacement
-      @text_marks = [] of Int32
-      @submitted_batches = 0
     end
 
     def resize(width : Int32, height : Int32, scale : Float32) : Nil
@@ -273,13 +266,10 @@ module TessellKitSdl
       return if px_size <= 0
       dx = x * @scale
       dy = baseline_y * @scale
-      @renderer.append_text_cached(@sink, text, dx, dy, px_size, @width, @height, color)
-      # Marker in the command list keeps call-order z-order and carries the
-      # active clip for scissoring (issue #15). draw_draw_list skips Text
-      # commands, so the marker is never drawn as geometry. The mark snapshot
-      # lets flush submit exactly this call's text batches.
+      # Text payload goes into the command itself (issue #21). flush() reads
+      # cmd.text/font_size and submits in command order — no parallel
+      # batch-boundary array to keep in sync.
       @draw.text(dx, dy, text, color, px_size.to_f32)
-      @text_marks << @renderer.batch_count
     end
 
     def push_clip(rect : Tessell::Rect) : Nil
@@ -291,28 +281,28 @@ module TessellKitSdl
     end
 
     def flush(backend : Tessell::Render::Backend) : Nil
-      # Dynamic text inserts glyphs into existing pages; page_count is not a
-      # change signal (issue #1). sync_atlas_dirty re-uploads only pages whose
-      # content revision changed. It lives on the Backend abstraction since
-      # issue #22 — no GLBackend cast needed, SoftwareBackend accepts it too.
-      backend.sync_atlas_dirty(@atlas)
-      # Issue #15: command order == paint order. Walk the list; a Text marker
-      # flushes the pending shape segment first, then exactly the text batches
-      # recorded for that call (scissored to the marker's clip). Later fills
-      # cover earlier text; text is clipped at scroll edges by the backend.
-      @submitted_batches = 0
+      # Issue #15: command order == paint order. Issue #21: the text payload
+      # lives on the command itself, so one pass over the list is enough —
+      # no parallel batch-boundary array. Shapes submit as contiguous
+      # segments; each Text command shapes, syncs the atlas (incremental,
+      # no-op when unchanged — issue #1/#22) and submits exactly its own
+      # batches, scissored to the command's clip.
       list = @draw.list
       seg = 0
       i = 0
-      mark = 0
       while i < list.size
         cmd = list[i]
-        if cmd.kind == Tessell::Render::CmdKind::Text && mark < @text_marks.size
+        if cmd.kind == Tessell::Render::CmdKind::Text
           backend.draw_draw_list(list, seg, i - seg) if i > seg
-          backend.draw_text(@renderer.vertices, @renderer.batch_runs,
-            @text_marks[mark], @submitted_batches, cmd.clip)
-          @submitted_batches = @text_marks[mark]
-          mark += 1
+          before = @renderer.batch_count
+          @renderer.append_text_cached(@sink, cmd.text, cmd.bounds.x, cmd.bounds.y,
+            cmd.font_size.round.to_i, @width, @height, cmd.color)
+          delta = @renderer.batch_count - before
+          if delta > 0
+            backend.sync_atlas_dirty(@atlas)
+            backend.draw_text(@renderer.vertices, @renderer.batch_runs,
+              delta, before, cmd.clip)
+          end
           seg = i + 1
         end
         i += 1
@@ -320,7 +310,6 @@ module TessellKitSdl
       backend.draw_draw_list(list, seg, list.size - seg) if list.size > seg
       @draw.reset
       @renderer.reset
-      @text_marks.clear
     end
 
     def clip_depth : Int32

@@ -40,12 +40,19 @@ module Tessell
       # Line 命令的端点；其他命令保留默认值。
       getter p1 : Point
       getter p2 : Point
+      # 文本载荷（issue #21）：仅 CmdKind::Text 使用。此前文本内容被整体
+      # 丢弃，宿主只能另维护平行 batch 边界数组，编译期无法发现错位。
+      # 其他命令保持 ""。bounds 目前是 (x, baseline_y, 0, size)；
+      # font_size 是显式字号字段，后端/golden 以它为准。
+      getter text : String
+      getter font_size : Float32
 
       def initialize(@kind : CmdKind, @bounds : Rect, @color : UInt32,
                      @atlas_id : Int32 = -1, @clip : Rect? = nil,
                      @radius : Float32 = 0.0_f32,
                      @stroke_width : Float32 = 0.0_f32,
-                     @p1 : Point = Point.new, @p2 : Point = Point.new)
+                     @p1 : Point = Point.new, @p2 : Point = Point.new,
+                     @text : String = "", @font_size : Float32 = 0.0_f32)
       end
     end
 
@@ -140,6 +147,19 @@ module Tessell
       # capacity 前后对比用（复用证据）。
       def reuse_stats : NamedTuple(capacity: Int32, size: Int32, physical: Int32)
         {capacity: @commands.size, size: @size, physical: @commands.size}
+      end
+
+      # 文本命令只读视图（issue #21）：宿主/golden 断言文本内容用。
+      # 返回新数组（分配）——宿主侧便利接口，非零分配热路径。
+      def text_commands : Array(DrawCmd)
+        result = [] of DrawCmd
+        i = 0
+        while i < @size
+          cmd = @commands[i]
+          result << cmd if cmd.kind == CmdKind::Text
+          i += 1
+        end
+        result
       end
 
       private def same_batch_key?(a : DrawCmd, b : DrawCmd) : Bool

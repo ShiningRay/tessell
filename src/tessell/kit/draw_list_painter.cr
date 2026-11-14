@@ -49,8 +49,12 @@ module Tessell
 
       def text(x : Float32, baseline_y : Float32, text : String,
                color : UInt32, size : Float32) : Nil
+        # 文本内容与字号进命令载荷（issue #21）：宿主只遍历这一份列表即可
+        # 按命令序提交文本，不再需要平行 batch 边界数组。bounds 保持
+        # (x, baseline_y, 0, size) 兼容口径；字号以 font_size 字段为准。
         @list.push(Render::DrawCmd.new(Render::CmdKind::Text,
-          Rect.new(x, baseline_y, 0.0_f32, size), color, clip: current_clip))
+          Rect.new(x, baseline_y, 0.0_f32, size), color, clip: current_clip,
+          text: text, font_size: size))
       end
 
       def push_clip(rect : Rect) : Nil
