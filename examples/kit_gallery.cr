@@ -216,6 +216,7 @@ module KitGallery
     theme = Tessell::Kit::Theme.light
     scale = 1.0_f32
     verify = false
+    svg_path : String? = nil
 
     args.each do |arg|
       if arg.starts_with?("--frames=")
@@ -226,6 +227,8 @@ module KitGallery
         scale = arg.split("=")[1].to_f32
       elsif arg == "--verify"
         verify = true
+      elsif arg.starts_with?("--svg=")
+        svg_path = arg.split("=", 2)[1]
       end
     end
 
@@ -237,6 +240,14 @@ module KitGallery
     app.paint(painter)
     paint_count = painter.list.size
     clip_depth = painter.clip_depth
+
+    if path = svg_path
+      svg = Tessell::Kit::SvgPainter.new(800, 600)
+      svg.background = theme.palette.canvas
+      app.paint(svg)
+      File.write(path, svg.svg)
+      puts "KIT_GALLERY_SVG path=#{path} elements=#{svg.elements} clip=#{svg.clip_depth}"
+    end
 
     frames.times do
       app.build

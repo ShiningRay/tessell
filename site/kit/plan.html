@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tessell Kit：UI 组件库方案与实施计划 — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="index.html">概览</a>
+<a href="components/button.html">Button</a>
+<a href="components/checkbox.html">Checkbox</a>
+<a href="components/text.html">Text</a>
+<a href="components/input.html">Input</a>
+<a href="components/select.html">Select</a>
+<a href="components/tooltip.html">Tooltip</a>
+<a href="components/dialog.html">Dialog</a>
+<a href="components/scroll-view.html">ScrollView</a>
+<a href="components/virtual-list.html">VirtualList</a>
+<a href="design-tokens.html">设计 token</a>
+<a href="component-contract.html">组件契约</a>
+<a href="repository-strategy.html">仓策略</a>
+<a href="plan.html">计划</a>
+<a href="execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/plan.md</div>
+<h1 id="tessell-kit-ui-组件库方案与实施计划">Tessell Kit：UI 组件库方案与实施计划</h1>
+<blockquote>状态：实施中。计划基线为 <code>649c59a</code>；K0 起在本仓落地，执行记录见 <a href="execution.html">execution.md</a>。</blockquote>
+<blockquote>基线：本地 <code>tessell</code> 仓库，HEAD <code>649c59a</code>（2026-11-14 调查时点）。</blockquote>
+<blockquote>参考：<a href="https://gpui-kit.com/zh-CN/component/">gpui-kit 组件目录</a>，借用其组件覆盖、文档组织与 Root/Theme/状态分离思想；不照搬 Rust/GPUI API，不复制其聊天、编辑器等全部范围。</blockquote>
+<h2 id="1-决策摘要">1. 决策摘要</h2>
+<p>1. <strong>需要独立的组件层，但当前不另建仓库。</strong> 在现有 <code>tessell</code> 仓库新增可选入口 <code>require &quot;tessell/kit&quot;</code>，命名空间 <code>Tessell::Kit</code>；核心入口 <code>require &quot;tessell&quot;</code> 不自动加载组件。 2. <strong>“同仓”不等于“同一巨石模块”。</strong> Kit 只能依赖核心公开能力；核心不得反向依赖 Kit。组件状态、交互、绘制、文档、测试各有明确边界，保证以后可拆。 3. <strong>首个可用版本不以组件数量为目标。</strong> 先建立 Theme、组件状态协议、绘制原语、Root/Overlay、输入与无障碍契约，再交付可组合的通用桌面组件。 4. <strong>先交付 8 个可验收组件 + Showcase，而非一次复制 gpui-kit 全目录。</strong> P0 为 Button、Checkbox、Text、Input、Select、Tooltip、Dialog、ScrollView；已有 <code>VirtualList</code> 作为数据容器接入，不计新组件数。 5. <strong>组件以行为正确、键盘可用、DPI/主题正确、脏区与分配不退化为验收条件。</strong> 截图和组件数量不能单独作为完成依据。</p>
+<h2 id="2-为什么现在不拆仓库">2. 为什么现在不拆仓库</h2>
+<h3 id="2-1-当前现实">2.1 当前现实</h3>
+<ul>
+<li>核心与组件仍会同频修改。现有 <code>Theme</code> 只有 6 个颜色字段；<code>DrawCmd</code> 只有 Rect/Text/Line；输入缺修饰键、完整按键、滚轮 delta；a11y 只有进程内树。首批组件会反向暴露核心缺口。</li>
+<li>当前验证基线为 Windows + msys2 ucrt64；macOS No-Go、Linux 未运行验证。拆仓不会解决平台能力，只会增加跨仓联调。</li>
+<li>Shards 官方规范以一个项目中的 <code>shard.yml</code> 描述名称、版本与依赖，Git tag 用于版本解析；没有为同仓多 shard 独立发版设计的机制。</li>
+<li>Crystal 官方 <code>require</code> 规则支持嵌套路径。同一 shard 可提供 <code>require &quot;tessell/kit&quot;</code>，使 Kit 保持可选加载，而不必立即拆仓。</li>
+</ul>
+<h3 id="2-2-仓库方案对比">2.2 仓库方案对比</h3>
+<table>
+<thead><tr><th>方案</th><th>优点</th><th>代价</th><th>当前判断</th></tr></thead>
+<tbody>
+<tr><td>同仓，核心入口直接聚合全部组件</td><td>使用最简单</td><td>核心与组件耦合，加载和命名边界消失</td><td>不采用</td></tr>
+<tr><td><strong>同仓，独立 <code>tessell/kit</code> 入口与测试目录</strong></td><td>核心变更即时联调；单一 CI、发布与 issue 入口；可选加载</td><td>核心与 Kit 同步发版；需守住依赖边界</td><td><strong>采用</strong></td></tr>
+<tr><td>立即新建 <code>tessell-kit</code> 仓库</td><td>独立 issue、版本和维护权限</td><td>版本矩阵、path 依赖、双仓 PR/CI、核心缺口往返修改</td><td>暂不采用</td></tr>
+</tbody></table>
+<h3 id="2-3-未来拆仓触发条件">2.3 未来拆仓触发条件</h3>
+<p>以下至少满足两项，且确需独立发布时再评审拆仓：</p>
+<ul>
+<li>Kit 已有仓外消费者，需要与核心不同的发布节奏。</li>
+<li>核心 API 已稳定，连续两个 Kit 版本无需修改核心。</li>
+<li>Kit 需要独立维护者、issue/PR 分流或访问权限。</li>
+<li>已定义并实测 <code>tessell</code> 与 <code>tessell-kit</code> 的版本兼容矩阵。</li>
+<li>已在临时消费者项目验证拆分后的 <code>path</code>/Git 依赖、构建、测试和发布流程。</li>
+</ul>
+<p>拆仓时用 <code>git filter-repo</code> 或等价历史保留方案迁移 Kit 路径；主仓保留迁移说明。当前不创建该仓库，也不承诺未来仓名可用。若保留主仓全部历史而非拆分历史，也可先建干净仓库并记录来源提交；具体迁移方式届时评审。</p>
+<h2 id="3-目标-范围与非目标">3. 目标、范围与非目标</h2>
+<h3 id="3-1-目标">3.1 目标</h3>
+<ul>
+<li>给 Crystal 桌面应用提供一致、可组合、可换主题的 Tessell 组件。</li>
+<li>让常见控件不再要求应用手写命中、焦点、状态、绘制和 a11y 元数据。</li>
+<li>提供原生可运行 Showcase、可执行示例和在线组件文档。</li>
+<li>将组件变更纳入现有质量门禁，保持核心 retained/失效/低分配设计。</li>
+</ul>
+<h3 id="3-2-首版范围">3.2 首版范围</h3>
+<ul>
+<li>设计 token、light/dark 主题、主题作用域。</li>
+<li>统一组件状态、尺寸、禁用、焦点、事件和可访问名称契约。</li>
+<li>基础绘制、文本、选择、弹层所需的最小核心补层。</li>
+<li>8 个 P0 组件、一个组件画廊、每组件文档和真实消费者示例。</li>
+<li>Windows 本机逻辑测试、真实窗口验证、像素/脏区/分配检查。</li>
+</ul>
+<h3 id="3-3-非目标">3.3 非目标</h3>
+<ul>
+<li>不做 WebView、DOM/CSS 兼容、Web 组件运行时。</li>
+<li>不做 Tailwind 式工具类、任意样式覆盖或主题注册中心。</li>
+<li>首版不做动画系统、复杂矢量图标、Markdown/HTML、代码编辑器、图表、Dock、GridLayout。</li>
+<li>不把聊天 Bubble/Message/Attachment 等行业组件纳入通用首版。</li>
+<li>不宣称屏幕阅读器可用：UIA/平台无障碍 provider 仍需独立项目阶段。</li>
+<li>不承诺 macOS/Linux 支持，直至相应环境真实验证。</li>
+<li>不在本计划中改核心版本号、发布 release 或迁移既有 <code>Widgets::VirtualList</code> 路径。</li>
+</ul>
+<h2 id="4-现状依据与核心缺口">4. 现状依据与核心缺口</h2>
+<h3 id="4-1-可复用能力">4.1 可复用能力</h3>
+<table>
+<thead><tr><th>现有能力</th><th>位置</th><th>Kit 使用方式</th></tr></thead>
+<tbody>
+<tr><td>稳定组件身份</td><td><code>src/tessell/ui/key.cr</code></td><td>以 <code>UiKey</code> 作为组件与子部件身份，不新增字符串 ID 系统</td></tr>
+<tr><td>声明式构建与节点复用</td><td><code>src/tessell/ui/builder.cr</code>、<code>apply.cr</code></td><td>Kit 产出声明，不另建 widget 树；沿用缓冲与失效流程</td></tr>
+<tr><td>输入焦点与路由</td><td><code>src/tessell/input/</code></td><td>组件经 Router/FocusManager 交互，不直接读平台消息</td></tr>
+<tr><td>主题与 DPI</td><td><code>src/tessell/render/theme.cr</code>、<code>dpi.cr</code></td><td>扩为分层 token；沿用逻辑布局与设备像素文本边界</td></tr>
+<tr><td>文本 shaping/栅格化</td><td><code>src/tessell/text/</code></td><td>文本、标签、输入编辑复用；不引入第二套文本栈</td></tr>
+<tr><td>虚拟化与脏区</td><td><code>src/tessell/widgets/virtual_list.cr</code>、<code>render/dirty.cr</code></td><td>List/Select 大数据内容复用；禁止全量物化</td></tr>
+<tr><td>进程内 a11y</td><td><code>src/tessell/a11y/tree.cr</code></td><td>扩展 role/state/value；明确不是平台 provider</td></tr>
+<tr><td>真实窗口与回读</td><td><code>examples/app_demo.cr</code>、<code>tools/gate.ps1</code></td><td>抽取 Showcase 宿主和验证方式，不复制大段 Win32 样板</td></tr>
+</tbody></table>
+<h3 id="4-2-必须先补的缺口">4.2 必须先补的缺口</h3>
+<p>1. <strong>绘制</strong>：通用矩形/描边/圆角/裁切路径未形成后端公共契约；图标路径也未定。 2. <strong>事件</strong>：缺 PointerEnter/Leave、PointerCapture、消费/冒泡、修饰键、完整激活键、滚轮 delta、上下文菜单事件。 3. <strong>文本编辑</strong>：缺光标、选区、剪贴板、撤销和已验证的 IME 集成。首版 Input 只能在这些能力到位后宣称完整。 4. <strong>弹层</strong>：缺 overlay 层、定位、焦点圈定/恢复、模态输入隔离与 dismiss 规则。 5. <strong>语义</strong>：A11y Role/状态集合不足以表达 checkbox、textbox、dialog、combobox、tooltip 等。 6. <strong>工程</strong>：测试统一从核心入口加载，不能证明 Kit 可选； Showcase/文档构建尚未建立。</p>
+<p>这些缺口允许修改核心公共契约，但每处修改须先补兼容性测试，不能用 Kit 内部 workaround 固化平台行为。</p>
+<h2 id="5-组件库架构">5. 组件库架构</h2>
+<h3 id="5-1-目录与依赖">5.1 目录与依赖</h3>
+<pre><code>src/
+  tessell.cr                    # 核心入口，不 require kit
+  tessell/
+    kit.cr                      # Kit 聚合入口，供 require &quot;tessell/kit&quot;
+    kit/
+      context.cr                # Root/Theme/Overlay/资源上下文
+      theme.cr                  # Kit token 与 light/dark 主题
+      component.cr              # 公共状态、尺寸、声明辅助
+      events.cr                 # 组件事件与回调类型
+      primitives.cr             # 核心绘制/布局/文本能力的受控适配
+      overlay.cr                # 弹层定位与焦点策略
+      button.cr
+      checkbox.cr
+      text.cr
+      input.cr
+      select.cr
+      tooltip.cr
+      dialog.cr
+      scroll_view.cr
+      virtual_list.cr           # 对现有 VirtualList 的 Kit 适配，不复制算法
+examples/
+  kit_gallery.cr                # 原生可运行组件画廊
+  kit_consumer.cr               # 最小、可编译的外部使用方式范例
+spec/
+  kit/
+    ...                         # 每组件状态/交互/语义测试
+  support/                      # 可复用测试宿主、像素与输入驱动
+docs/
+  kit/
+    index.md
+    design-tokens.md
+    component-contract.md
+    components/&lt;name&gt;.md
+    repository-strategy.md
+site/                           # 仅静态文档站；非 UI Web 运行时
+tools/
+  kit_gallery_verify.cr
+  kit_visual_matrix.ps1
+</code></pre>
+<p>依赖方向：</p>
+<pre><code>应用 → Tessell::Kit → Tessell 核心公开 API → 平台/渲染后端
+                ↘
+             Kit 内部状态与主题
+
+禁止：Tessell 核心 → Tessell::Kit
+禁止：Kit 组件 → Win32/WGL/GL 具体 API
+禁止：组件绕过 Input::Router 自建平行焦点系统
+</code></pre>
+<h3 id="5-2-组件分层">5.2 组件分层</h3>
+<table>
+<thead><tr><th>层</th><th>职责</th><th>测试方式</th></tr></thead>
+<tbody>
+<tr><td>Behavior/State</td><td>值、选中、按压、开关、编辑、打开状态与状态迁移</td><td>纯 Crystal spec，无窗口</td></tr>
+<tr><td>View/Declaration</td><td>按状态产出稳定 keyed 子树、布局与 a11y 元数据</td><td>Builder/apply 与 a11y spec</td></tr>
+<tr><td>Paint</td><td>依据 resolved token 产出绘制，处理裁切与 DPI</td><td>DrawList 协议 + 真实后端回读</td></tr>
+<tr><td>Composition</td><td>Root、Overlay、ScrollView、slots 与子组件组合</td><td>集成 spec + Showcase</td></tr>
+<tr><td>Documentation</td><td>API、可复制 recipe、状态矩阵、限制</td><td>示例编译 + 链接/截图/发布检查</td></tr>
+</tbody></table>
+<h3 id="5-3-状态与-api-契约">5.3 状态与 API 契约</h3>
+<ul>
+<li><strong>应用持有业务状态。</strong> 输入值、选中项、开关值由应用 state 持有；组件可持有按压、hover、弹层定位等瞬态。首版以受控组件为主，不默认维护第二份业务值。</li>
+<li><strong>稳定 key 必传。</strong> 组件根与子部件从传入 <code>UiKey</code> 派生，禁止按显示文本生成身份。</li>
+<li><strong>统一状态维度。</strong> <code>disabled/read_only/hovered/pressed/focused/selected/open/invalid</code> 按组件适用；不得把 disabled 与 read-only 混为一谈。</li>
+<li><strong>统一尺寸。</strong> 首版仅 <code>small/medium/large</code>；紧凑密度作为 token，不为每个组件另造尺寸枚举。</li>
+<li><strong>变更只报一次。</strong> 一次用户动作至多触发一次语义 change；PointerUp 与 Enter 不得双发；程序化 setter 是否发事件逐组件写明。</li>
+<li><strong>回调不跨线程隐式执行。</strong> 组件回调在 UI context；业务跨 context 仍用 Channel/不可变快照。</li>
+<li><strong>失效最小化。</strong> 文本/颜色变化走 Paint；尺寸/结构变化走 Layout；滚动/位移按现有 CompositeOnly 语义；禁止因 hover 重排整棵树。</li>
+<li><strong>热路径复用。</strong> 声明、绘制、文本和 sink 缓冲可复用；不在每帧创建回调、格式化字符串或全量子树。</li>
+<li><strong>可访问名称是必需契约。</strong> 无可见文本的按钮必须提供名称；Input 关联 label/description/error；装饰内容不重复曝光。</li>
+<li><strong>样式覆盖分层。</strong> 应用优先使用 token、variant 和 slots；首版不开放任意绘制回调。确需完全定制时使用核心原语自建组件。</li>
+</ul>
+<p>示意形状，不是冻结签名：</p>
+<pre><code>require &quot;tessell/kit&quot;
+
+button = Kit::Button.new(
+  key: root_key.child(1_u64),
+  label: &quot;Save&quot;,
+  variant: Kit::Variant::Primary,
+  disabled: false
+)
+
+# 在既有 UI.build 中声明；实际签名由 K0 原型验证后冻结。
+button.build(builder, kit_context)
+button.on_action { save_via_channel }
+</code></pre>
+<h3 id="5-4-theme-与视觉方案">5.4 Theme 与视觉方案</h3>
+<p>采用“语义色 + 组件 token + 尺寸/排版”三层，不直接在各组件使用 <code>bg/fg</code> 猜颜色。</p>
+<ul>
+<li>语义色：canvas/surface/surface_raised/foreground/muted/border/accent/danger/success/focus/selection/scrim。</li>
+<li>组件 token：button/input/dialog 等仅引用语义色，不重复维护整套色板。</li>
+<li>排版：font family/fallback、正文/标签/标题字号与行高；DPI 只经核心缩放，不在组件重复乘 scale。</li>
+<li>尺寸：spacing、control height、padding、border width、focus ring、圆角。</li>
+<li>状态：normal/hover/pressed/focus/disabled/read-only/invalid 的对比与视觉差异。</li>
+<li>外观：中性灰、单一蓝 accent、克制圆角；无渐变、阴影动画或大面积品牌色。</li>
+<li><code>Kit::Theme</code> 保留核心 <code>Render::Theme</code> 的适配器，避免核心清屏色与组件主题分裂。</li>
+<li>首版 light/dark 为编译进 shard 的值类型主题；不支持运行时监听主题目录。</li>
+</ul>
+<h3 id="5-5-root-与-overlay">5.5 Root 与 Overlay</h3>
+<p>Root 是窗口级组合边界，不承担业务状态：</p>
+<ul>
+<li>持有当前 Theme、DPI/文本上下文引用、overlay 栈与共享组件资源。</li>
+<li>内容层先绘制，tooltip/menu/dialog/notification 等 overlay 后绘制并位于内容之上。</li>
+<li>Dialog 打开时建立模态输入边界；关闭后恢复原焦点。</li>
+<li>Tooltip 不抢焦点；Escape、点击外部、窗口 blur 的行为逐类定义。</li>
+<li>overlay 裁切、窗口边界翻转、嵌套弹层和 z-order 必须有测试。</li>
+<li>Root 不隐藏现有应用启动/关闭流程，不在 <code>require</code> 时安装全局副作用。</li>
+</ul>
+<h2 id="6-组件清单与优先级">6. 组件清单与优先级</h2>
+<table>
+<thead><tr><th>优先级</th><th>组件/能力</th><th>首版交付内容</th><th>依赖</th></tr></thead>
+<tbody>
+<tr><td>基础设施</td><td>Theme/Root/Component contract</td><td>token、上下文、状态、尺寸、key、回调与 a11y 约定</td><td>K0</td></tr>
+<tr><td>基础设施</td><td>Primitives/Overlay</td><td>矩形、描边、圆角、裁切、弹层与焦点策略</td><td>核心补层</td></tr>
+<tr><td>P0</td><td>Button</td><td>primary/secondary/ghost/danger；small/medium/large；disabled；键盘与指针激活</td><td>Primitives</td></tr>
+<tr><td>P0</td><td>Checkbox</td><td>checked/unchecked/indeterminate；label；disabled；键盘切换</td><td>Button 状态协议</td></tr>
+<tr><td>P0</td><td>Text</td><td>正文/标签/标题、muted、换行/截断；非编辑器</td><td>Theme/Text</td></tr>
+<tr><td>P0</td><td>Input</td><td>单行值、placeholder、label、read-only/disabled/invalid、光标/选区/剪贴板、IME 明示状态</td><td>文本编辑补层</td></tr>
+<tr><td>P0</td><td>Select</td><td>单选、键盘导航、弹层列表、空/禁用选项；不实现多选和搜索</td><td>Overlay/VirtualList</td></tr>
+<tr><td>P0</td><td>Tooltip</td><td>延迟显示、键盘焦点等价入口、边界定位、不抢焦点</td><td>Overlay</td></tr>
+<tr><td>P0</td><td>Dialog</td><td>modal、标题/内容/action slots、Escape、焦点圈定与恢复</td><td>Overlay</td></tr>
+<tr><td>P0</td><td>ScrollView</td><td>垂直/水平滚动、裁切、滚动条、键盘与滚轮、子内容测量</td><td>核心事件/裁切</td></tr>
+<tr><td>已有适配</td><td>VirtualList</td><td>复用现有算法，加入 Kit 行声明、焦点与 a11y 适配；不物化全量行</td><td>ScrollView</td></tr>
+<tr><td>P1</td><td>Radio/RadioGroup、Switch、Slider、Progress、Badge、Alert、Tabs、Accordion</td><td>常用桌面控件扩展</td><td>P0 契约稳定</td></tr>
+<tr><td>P1</td><td>Menu/Popover/Combobox、Textarea、Toast、Toolbar/StatusBar/Sidebar、Tree/DataTable</td><td>复杂导航、编辑与数据组件</td><td>按依赖逐项立项</td></tr>
+<tr><td>暂缓</td><td>Icon、Avatar、Image、Carousel、Date/Time/ColorPicker</td><td>需要图标、图片、日期时间等额外底层能力</td><td>独立技术验证</td></tr>
+<tr><td>不随首版</td><td>Editor、Diff、TextView、Message/Bubble/Attachment、Chart、Dock、GridLayout、Speech</td><td>非通用最小桌面组件集</td><td>独立产品需求</td></tr>
+</tbody></table>
+<p>范围说明：gpui-kit 的组件目录用作覆盖面参考，而非功能承诺。首版完成 P0 后可发布“基础组件集”，不能称“对齐 gpui-kit”。</p>
+<h2 id="7-showcase-与文档站">7. Showcase 与文档站</h2>
+<h3 id="7-1-原生-showcase">7.1 原生 Showcase</h3>
+<p><code>examples/kit_gallery.cr</code> 同时是开发工具与验收载体：</p>
+<ul>
+<li>左侧组件导航，右侧示例；每组件含默认、各 variant/size、disabled、focus、invalid、长文本、CJK/Emoji 等适用状态。</li>
+<li>全局 light/dark 与 DPI 切换；切换后组件布局和像素结果正确。</li>
+<li>提供纯键盘路径与事件日志，可检查焦点、change 次数、Dialog 焦点恢复。</li>
+<li><code>--component=&lt;name&gt;</code>、<code>--theme=&lt;name&gt;</code>、<code>--dpi=&lt;scale&gt;</code>、<code>--frames=N</code>、<code>--verify</code>、截图输出。</li>
+<li><code>--verify</code> 使用确定性输入脚本驱动真实组件，不只渲染静态截图。</li>
+<li>Showcase 不复制 app_demo 的平台样板；先抽一个可复用示例宿主，保持现有示例可运行。</li>
+</ul>
+<h3 id="7-2-文档站">7.2 文档站</h3>
+<ul>
+<li>中文优先，路径 <code>/zh-CN/component/&lt;name&gt;/</code>；英文待内容稳定后再补。</li>
+<li>每组件固定章节：何时使用、导入、可复制最小示例、状态/variant/size、键盘交互、无障碍、主题 token、限制、相关组件。</li>
+<li>文档代码来自可编译示例或 CI 抽取编译，禁止长期维护不可运行的伪代码。</li>
+<li>截图由 Showcase 固定场景生成，注明 Windows/主题/DPI/版本。</li>
+<li>静态站技术选型在 K5 单独比较；优先现有团队可维护的静态生成器，不为文档引入桌面运行时。</li>
+<li><code>crystal docs</code> 生成 API 参考，与手写指南互补，不用 API 页面代替组件交互文档。</li>
+<li>部署目标暂选 GitHub Pages，实施前核对现有 GitHub Pages 配置与域名；本计划不发布网站。</li>
+</ul>
+<h2 id="8-测试与验收">8. 测试与验收</h2>
+<h3 id="8-1-每组件统一-dod">8.1 每组件统一 DoD</h3>
+<p>一个组件只有全部满足以下条件才算完成：</p>
+<p>1. 公共 API、状态迁移、键盘/指针行为和事件次数有 spec。 2. 正常、hover、pressed、focus、disabled 等适用状态有声明与绘制验证。 3. 有 a11y role/name/value/focusable/enabled 等适用元数据测试；文档注明平台 provider 缺口。 4. light/dark、至少 DPI 1.0/1.5/2.0、长英文/CJK/Emoji/空值/极窄宽度的适用场景有验证。 5. Showcase 有真实窗口交互与确定性 <code>--verify</code>；失败路径至少验证一个反例。 6. 稳态重复 build/render 不增长节点；适用场景沿用项目 A/B 分配判据，不写成严格零分配。 7. 文档有可编译 recipe、键盘说明和已知限制；API 变更与示例一致。 8. <code>crystal spec</code>、格式检查、Kit 单独入口构建、全量 <code>tools/gate.ps1</code> 通过。</p>
+<h3 id="8-2-验证矩阵">8.2 验证矩阵</h3>
+<table>
+<thead><tr><th>层</th><th>验证</th><th>失败判据示例</th></tr></thead>
+<tbody>
+<tr><td>状态内核</td><td>非法状态、边界、重复动作、程序化 setter</td><td>disabled 仍触发 change；一次点击双回调</td></tr>
+<tr><td>声明协调</td><td>key 稳定、节点复用、最小失效、卸载清理</td><td>同态重建新增节点；hover 导致全树 Layout</td></tr>
+<tr><td>输入</td><td>Tab/Shift+Tab、Enter/Space/Escape/方向键、pointer cancel/capture</td><td>焦点逃逸模态；弹层后背景仍响应</td></tr>
+<tr><td>文本</td><td>CJK、组合字符、Emoji、选区边界、剪贴板、IME</td><td>切断 grapheme；密码内容进入剪贴板</td></tr>
+<tr><td>绘制</td><td>真实 GL readback、裁切、圆角/描边、overlay 次序</td><td>脏区与全量重绘不一致；文本越过裁切</td></tr>
+<tr><td>主题/DPI</td><td>运行中切换、窗口边界、长文本、组件尺寸</td><td>主题残留；DPI 双重缩放</td></tr>
+<tr><td>数据</td><td>大列表可见范围、回收、滚动到端点</td><td>物化全部行；回收后状态串行</td></tr>
+<tr><td>交付</td><td><code>require &quot;tessell&quot;</code> 不含 Kit；<code>require &quot;tessell/kit&quot;</code> 可单独使用；消费者 recipe 编译</td><td>核心入口引入组件；示例依赖仓内私有路径</td></tr>
+</tbody></table>
+<p>性能与零分配沿用现有 <code>A delta_work &lt; 1000</code>、<code>B delta_work &lt;= 256</code>、3 窗最大值口径。首版不新造统一 FPS 门限；新增场景记录帧时间分布与本机环境。</p>
+<h2 id="9-实施工作包与顺序">9. 实施工作包与顺序</h2>
+<p>以下 <code>K0–K6</code> 是组件库新增工作包，不改写既有 <code>M0–M4</code> 历史记录。估算是单人全职人日（pd），只用于排期参考，未实测。</p>
+<h3 id="k0-契约与纵向原型-3-5-pd">K0：契约与纵向原型（3–5 pd）</h3>
+<ul>
+<li>写组件公共契约、状态/尺寸/事件/a11y 矩阵和 token 清单。</li>
+<li>建立 <code>src/tessell/kit.cr</code>、<code>Tessell::Kit</code>、可选入口编译测试与依赖方向检查。</li>
+<li>用一个 Button 纵向打通 state → declaration → input → paint → a11y → Showcase。</li>
+<li>评审 API 后再批量实现；若 Button 必须绕过核心才能完成，先修核心契约。</li>
+</ul>
+<p><strong>退出</strong>：核心入口不加载 Kit；Kit 可独立 require；Button 原型真实窗口可操作；组件契约评审完成。</p>
+<h3 id="k1-绘制-输入与主题底座-8-14-pd">K1：绘制、输入与主题底座（8–14 pd）</h3>
+<ul>
+<li>补齐通用矩形/描边/圆角/裁切的后端协议和 GL 实现，保留不支持能力的显式失败。</li>
+<li>补 pointer enter/leave/cancel/capture、事件消费、修饰键、Space 等激活键和明确 wheel delta。</li>
+<li>扩展 Theme token、Theme 适配器与作用域；完成 light/dark/DPI 状态样式。</li>
+<li>建立组件测试宿主、输入驱动、像素与分配验证工具。</li>
+</ul>
+<p><strong>退出</strong>：Button/Checkbox/Text/ScrollView 所需底座完整；核心原有用例和示例回归通过；负例证明裁切、焦点和事件隔离有效。</p>
+<h3 id="k2-p0-基础组件与容器-8-12-pd">K2：P0 基础组件与容器（8–12 pd）</h3>
+<ul>
+<li>正式实现 Button、Checkbox、Text。</li>
+<li>实现 ScrollView，适配现有 VirtualList，验证滚动条、键盘、裁切和虚拟行 a11y。</li>
+<li>Showcase 建立组件导航、状态矩阵、主题/DPI 开关和确定性验证。</li>
+</ul>
+<p><strong>退出</strong>：4 个新组件 + VirtualList 适配通过统一 DoD；万行列表不物化；脏区/全量像素一致。</p>
+<h3 id="k3-overlay-与弹层组件-7-12-pd">K3：Overlay 与弹层组件（7–12 pd）</h3>
+<ul>
+<li>实现 Root overlay 栈、定位、裁切、模态输入、焦点圈定/恢复和 dismiss 规则。</li>
+<li>实现 Tooltip、Dialog、Select。</li>
+<li>覆盖边界翻转、嵌套、Escape、外部点击、blur、卸载、重复打开与焦点恢复。</li>
+</ul>
+<p><strong>退出</strong>：3 组件通过统一 DoD；Dialog 背景不可交互；Select 键盘与指针选择结果一致；Tooltip 不抢焦点。</p>
+<h3 id="k4-input-文本编辑闭环-8-15-pd">K4：Input 文本编辑闭环（8–15 pd）</h3>
+<ul>
+<li>建立单行编辑状态：grapheme 安全光标/选区、插入/删除、方向键、Home/End、全选。</li>
+<li>接剪贴板、只读/禁用/校验、placeholder、label/error；密码模式作为可选后续，不在基础 Input 自动承诺。</li>
+<li>接真实 IME，完成当前未关闭的 C7 人工验证；未通过时 Input 标记受限，不得宣称完成。</li>
+<li>实现并验证 Input 组件与 Showcase；记录复杂文本和撤销范围。</li>
+</ul>
+<p><strong>退出</strong>：Input 全部承诺行为通过；IME 人工证据与自动测试齐全；未实现项明确列入限制。若 IME 持续受阻，K4 No-Go，其他组件可交付但首版不得称完整表单组件集。</p>
+<h3 id="k5-文档站与消费者交付-5-8-pd">K5：文档站与消费者交付（5–8 pd）</h3>
+<ul>
+<li>为全部已交付组件写固定结构中文文档和可编译 recipe。</li>
+<li>建静态文档站、导航、主题/DPI 截图与 <code>crystal docs</code> 链接。</li>
+<li>新建临时消费者目录，以 Shards <code>path</code> 依赖引用本仓，分别验证核心-only 与 Kit 用法。</li>
+<li>更新 README、usage、组件覆盖表、平台限制；将 Kit 检查并入 <code>tools/gate.ps1</code>。</li>
+</ul>
+<p><strong>退出</strong>：干净消费者构建成功；文档链接、代码、截图和 Showcase 一致；完整 gate 通过；发布内容有明确版本和限制。</p>
+<h3 id="k6-首批发布评审与后续路线-2-3-pd">K6：首批发布评审与后续路线（2–3 pd）</h3>
+<ul>
+<li>独立复核每组件 DoD、真实 Windows 窗口、键盘路径、像素、分配与文档。</li>
+<li>形成组件库 Go/No-Go 报告，列出未完成组件与核心遗留，不隐藏限制。</li>
+<li>依据真实使用和缺陷决定 P1；只有满足 §2.3 才发起拆仓评审。</li>
+</ul>
+<p><strong>退出</strong>：首批基础组件可发布或有明确 No-Go 项；下一阶段按需求而非目录数量排序。</p>
+<p><strong>总计</strong>：约 41–69 pd。K1/K2/K3 中纯逻辑测试和文档可并行，但公共契约、核心绘制/输入、Overlay 与 Input 存在串行依赖；不得为赶并行而同时改同一核心接口。</p>
+<h2 id="10-兼容-发布与维护规则">10. 兼容、发布与维护规则</h2>
+<ul>
+<li>首版 Kit 与 <code>tessell</code> 同版本发布，文档标注组件成熟度；不以目录存在代表 stable。</li>
+<li>核心公共 API 改动需兼容测试；必要时保留适配层，不在一次组件提交中静默重写核心语义。</li>
+<li><code>Widgets::VirtualList</code> 旧路径暂保留；Kit 适配稳定后再单独评估弃用和迁移。</li>
+<li>组件文档明确受控/非受控、事件触发、只读/禁用、键盘、a11y 和平台限制。</li>
+<li>新组件必须同时带 spec、Showcase 页面和文档；禁止只加视觉 demo。</li>
+<li>每次发布在临时消费者项目复验，不只验证仓内相对 <code>require</code>。</li>
+<li>文档站与 shard 发布解耦；文档失败不得被当作组件运行时验证通过，反之亦然。</li>
+</ul>
+<h2 id="11-风险与控制">11. 风险与控制</h2>
+<table>
+<thead><tr><th>风险</th><th>影响</th><th>控制</th></tr></thead>
+<tbody>
+<tr><td>先做大量组件，底层契约反复返工</td><td>进度虚高、API 不稳定</td><td>K0 Button 纵向原型通过后才扩展</td></tr>
+<tr><td>组件直接绑定 GL/Win32</td><td>无法跨后端、无法纯测试</td><td>Kit 只依赖核心抽象，依赖检查入 gate</td></tr>
+<tr><td>每帧闭包/字符串/全树重建</td><td>分配和帧时间退化</td><td>应用持状态、稳定 key、缓冲复用、A/B 与节点数测试</td></tr>
+<tr><td>Input/IME/剪贴板复杂度被低估</td><td>表单能力不完整</td><td>K4 独立门禁，受阻则明确受限，不以普通文本框冒充</td></tr>
+<tr><td>弹层焦点与事件泄漏</td><td>模态失效、键盘不可用</td><td>Root 统一 overlay；负例与 blur/嵌套测试</td></tr>
+<tr><td>a11y 树被误认为平台支持</td><td>错误生产承诺</td><td>文档明示 provider 未实现，后续独立验收</td></tr>
+<tr><td>主题 token 膨胀</td><td>定制难、组件不一致</td><td>语义色优先，组件 token 仅在有差异时增加</td></tr>
+<tr><td>文档截图与实现漂移</td><td>用户示例失效</td><td>Showcase 生成截图、recipe 编译、发布复核</td></tr>
+<tr><td>过早拆仓</td><td>双仓版本和 CI 成本</td><td>同仓可选入口；满足触发条件再拆</td></tr>
+<tr><td>当前 macOS 环境产生错误跨平台推断</td><td>验证结论失真</td><td>只在真实环境声明支持；Windows gate 在 Windows 执行</td></tr>
+</tbody></table>
+<h2 id="12-本轮证据与未验证项">12. 本轮证据与未验证项</h2>
+<ul>
+<li>已读仓库：<code>README.md</code>、<code>docs/architecture.md</code>、<code>docs/plan.md</code>、<code>docs/roadmap.md</code>、<code>docs/usage.md</code>，以及核心 UI/Input/Render/A11y/VirtualList 源码和 gate。</li>
+<li>已读参考：gpui-kit 组件目录、Button、Input、Root、Theme 页面。</li>
+<li>已核实官方资料：<a href="https://crystal-lang.org/reference/latest/syntax_and_semantics/requiring_files.html">Crystal Requiring Files</a>、<a href="https://github.com/crystal-lang/shards/blob/master/docs/shard.yml.adoc">shard.yml 规范</a>、<a href="https://crystal-lang.org/reference/latest/man/shards/index.html">Shards 命令</a>、<a href="https://crystal-lang.org/reference/latest/guides/writing_shards.html">Writing Shards</a>。</li>
+<li>本轮只制定计划；未运行 Crystal 测试或 Windows 图形 gate，未实现组件，未创建/发布仓库或网站。</li>
+<li>文档站生成器、最终主题数值、冻结后的 Crystal API 签名和未来拆仓名均为实施时决策，不在此虚构定案。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

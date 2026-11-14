@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<defs><clipPath id="clip0"><rect x="28.0" y="245.25" width="744.0" height="28.0"/></clipPath><clipPath id="clip1"><rect x="16.0" y="287.25" width="768.0" height="240.0"/></clipPath></defs>
+<rect width="100%" height="100%" fill="rgba(23,26,31,1.0)"/>
+<text x="16.0" y="32.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="16.0" fill="rgba(231,234,240,1.0)">Tessell Kit Gallery</text>
+<text x="16.0" y="70.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="12.0" fill="rgba(154,164,178,1.0)">Headless component matrix: buttons, checkbox, virtual list</text>
+<rect x="16.0" y="92.5" width="112.2" height="32.0" rx="4.0" fill="rgba(91,141,255,1.0)"/>
+<rect x="16.0" y="92.5" width="112.2" height="32.0" rx="4.0" fill="none" stroke="rgba(91,141,255,1.0)" stroke-width="1.0"/>
+<text x="28.0" y="114.1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(16,21,28,1.0)">Primary</text>
+<rect x="136.2" y="92.5" width="137.4" height="32.0" rx="4.0" fill="rgba(30,34,40,1.0)"/>
+<rect x="136.2" y="92.5" width="137.4" height="32.0" rx="4.0" fill="none" stroke="rgba(58,65,76,1.0)" stroke-width="1.0"/>
+<text x="148.2" y="114.1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Secondary</text>
+<text x="293.6" y="114.1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Ghost</text>
+<rect x="376.6" y="92.5" width="99.6" height="32.0" rx="4.0" fill="rgba(240,90,79,1.0)"/>
+<rect x="376.6" y="92.5" width="99.6" height="32.0" rx="4.0" fill="none" stroke="rgba(240,90,79,1.0)" stroke-width="1.0"/>
+<text x="388.6" y="114.1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(26,16,16,1.0)">Danger</text>
+<rect x="484.2" y="92.5" width="162.6" height="32.0" rx="4.0" fill="rgba(30,34,40,1.0)"/>
+<rect x="484.2" y="92.5" width="162.6" height="32.0" rx="4.0" fill="none" stroke="rgba(58,65,76,1.0)" stroke-width="1.0"/>
+<text x="496.2" y="114.1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Open dialog</text>
+<rect x="16.0" y="141.62" width="16.0" height="16.0" rx="3.0" fill="rgba(30,34,40,1.0)"/>
+<rect x="16.0" y="141.62" width="16.0" height="16.0" rx="3.0" fill="none" stroke="rgba(58,65,76,1.0)" stroke-width="1.0"/>
+<text x="36.0" y="155.23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Enable notifications</text>
+<rect x="16.0" y="174.75" width="768.0" height="32.0" rx="4.0" fill="rgba(30,34,40,1.0)"/>
+<rect x="16.0" y="174.75" width="768.0" height="32.0" rx="4.0" fill="none" stroke="rgba(58,65,76,1.0)" stroke-width="1.0"/>
+<text x="28.0" y="196.35" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(154,164,178,1.0)">Select…</text>
+<line x1="764.0" y1="188.75" x2="768.0" y2="192.75" stroke="rgba(154,164,178,1.0)" stroke-width="1.5" stroke-linecap="round"/>
+<line x1="768.0" y1="192.75" x2="772.0" y2="188.75" stroke="rgba(154,164,178,1.0)" stroke-width="1.5" stroke-linecap="round"/>
+<text x="16.0" y="230.75" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="12.0" fill="rgba(154,164,178,1.0)">Name</text>
+<rect x="16.0" y="243.25" width="768.0" height="32.0" rx="4.0" fill="rgba(30,34,40,1.0)"/>
+<rect x="16.0" y="243.25" width="768.0" height="32.0" rx="4.0" fill="none" stroke="rgba(58,65,76,1.0)" stroke-width="1.0"/>
+<g clip-path="url(#clip0)"><text x="28.0" y="264.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(154,164,178,1.0)">Type here…</text>
+</g><g clip-path="url(#clip1)"><text x="24.0" y="303.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 1</text>
+<text x="24.0" y="325.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 2</text>
+<text x="24.0" y="347.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 3</text>
+<text x="24.0" y="369.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 4</text>
+<text x="24.0" y="391.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 5</text>
+<text x="24.0" y="413.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 6</text>
+<text x="24.0" y="435.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 7</text>
+<text x="24.0" y="457.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 8</text>
+<text x="24.0" y="479.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 9</text>
+<text x="24.0" y="501.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 10</text>
+<text x="24.0" y="523.85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="14.0" fill="rgba(231,234,240,1.0)">Row 11</text>
+<rect x="774.0" y="287.25" width="10.0" height="240.0" fill="rgba(38,43,51,1.0)"/>
+<rect x="776.0" y="287.25" width="6.0" height="20.0" rx="3.0" fill="rgba(154,164,178,1.0)"/>
+</g>
+</svg>

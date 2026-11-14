@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tessell Kit 执行记录 — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="index.html">概览</a>
+<a href="components/button.html">Button</a>
+<a href="components/checkbox.html">Checkbox</a>
+<a href="components/text.html">Text</a>
+<a href="components/input.html">Input</a>
+<a href="components/select.html">Select</a>
+<a href="components/tooltip.html">Tooltip</a>
+<a href="components/dialog.html">Dialog</a>
+<a href="components/scroll-view.html">ScrollView</a>
+<a href="components/virtual-list.html">VirtualList</a>
+<a href="design-tokens.html">设计 token</a>
+<a href="component-contract.html">组件契约</a>
+<a href="repository-strategy.html">仓策略</a>
+<a href="plan.html">计划</a>
+<a href="execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/execution.md</div>
+<h1 id="tessell-kit-执行记录">Tessell Kit 执行记录</h1>
+<blockquote>本文件只记录实际做了什么、验证了什么、还没验证什么。计划与范围见 <a href="plan.html">plan.md</a>；未验证项不得因为本文件写了“完成”而消失。</blockquote>
+<h2 id="环境口径">环境口径</h2>
+<ul>
+<li>当前开发机：macOS arm64，Crystal 1.21.1（Homebrew），FreeType/HarfBuzz 库可加载但既有 Windows FFI 结构在本机不可安全用于真实字体渲染。</li>
+<li>既有 M0–M4 的真实窗口证据来自 Windows + msys2 ucrt64；本机不能替代运行 <code>tools/gate.ps1</code>。</li>
+<li>Kit 的纯逻辑、声明、绘制命令、布局、输入与 a11y 测试可在 macOS 运行；真实 GL 上屏仍以 Windows 证据为准。</li>
+</ul>
+<h2 id="k0-契约与纵向原型">K0 契约与纵向原型</h2>
+<p>状态：进行中。</p>
+<p>计划交付：</p>
+<ul>
+<li><code>docs/kit/plan.md</code>、<code>component-contract.md</code>、<code>design-tokens.md</code>、<code>repository-strategy.md</code>。</li>
+<li>可选入口 <code>require &quot;tessell/kit&quot;</code> 与 <code>Tessell::Kit</code>；核心入口 <code>require &quot;tessell&quot;</code> 不加载 Kit。</li>
+<li><code>Kit::Theme</code>、<code>Kit::Component</code>、<code>Kit::Painter</code>、<code>Kit::Context</code>、<code>Kit::Root</code> 最小契约。</li>
+<li><code>Kit::Button</code> 纵向原型：measure → arrange → emit declarations → paint → input activation → a11y。</li>
+<li><code>spec/kit/</code> 纯逻辑测试与可选入口测试。</li>
+</ul>
+<p>退出条件：</p>
+<ul>
+<li>核心入口不加载 Kit；<code>require &quot;tessell/kit&quot;</code> 可单独编译。</li>
+<li>Button 的指针、键盘、disabled、单次激活、声明与 a11y 有 spec。</li>
+<li>记录未验证项，尤其是真实窗口与平台 a11y。</li>
+</ul>
+<p>验证记录将在每轮结束时追加。</p>
+<h3 id="迭代记录">迭代记录</h3>
+<h4 id="k0">K0</h4>
+<ul>
+<li>完成：<code>docs/kit/</code> 计划与契约文档；<code>src/tessell/kit.cr</code> 可选入口；Theme/token、Painter、Component、Context、Root、Button 最小闭环。</li>
+<li>验证：<code>crystal spec spec/kit</code> → 19 examples / 0 failures；<code>crystal build src/tessell.cr --no-codegen</code> 通过；<code>crystal tool format --check</code> 通过。</li>
+<li>未验证：真实窗口交互、GL 上屏、平台 a11y provider、Windows gate、完整 <code>crystal spec</code>（本机缺 Windows 字体）。</li>
+<li>提交：<code>918e7f7</code>。</li>
+</ul>
+<h4 id="k1">K1</h4>
+<ul>
+<li>完成：核心 <code>Input::Event</code> 增加 modifiers、wheel delta、PointerEnter/Leave/Cancel 与常用键码；<code>Router</code> 跟踪 enter/leave/cancel；<code>Node#clip</code> 与 <code>HitTest</code> 裁切；<code>DrawCmd</code> 增加 RoundRect/StrokeRect/StrokeRoundRect 与 radius/stroke_width；Kit 增加 <code>DrawListPainter</code>、核心 Theme 适配器与运行中换主题。</li>
+<li>验证：<code>crystal spec</code> 选定核心/Kit 用例 238 examples / 0 failures（不含 Windows 字体依赖文件）；<code>crystal build src/tessell.cr --no-codegen</code> 与 <code>examples/app_demo.cr --no-codegen</code> 通过。</li>
+<li>未验证：GL 后端尚未消费新增 DrawCmd；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。</li>
+<li>提交：<code>5c7270e</code>。</li>
+</ul>
+<h4 id="k2">K2</h4>
+<ul>
+<li>完成：<code>Kit::Container/Column/Row</code> 线性布局；<code>Kit::Text</code>（wrap/截断/max_lines）；<code>Kit::Checkbox</code>；<code>Kit::ScrollView</code>（裁切/滚动条/键盘）；<code>Kit::VirtualList</code> 适配（可见行、逻辑 children_count）；headless <code>examples/kit_gallery.cr</code> 与组件文档。</li>
+<li>核心补层：<code>Node#clip</code> 命中继承、<code>A11y::Meta</code> 逻辑 children_count/scroll_offset、<code>Widgets::VirtualList#resize_viewport</code>、Kit Painter <code>line</code> 命令。</li>
+<li>验证：选定核心/Kit 用例 261 examples / 0 failures；<code>kit_gallery --verify --frames=60 --theme=dark --dpi=1.5</code> 输出 <code>verify=pass</code>；<code>crystal build examples/kit_gallery.cr --no-codegen</code> 通过。</li>
+<li>未验证：真实窗口/GL 上屏、滚动条拖动、变量行高 Kit 入口、Windows 像素回读。</li>
+<li>提交：<code>cdcf4df</code>。</li>
+</ul>
+<h4 id="k3">K3</h4>
+<ul>
+<li>完成：<code>Kit::OverlayPlacement/OverlayEntry/OverlayHost/Barrier</code>；Root 统一处理浮层层级、模态屏障、Escape/外部点击/blur dismiss、焦点圈定与恢复；<code>Kit::Tooltip</code> hover 延迟；<code>Kit::Dialog</code> 标题/内容/动作区与焦点陷阱；<code>Kit::Select</code> 触发区 + Popover 列表、键盘/指针选择与选中回调。</li>
+<li>验证：<code>crystal spec spec/kit</code> 62 examples / 0 failures；<code>kit_gallery --verify</code> 输出 <code>select=true dialog=true tooltip=true</code>；Dialog 背景点击被屏障阻断、Escape 恢复焦点、Tab 不逃逸。</li>
+<li>未验证：真实窗口上屏、浮层像素裁切/翻转、Windows GL 路径、屏幕阅读器。</li>
+<li>提交：<code>e0dbf50</code>。</li>
+</ul>
+<h4 id="k4-本轮">K4（本轮）</h4>
+<ul>
+<li>完成：<code>Kit::Graphemes</code> 常见 cluster 边界；<code>Kit::TextEditing</code> 光标/选区/插入/删除/剪贴板/preedit；<code>Kit::Clipboard</code> 与 <code>MemoryClipboard</code>；<code>Kit::Input</code> 单行输入、label/placeholder/read-only/invalid/error、水平滚动、光标与选区绘制、IME 预览 API。</li>
+<li>验证：<code>crystal spec spec/kit</code>（含 grapheme/editing/input）通过；<code>kit_gallery --verify</code> 输出 <code>input=true</code>；Root 焦点路由下 TextInput 写入。</li>
+<li>未验证：平台 IME 事件接入（C7 仍人工/未关闭）、平台剪贴板适配、密码模式、撤销/重做、Windows 真实窗口像素。</li>
+<li>提交：<code>b550bbb</code>。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

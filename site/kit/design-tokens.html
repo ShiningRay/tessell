@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计 token — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="index.html">概览</a>
+<a href="components/button.html">Button</a>
+<a href="components/checkbox.html">Checkbox</a>
+<a href="components/text.html">Text</a>
+<a href="components/input.html">Input</a>
+<a href="components/select.html">Select</a>
+<a href="components/tooltip.html">Tooltip</a>
+<a href="components/dialog.html">Dialog</a>
+<a href="components/scroll-view.html">ScrollView</a>
+<a href="components/virtual-list.html">VirtualList</a>
+<a href="design-tokens.html">设计 token</a>
+<a href="component-contract.html">组件契约</a>
+<a href="repository-strategy.html">仓策略</a>
+<a href="plan.html">计划</a>
+<a href="execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/design-tokens.md</div>
+<h1 id="设计-token">设计 token</h1>
+<blockquote>代码权威：<code>src/tessell/kit/theme.cr</code>。本文件解释层级与命名，不复制全部数值。</blockquote>
+<h2 id="三层结构">三层结构</h2>
+<p>1. <strong>语义色</strong>：<code>canvas/surface/surface_raised/foreground/muted/border/accent/danger/success/focus/selection/scrim</code>。组件只引用语义色。 2. <strong>组件 token</strong>：<code>Theme#button_colors</code>、<code>Theme#input_colors</code> 等把语义色 + 状态解析为组件实际颜色。组件不得在绘制代码里写死色值。 3. <strong>尺寸与排版</strong>：<code>Theme::Metrics</code> 统一提供间距、圆角、边框、焦点环、字号、行高与控件高度。</p>
+<h2 id="颜色格式">颜色格式</h2>
+<ul>
+<li>全部使用 <code>0xRRGGBBAA</code> 的 <code>UInt32</code>，与核心 <code>Render::Theme</code> 的打包口径一致。</li>
+<li><code>Theme::Palette</code> 不直接暴露给组件绘制；组件通过解析函数取色，便于以后换主题。</li>
+<li>首版只提供编译进 shard 的 <code>Theme.light</code> / <code>Theme.dark</code>，不监听系统主题目录。</li>
+</ul>
+<h2 id="尺寸档位">尺寸档位</h2>
+<table>
+<thead><tr><th>档位</th><th>控件高度来源</th><th>字号来源</th><th>水平内边距来源</th></tr></thead>
+<tbody>
+<tr><td>Small</td><td><code>control_height_sm</code></td><td><code>font_size_sm</code></td><td><code>padding_x_sm</code></td></tr>
+<tr><td>Medium</td><td><code>control_height_md</code></td><td><code>font_size_md</code></td><td><code>padding_x_md</code></td></tr>
+<tr><td>Large</td><td><code>control_height_lg</code></td><td><code>font_size_lg</code></td><td><code>padding_x_lg</code></td></tr>
+</tbody></table>
+<p>DPI 不在组件层重复乘 scale：布局使用逻辑单位，绘制文本时由 <code>Context#device_font_size</code> 或后端统一换算。首版 <code>Context#scale</code> 只影响文本设备字号与 1px 边框的下限，不改变逻辑布局。</p>
+<h2 id="状态视觉">状态视觉</h2>
+<ul>
+<li>normal / hover / pressed / focus / disabled / invalid 必须有可区分的颜色或边框。</li>
+<li>焦点环使用 <code>focus</code> 色，不改变控件主体尺寸；优先画在控件内侧，避免裁切。</li>
+<li>Primary 使用 accent 背景 + accent_foreground 文本；Danger 使用 danger 背景；Secondary 使用 surface + border；Ghost 无常态背景，仅 hover/pressed 有底色。</li>
+<li>禁用态降低对比度，但不使用透明到不可读；disabled 文本仍要可辨识。</li>
+</ul>
+<h2 id="变更规则">变更规则</h2>
+<ul>
+<li>新增语义色必须先证明现有语义色不能表达；新增组件 token 只在该组件确有跨组件差异时增加。</li>
+<li>不在组件绘制里写 <code>0x...</code> 常量作为最终颜色；测试可以断言解析后的值。</li>
+<li>主题数值调整需要同步更新 <code>spec/kit/theme_spec.cr</code> 的对比度/差异性断言。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

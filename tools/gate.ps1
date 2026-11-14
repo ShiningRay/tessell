@@ -52,6 +52,19 @@ Run-Crystal "spec" $specCmd {
   return @($false, "parse_failed")
 } | Out-Null
 
+# 1b. Kit 单独入口与组件契约（核心入口仍不加载 Kit）
+Run-Crystal "spec_kit" "spec spec/kit" {
+  param($out, $code)
+  $m = [regex]::Match($out, '(\d+) examples?, (\d+) failures?')
+  if ($m.Success) {
+    $n = $m.Groups[1].Value; $f = $m.Groups[2].Value
+    $tok = "$n examples, $f failures"
+    $ok = ($code -eq 0 -and $f -eq "0")
+    return @($ok, $tok)
+  }
+  return @($false, "parse_failed")
+} | Out-Null
+
 # 2. build src
 $buildCmd = "build src/tessell.cr -o bin/gate_build.exe"
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -119,6 +132,8 @@ Run-Example "ex_m3_scroll_dy600" "examples/m3_scroll_window.cr" `
   @("--verify","--dy=600") @("verify=pass","diff_pixels=","diff_A_vs_C=","alloc_windows=") | Out-Null
 Run-Example "ex_m3_path_verify" "examples/m3_path_window.cr" `
   @("--verify","--frames=20") @("verify=pass","stencil_bits=","diff_pixels=0","fill_pixels_gl=","fill_pixels_cpu=") | Out-Null
+Run-Example "ex_kit_gallery" "examples/kit_gallery.cr" `
+  @("--verify","--frames=30") @("KIT_GALLERY_VERIFY verify=pass") | Out-Null
 
 # 4. zero_alloc_frame.cr
 $zaCmd = "run tools/zero_alloc_frame.cr -- --frames=200 --json"

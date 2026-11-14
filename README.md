@@ -20,7 +20,7 @@ FreeType / HarfBuzz / OpenGL，**无第三方运行时绑定**，渲染与文本
 > COLRv0/CPAL + glReadPixels 数值回读；R8 灰度路径保留；不得外推为
 > 全域/跨平台/严格零分配。M3 为 S1 范围收口，不等于全平台完成。详见上表证据文件的「未验证」清单。
 
-## Kit 组件库（K0 起）
+## Kit 组件库（K0–K4）
 
 组件库以同仓可选入口提供，核心入口不聚合：
 
@@ -34,10 +34,25 @@ button = Tessell::Kit::Button.new(
 )
 ```
 
+已交付：Button、Checkbox、Text、Input、Select、Tooltip、Dialog、ScrollView，
+以及 VirtualList 适配、Root Overlay、主题/尺寸 token、grapheme 光标/选区与
+剪贴板接口。组件文档见 [docs/kit/index.md](docs/kit/index.md)；
 计划、契约与执行记录见 [docs/kit/plan.md](docs/kit/plan.md)、
 [docs/kit/component-contract.md](docs/kit/component-contract.md)、
-[docs/kit/execution.md](docs/kit/execution.md)。当前只完成 K0 契约与 Button
-纵向原型；真实窗口与平台 a11y 仍未验证。
+[docs/kit/execution.md](docs/kit/execution.md)。
+
+无窗口组件矩阵、外部消费者与静态文档站：
+
+```bash
+crystal run examples/kit_gallery.cr -- --verify --frames=30 --theme=dark --dpi=1.5
+bash tools/kit_consumer_verify.sh
+crystal run tools/build_kit_site.cr   # 输出 site/index.html
+```
+
+预览：[light](site/previews/gallery-light.png)、[dark](site/previews/gallery-dark.png)。
+
+限制：真实 Windows 窗口/GL 上屏、平台 IME 事件、屏幕阅读器 provider、
+平台剪贴板适配仍未验证；不得把 headless gallery 当作真实窗口证据。
 
 ## 快速开始
 
@@ -50,7 +65,7 @@ bin/app_demo.exe --frames=120 --verify
 ```
 
 - 字体要求：本机已装 `C:/Windows/Fonts/msyh.ttc`（示例内硬编码该路径）。
-- 一键质量门禁（spec/build/示例/打包/卫生 14 项）：
+- 一键质量门禁（spec/build/示例/打包/卫生，含 Kit spec 与 gallery）：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/gate.ps1

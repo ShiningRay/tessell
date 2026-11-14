@@ -59,9 +59,16 @@
 - 未验证：真实窗口上屏、浮层像素裁切/翻转、Windows GL 路径、屏幕阅读器。
 - 提交：`e0dbf50`。
 
-#### K4（本轮）
+#### K4
 
 - 完成：`Kit::Graphemes` 常见 cluster 边界；`Kit::TextEditing` 光标/选区/插入/删除/剪贴板/preedit；`Kit::Clipboard` 与 `MemoryClipboard`；`Kit::Input` 单行输入、label/placeholder/read-only/invalid/error、水平滚动、光标与选区绘制、IME 预览 API。
 - 验证：`crystal spec spec/kit`（含 grapheme/editing/input）通过；`kit_gallery --verify` 输出 `input=true`；Root 焦点路由下 TextInput 写入。
 - 未验证：平台 IME 事件接入（C7 仍人工/未关闭）、平台剪贴板适配、密码模式、撤销/重做、Windows 真实窗口像素。
 - 提交：`b550bbb`。
+
+#### K5（本轮）
+
+- 完成：`tools/build_kit_site.cr` 生成 `site/kit/*.html` 静态文档站（中文导航、组件页、计划/契约/执行记录）；`Kit::SvgPainter` 无窗口 SVG 预览；`site/previews/gallery-light/dark.{svg,png}`；`tools/kit_consumer_verify.sh` 用临时 Shards path 消费者验证核心入口与 Kit 入口；README/usage 更新；`tools/gate.ps1` 加入 `spec_kit` 与 `kit_gallery --verify`。
+- 验证：`crystal spec spec/kit` 86 examples / 0 failures；`kit_gallery --verify` 输出 `verify=pass`（select/dialog/tooltip/input 全 true）；`kit_consumer_verify.sh` 输出 `CORE_CONSUMER_OK` 与 `KIT_CONSUMER_VERIFY verify=pass`；静态站生成成功。
+- 未验证：真实 Windows gate、站点部署、截图与真实窗口一致性；PNG 由 SVG 预览转换，不是 GL 回读。
+- 提交：待回填。

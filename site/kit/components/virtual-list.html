@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VirtualList — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="../index.html">概览</a>
+<a href="../components/button.html">Button</a>
+<a href="../components/checkbox.html">Checkbox</a>
+<a href="../components/text.html">Text</a>
+<a href="../components/input.html">Input</a>
+<a href="../components/select.html">Select</a>
+<a href="../components/tooltip.html">Tooltip</a>
+<a href="../components/dialog.html">Dialog</a>
+<a href="../components/scroll-view.html">ScrollView</a>
+<a href="../components/virtual-list.html">VirtualList</a>
+<a href="../design-tokens.html">设计 token</a>
+<a href="../component-contract.html">组件契约</a>
+<a href="../repository-strategy.html">仓策略</a>
+<a href="../plan.html">计划</a>
+<a href="../execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/components/virtual-list.md</div>
+<h1 id="virtuallist">VirtualList</h1>
+<h2 id="何时使用">何时使用</h2>
+<ul>
+<li>大列表，只需要可见行实例化。</li>
+<li>固定行高；变量行高由核心 <code>Widgets::VirtualList</code> 支持，Kit 适配当前只暴露固定行高入口。</li>
+<li>需要逻辑总行数 a11y 语义。</li>
+</ul>
+<h2 id="最小示例">最小示例</h2>
+<pre><code>list = Tessell::Kit::VirtualList.new(
+  Tessell::UI::UiKey.root.child(1_u64),
+  1000,
+  22,
+  -&gt;(index : Int32) { &quot;Row #{index + 1}&quot; },
+  name: &quot;Rows&quot;
+)
+</code></pre>
+<h2 id="行为">行为</h2>
+<ul>
+<li>可见范围、滚动钳制、回收统计由核心 <code>Widgets::VirtualList</code> 负责。</li>
+<li>Kit 只把可见行声明为稳定 keyed Text 节点；不物化全部行。</li>
+<li><code>Wheel</code>、<code>Up/Down/PageUp/PageDown/Home/End</code> 滚动。</li>
+<li>行 key 使用 <code>key.child(index + 1)</code>；滚动后复用池中的节点。</li>
+</ul>
+<h2 id="无障碍">无障碍</h2>
+<ul>
+<li>Role：<code>List</code>。</li>
+<li>Name：构造参数 <code>name</code>。</li>
+<li><code>children_count</code> 报告逻辑总行数（例如 1000），不是可见行数。</li>
+<li>可见行作为 <code>ListItem</code> 子节点；没有平台 provider。</li>
+</ul>
+<h2 id="限制">限制</h2>
+<ul>
+<li>当前不支持行内自定义组件、选中态、多列。</li>
+<li>变量行高入口未在 Kit 暴露；需要时再包装核心 API。</li>
+<li>真实窗口像素回读与滚动性能未在本机验证。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

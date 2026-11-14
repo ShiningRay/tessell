@@ -76,6 +76,32 @@ diff_A_vs_C/alloc_windows/retried/attempt/verify`（及主题/DPI 字段）。
    渲染一致 `diff_theme_roundtrip==0`。
 3. 分配：探针满足 A/B/重试口径，token 报告结果。
 
+## Kit 组件库（K0–K4）
+
+核心入口 `require "tessell"` 不加载组件；组件必须显式：
+
+```crystal
+require "tessell/kit"
+```
+
+最小消费者流程：
+
+```crystal
+input = Tessell::Kit::Input.new(
+  Tessell::UI::UiKey.root.child(1_u64), "", "Type here", "Name"
+)
+root = Tessell::Kit::Root.new(input)
+root.layout(320.0_f32, 160.0_f32)
+root.build
+root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Tab))
+root.handle(Tessell::Input::Event.text_input("hi"))
+```
+
+- 组件文档：[kit/index.md](kit/index.md)。
+- 无窗口验证：`crystal run examples/kit_gallery.cr -- --verify --frames=30`。
+- 外部消费者验证：`bash tools/kit_consumer_verify.sh`（临时目录 + Shards path 依赖）。
+- 限制：真实窗口/GL、平台 IME、屏幕阅读器 provider、平台剪贴板未验证。
+
 ## 常见错误
 - `-1073741515`（0xC0000135）：缺少运行时 DLL。将 msys2 ucrt64 bin 加入
   PATH，或按 M4-WP2-packaging.md 将所需 DLL 放到 exe 同目录。

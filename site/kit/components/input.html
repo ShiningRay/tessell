@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Input — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="../index.html">概览</a>
+<a href="../components/button.html">Button</a>
+<a href="../components/checkbox.html">Checkbox</a>
+<a href="../components/text.html">Text</a>
+<a href="../components/input.html">Input</a>
+<a href="../components/select.html">Select</a>
+<a href="../components/tooltip.html">Tooltip</a>
+<a href="../components/dialog.html">Dialog</a>
+<a href="../components/scroll-view.html">ScrollView</a>
+<a href="../components/virtual-list.html">VirtualList</a>
+<a href="../design-tokens.html">设计 token</a>
+<a href="../component-contract.html">组件契约</a>
+<a href="../repository-strategy.html">仓策略</a>
+<a href="../plan.html">计划</a>
+<a href="../execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/components/input.md</div>
+<h1 id="input">Input</h1>
+<h2 id="何时使用">何时使用</h2>
+<ul>
+<li>单行文本输入；受控或非受控由应用读取 <code>input.text</code>。</li>
+<li>需要 label、placeholder、read-only、invalid/error、光标/选区与剪贴板。</li>
+<li>不用于多行文本、富文本、密码输入；这些场景后续单独组件。</li>
+</ul>
+<h2 id="最小示例">最小示例</h2>
+<pre><code>input = Tessell::Kit::Input.new(
+  Tessell::UI::UiKey.root.child(1_u64),
+  &quot;&quot;,
+  &quot;Type here…&quot;,
+  &quot;Name&quot;
+)
+input.on_change = -&gt;(value : String) { @name = value; nil }
+input.on_submit = -&gt;(value : String) { submit(value); nil }
+</code></pre>
+<h2 id="状态">状态</h2>
+<ul>
+<li><code>enabled=false</code>：不进入焦点环，不接收文本。</li>
+<li><code>read_only=true</code>：可聚焦、可选择、可复制，但不可插入/删除/剪切/粘贴。</li>
+<li><code>invalid</code> + <code>error_text</code>：危险色边框与错误文本；不自动拦截提交。</li>
+<li><code>placeholder</code>：空值时显示。</li>
+<li><code>label</code>：字段上方标签，同时作为 a11y Name；为空时退回 placeholder。</li>
+</ul>
+<h2 id="键盘与编辑">键盘与编辑</h2>
+<table>
+<thead><tr><th>键</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td>字符输入 / TextInput</td><td>在光标处插入，替换选区，触发一次 <code>on_change</code></td></tr>
+<tr><td>Left/Right</td><td>按 grapheme cluster 移动；有选区时折叠</td></tr>
+<tr><td>Shift+Left/Right</td><td>扩展/收缩选区</td></tr>
+<tr><td>Home/End</td><td>到行首/行尾（Shift 扩展）</td></tr>
+<tr><td>Backspace/Delete</td><td>按 grapheme cluster 删除；有选区时删除选区</td></tr>
+<tr><td>Ctrl/Cmd+A</td><td>全选</td></tr>
+<tr><td>Ctrl/Cmd+C/X/V</td><td>复制/剪切/粘贴；read-only 下禁止剪切/粘贴</td></tr>
+<tr><td>Enter</td><td>触发 <code>on_submit</code>，不插入换行</td></tr>
+<tr><td>Escape</td><td>折叠选区</td></tr>
+</tbody></table>
+<h2 id="剪贴板">剪贴板</h2>
+<p>通过注入的 <code>Kit::Clipboard</code> 实现；默认 <code>MemoryClipboard</code>。平台剪贴板需要应用提供实现：</p>
+<pre><code>input.clipboard = MyPlatformClipboard.new
+</code></pre>
+<p>组件不直接调用系统剪贴板 API。</p>
+<h2 id="ime-组合输入">IME / 组合输入</h2>
+<ul>
+<li><code>input.set_preedit(&quot;ni&quot;)</code> 显示组合预览，不修改文档。</li>
+<li><code>input.commit_preedit</code> 将预览写入文档并触发 <code>on_change</code>。</li>
+<li>失焦时若仍有 preedit，会尝试提交。</li>
+<li>平台 IME 事件尚未接入 Kit::Event；<code>docs/evidence</code> 中的 C7 人工 IME 验证仍未关闭。真实 Windows IME 路径未在 Kit Input 中验证。</li>
+</ul>
+<h2 id="无障碍">无障碍</h2>
+<ul>
+<li>Role：<code>TextField</code>。</li>
+<li>Name：label，空时 placeholder。</li>
+<li>Value：当前文本。</li>
+<li>Focusable：<code>enabled &amp;&amp; visible</code>；read-only 仍可聚焦。</li>
+<li>限制：没有平台 provider；不暴露组合输入状态给屏幕阅读器。</li>
+</ul>
+<h2 id="主题-token">主题 token</h2>
+<p>surface/surface_raised 背景、border/focus/danger 边框、selection 选区、foreground/muted 文本、accent 组合输入。</p>
+<h2 id="限制">限制</h2>
+<ul>
+<li>不做密码模式；不要在账号密码场景直接使用。</li>
+<li>不做撤销/重做、词级移动、双向文本、完整 UAX #29 grapheme 分割。</li>
+<li>不自动校验/格式化；<code>invalid</code> 只是视觉状态。</li>
+<li>程序化 <code>set_text</code> 不触发 <code>on_change</code>。</li>
+<li>真实窗口 IME、剪贴板与像素回读未验证。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

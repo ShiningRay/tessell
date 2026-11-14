@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>组件契约 — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="index.html">概览</a>
+<a href="components/button.html">Button</a>
+<a href="components/checkbox.html">Checkbox</a>
+<a href="components/text.html">Text</a>
+<a href="components/input.html">Input</a>
+<a href="components/select.html">Select</a>
+<a href="components/tooltip.html">Tooltip</a>
+<a href="components/dialog.html">Dialog</a>
+<a href="components/scroll-view.html">ScrollView</a>
+<a href="components/virtual-list.html">VirtualList</a>
+<a href="design-tokens.html">设计 token</a>
+<a href="component-contract.html">组件契约</a>
+<a href="repository-strategy.html">仓策略</a>
+<a href="plan.html">计划</a>
+<a href="execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/component-contract.md</div>
+<h1 id="组件契约">组件契约</h1>
+<blockquote>这是 Kit 组件的公共约定，不是某个组件的实现说明。组件文档可以补充，但不能削弱这里的规则。</blockquote>
+<h2 id="身份与状态">身份与状态</h2>
+<ul>
+<li>每个组件必须有一个跨帧稳定的 <code>Tessell::UI::UiKey</code>。子部件从组件根 key 派生子 key，禁止用显示文本生成身份。</li>
+<li>应用持有业务值（输入文本、选中项、开关值）；组件只持有 <code>hovered/pressed/focused/open/scroll</code> 等瞬态。首版默认受控。</li>
+<li>组件统一识别：<code>disabled</code>、<code>read_only</code>、<code>hovered</code>、<code>pressed</code>、<code>focused</code>、<code>selected</code>、<code>open</code>、<code>invalid</code>。不适用时显式忽略，不把 <code>disabled</code> 与 <code>read_only</code> 混用。</li>
+<li>一次用户动作最多触发一次语义回调。指针抬起与键盘激活不得双发；程序化 setter 是否触发回调必须逐组件写明。</li>
+</ul>
+<h2 id="尺寸与布局">尺寸与布局</h2>
+<ul>
+<li>尺寸档位只有 <code>Small / Medium / Large</code>；间距、圆角、边框、焦点环、控件高度来自 <code>Theme::Metrics</code>，组件不得另造一套尺寸。</li>
+<li><code>measure</code> 只依赖 <code>Context</code>（主题、文本度量、DPI scale）与组件自身状态；不得读窗口或 GPU 状态。</li>
+<li><code>arrange</code> 接收绝对 bounds，递归给子组件分配绝对 bounds。热路径可以复用组件对象，但不得复用上一帧的错误几何。</li>
+<li>文本尺寸统一经 <code>Context#measure_text</code>；组件不得自行按字符数猜宽度。</li>
+</ul>
+<h2 id="失效最小化">失效最小化</h2>
+<ul>
+<li>文本、颜色、hover、按压、焦点变化只影响绘制，应走 Paint 语义；尺寸、可见结构、禁用导致的可聚焦性变化走 Layout。</li>
+<li>不允许因为 hover 重排整棵树；不允许每帧重建全部子组件。</li>
+<li><code>Root#build</code> 复用 <code>UI::Builder</code>、<code>UI::Pool</code> 与节点；稳态不增长节点数。</li>
+</ul>
+<h2 id="输入">输入</h2>
+<ul>
+<li>组件不直接读 Win32/WGL/Cocoa 事件；输入来自 <code>Kit::Event</code>，由 <code>Root</code> 统一路由。</li>
+<li>指针按下前必须命中组件 bounds；按压释放只有在同一组件内才算激活。</li>
+<li>键盘激活键：按钮用 <code>Space/Enter</code>；复选框用 <code>Space</code>；Select/Dialog/Tooltip 的键位在各自文档写明。</li>
+<li><code>disabled</code> 组件不进入焦点环、不接收激活；<code>read_only</code> 仍可聚焦、可选择、可复制，但不可修改值。</li>
+<li>Tab/Shift+Tab 的焦点顺序由 Root 的焦点环决定，组件不得自建平行焦点系统。</li>
+</ul>
+<h2 id="绘制">绘制</h2>
+<ul>
+<li>组件只通过 <code>Kit::Painter</code> 发出 <code>fill_rect/stroke_rect/fill_round_rect/stroke_round_rect/text/push_clip/pop_clip</code>。</li>
+<li>组件不得调用 GL、平台绘图 API，也不得直接写像素。</li>
+<li>圆角、描边、焦点环必须能在无窗口的 <code>PaintList</code> 中验证；真实后端只需实现 Painter。</li>
+<li>裁切必须成对 push/pop；异常路径也不能泄漏裁切状态。</li>
+</ul>
+<h2 id="无障碍">无障碍</h2>
+<ul>
+<li>可访问名称是必需契约。无可见文本的按钮必须提供名称；Input 必须关联 label/description/error。</li>
+<li><code>a11y_role/name/value/focusable/enabled</code> 随声明同步；装饰性子节点不重复曝光。</li>
+<li>本库只产出进程内 a11y 树，不承诺 UIA/AppKit/AT-SPI provider。文档必须写明这个限制。</li>
+</ul>
+<h2 id="测试门槛">测试门槛</h2>
+<p>每个组件至少具备：</p>
+<p>1. 状态迁移与事件次数 spec（含 disabled/read_only 反例）。 2. measure/arrange 与声明/a11y 元数据 spec。 3. <code>PaintList</code> 命令与裁切成对 spec。 4. 键盘路径 spec；适用时覆盖指针进入/离开/取消。 5. 主题 light/dark 与至少 1.0/1.5/2.0 scale 的纯逻辑验证。 6. 真实窗口验证另记；未运行不得写成通过。</p>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="../index.html">概览</a>
+<a href="../components/button.html">Button</a>
+<a href="../components/checkbox.html">Checkbox</a>
+<a href="../components/text.html">Text</a>
+<a href="../components/input.html">Input</a>
+<a href="../components/select.html">Select</a>
+<a href="../components/tooltip.html">Tooltip</a>
+<a href="../components/dialog.html">Dialog</a>
+<a href="../components/scroll-view.html">ScrollView</a>
+<a href="../components/virtual-list.html">VirtualList</a>
+<a href="../design-tokens.html">设计 token</a>
+<a href="../component-contract.html">组件契约</a>
+<a href="../repository-strategy.html">仓策略</a>
+<a href="../plan.html">计划</a>
+<a href="../execution.html">执行记录</a>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/components/select.md</div>
+<h1 id="select">Select</h1>
+<h2 id="何时使用">何时使用</h2>
+<ul>
+<li>从固定选项中选择一个值。</li>
+<li>选项数量中等、需要键盘导航与浮层定位。</li>
+<li>不用于多选、搜索或自由输入；这些场景后续单独组件。</li>
+</ul>
+<h2 id="最小示例">最小示例</h2>
+<pre><code>sel = Tessell::Kit::Select.new(
+  Tessell::UI::UiKey.root.child(1_u64),
+  [&quot;Alpha&quot;, &quot;Beta&quot;, &quot;Gamma&quot;],
+  selected_index: 0,
+  label: &quot;Choice&quot;
+)
+sel.on_change = -&gt;(index : Int32, value : String) { @choice = value; nil }
+</code></pre>
+<h2 id="行为">行为</h2>
+<ul>
+<li>受控 <code>selected_index</code>；组件不维护第二份业务值。</li>
+<li>指针点击触发区打开/关闭；弹出列表通过 Root OverlayHost 显示。</li>
+<li>弹出列表打开后获得焦点；Up/Down/Home/End 移动高亮，Enter/Space 选择，Escape 关闭。</li>
+<li>点击外部关闭；关闭后焦点恢复到触发区。</li>
+<li>选择结果只回调一次 <code>on_change(index, value)</code>。</li>
+</ul>
+<h2 id="无障碍">无障碍</h2>
+<ul>
+<li>触发区：Role <code>ComboBox</code>，Name 来自 <code>label</code>，Value 为当前选项或 placeholder。</li>
+<li>弹出列表：Role <code>ListBox</code>；选项 Role <code>Option</code>，选中项 Value=<code>selected</code>。</li>
+<li>没有平台 provider；Popover 的焦点恢复由 Root 统一处理。</li>
+</ul>
+<h2 id="主题-token">主题 token</h2>
+<p>触发区 surface/border/focus；选中项 accent；高亮行 selection；弹出层 surface + border。</p>
+<h2 id="限制">限制</h2>
+<ul>
+<li>不支持多选、搜索、分组、空选项占位。</li>
+<li>不支持拖动滚动条；选项很多时后续接入 VirtualList。</li>
+<li>真实窗口的浮层裁剪与翻转未在 Windows 上复验。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

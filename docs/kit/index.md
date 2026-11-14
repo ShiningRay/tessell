@@ -29,6 +29,21 @@ require "tessell/kit"
 
 Radio/Switch、Slider、Progress、Tabs、Menu、密码输入、平台 IME 事件接入等仍在 [plan.md](plan.md) 的后续工作包中。不要把“目录里没有”理解为“已经支持”。
 
+## 视觉预览（无窗口）
+
+以下预览由 `Kit::SvgPainter` 从 `PaintList` 生成，再用 `rsvg-convert` 转 PNG；
+它们证明绘制命令与主题/布局组合，不等于真实窗口上屏证据。
+
+- [light PNG](../../site/previews/gallery-light.png)
+- [dark PNG](../../site/previews/gallery-dark.png)
+
+静态文档站生成：
+
+```bash
+crystal run tools/build_kit_site.cr
+# 输出 site/index.html 与 site/kit/*.html
+```
+
 ## 运行示例
 
 无窗口组件矩阵（可在 macOS/Linux 运行）：
