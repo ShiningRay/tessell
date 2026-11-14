@@ -95,7 +95,8 @@ module Tessell
           @build_warnings << "建树期读未追踪 signal '#{name}'——建树函数只跑一次，读到的值永不更新。修法：把读移进 effect/render_effect（依赖追踪重跑），或改用 peek 显式声明一次性读（永不报）。"
         end)
         begin
-          @content.emit(@builder, @context)
+          # 按用户所见驱动（issue #35）：顶层内容不可见则整树不进命中树
+          @content.emit(@builder, @context) if @content.visible
           @overlay_host.entries.each do |entry|
             entry.barrier.try(&.emit(@builder, @context))
             entry.component.emit(@builder, @context)

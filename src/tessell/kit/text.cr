@@ -59,6 +59,8 @@ module Tessell
       end
 
       def emit(b : UI::Builder, ctx : Context) : Nil
+        # 按用户所见驱动（issue #35）：不可见即不进命中树（与 paint 同口径）
+        return unless @visible
         b.text(@key, @content, @bounds, paint: paint_token,
           a11y_role: A11y::Role::Text, a11y_name: @content,
           a11y_focusable: false, a11y_enabled: @enabled)

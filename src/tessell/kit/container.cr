@@ -108,6 +108,9 @@ module Tessell
       end
 
       def emit(b : UI::Builder, ctx : Context) : Nil
+        # 按用户所见驱动（issue #35）：不可见组件不进命中树——emit 即存在，
+        # invisible 子树整棵跳过（与其 paint 守卫同口径）。
+        return unless @visible
         b.group(@key, @bounds, paint: paint_token,
           a11y_role: a11y_role, a11y_name: a11y_name,
           a11y_focusable: focusable?, a11y_enabled: @enabled) do

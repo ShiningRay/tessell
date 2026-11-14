@@ -25,6 +25,9 @@
 ## 输入
 
 - 组件不直接读 Win32/WGL/Cocoa 事件；输入来自 `Kit::Event`，由 `Root` 统一路由。
+- 按用户所见驱动（issue #35）：`visible = false` 的组件不 emit 声明、不进
+  命中树（内置组件 emit 与 paint 同口径守卫；自定义组件必须遵守——不可见
+  即不存在）。焦点环已由 `focusable?` 排除不可见组件。
 - 指针按下前必须命中组件 bounds；按压释放只有在同一组件内才算激活。
 - 键盘激活键：按钮用 `Space/Enter`；复选框用 `Space`；Select/Dialog/Tooltip 的键位在各自文档写明。
 - `disabled` 组件不进入焦点环、不接收激活；`read_only` 仍可聚焦、可选择、可复制，但不可修改值。
