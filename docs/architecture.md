@@ -163,7 +163,12 @@ Process
 
 ### 5.3 响应式状态
 
-- `Signal(T)` 拉取式依赖收集：读取即订阅，写时标记订阅者失效。
+- `Tessell::Signal`（src/tessell/signal.cr，issue #33 已落地）：拉取式依赖收集
+  ——读取即订阅、写时两级脏标（直接订阅者 dirty、下游 pending 剪枝）、
+  memo 惰性重算 + 相等截断、有界 flush（100 pass raise）+ render/user 双优先级、
+  Owner 树 + effect 重跑前 clean()（cleanups LIFO、对象复用稳态零分配）。
+  六不变量 spec：spec/signal_spec.cr。
+- 与 Kit 的集成（组件 Owner 绑定、三级失效对接、For keyed 行复用）立项 issue #44。
 - 状态计算在 Default context；UI 侧只取结果快照，避免在绘制路径里跑用户代码。
 - 大列表必须走虚拟化容器（视口内实例化 + 缓存位移），不提供“一次性建十万节点”的用法。
 

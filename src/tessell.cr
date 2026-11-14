@@ -7,6 +7,7 @@
 require "./tessell/version"
 require "./tessell/geometry"
 require "./tessell/layout"
+require "./tessell/signal"
 require "./tessell/text/measurer"
 require "./tessell/core/node"
 require "./tessell/render/draw_list"
