@@ -77,6 +77,16 @@ describe "Tessell::Kit::Root" do
     first_clicks.should eq(0)
   end
 
+  it "supports programmatic focus after build" do
+    button = Tessell::Kit::Button.new(KitSpecHelpers.key, "Save")
+    root = Tessell::Kit::Root.new(button)
+    root.layout(200.0_f32, 100.0_f32)
+    root.build
+    root.focus(button).should be_true
+    root.focused_component.should be(button)
+    button.focused.should be_true
+  end
+
   it "switches theme through the root context" do
     button = Tessell::Kit::Button.new(KitSpecHelpers.key, "Save")
     root = Tessell::Kit::Root.new(button)

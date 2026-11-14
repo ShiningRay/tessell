@@ -167,7 +167,7 @@
 <ul>
 <li>完成：SDL2/OpenGL demo 宿主 <code>examples/lib/kit_sdl_host.cr</code>（窗口、事件、GLPainter、截图、系统剪贴板）；计算器 <code>app_calculator.cr</code> 与文本编辑器 <code>app_text_editor.cr</code>；纯逻辑 app 层与 spec；<code>tools/run_kit_demo.sh</code>；<code>tools/kit_app_previews.cr</code> 生成 SVG/PNG 预览。</li>
 <li>核心补层：FreeType <code>FT_Long</code>/<code>FT_Pos</code>/<code>FT_Fixed</code> 改 <code>LibC::Long</code>，<code>assert_layout!</code> 支持 LP64；macOS 实测测字、栅格化、TextRenderer 上屏。<code>Kit::Theme#to_render</code>、<code>Kit::Root#focus</code>、<code>DrawListPainter#reset</code>。</li>
-<li>验证：<code>crystal spec spec/apps spec/text_unix_smoke_spec.cr spec/kit</code> 99 examples / 0 failures；macOS SDL2/OpenGL 真实窗口运行计算器与文本编辑器 <code>--frames=2/3</code> 成功并截图；PNG 预览可打开。</li>
+<li>验证：<code>crystal spec spec/apps spec/text_unix_smoke_spec.cr spec/kit</code> 100 examples / 0 failures；macOS SDL2/OpenGL 真实窗口运行计算器与文本编辑器 <code>--frames=2/3</code> 成功并截图；PNG 预览可打开。</li>
 <li>未验证：Windows SDL2 构建/窗口、平台 IME composition、屏幕阅读器 provider、多文档/撤销等编辑器完整功能。</li>
 <li>提交：<code>2f8acee</code>。</li>
 </ul>
