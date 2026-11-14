@@ -74,6 +74,10 @@ module Tessell
       Digit7
       Digit8
       Digit9
+      F1
+      F2
+      F3
+      F4
     end
 
     # 统一事件：单一 struct + kind 枚举，覆盖指针/键盘/文本/滚轮/焦点/窗口事件。

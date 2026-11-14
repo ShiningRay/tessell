@@ -100,6 +100,19 @@ UI.apply_auto_layout(buf, pool, viewport, measurer)  # 求解并写回 bounds
 陷阱：探针前预热 shaped run 并 sync atlas；热路径避免新建 `String`/`Array`/
 proc 捕获；复用缓冲与 sink；避免热循环内字符串插值。
 
+## 帧调试 overlay（issue #11）
+Kit 宿主内建：`F1` 开关（Root#handle 拦截，业务代码零改动）。内容：
+帧耗时/FPS、quads/scissor/culled/stencil、atlas 页数 + used_pixels +
+evicted_total、dirty rect 列表（前 4 个）、hover/focus 组件名。
+宿主每帧注入：
+
+```crystal
+root.debug_info = Tessell::Kit::DebugInfo.collect(backend.stats, atlas, root, frame_ms)
+```
+
+无窗口断言：`root.debug_overlay.toggle` 后 `root.paint(painter)`，断言
+文本命令行数与 clip 平衡（spec/kit/debug_overlay_spec.cr）。
+
 ## 离屏测试（issue #10）
 `Render::SoftwareBackend`：纯 CPU 光栅到内存 RGBA 缓冲，无窗口/GPU/FFI，
 CI 可跑。与 GLBackend 同契约（draw_draw_list/draw_text/draw_polygon、

@@ -25,6 +25,7 @@ require "./kit/select"
 require "./kit/text_editing"
 require "./kit/text_align"
 require "./kit/input"
+require "./kit/debug_overlay"
 require "./kit/root"
 
 module Tessell

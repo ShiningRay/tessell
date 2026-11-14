@@ -32,6 +32,8 @@ module Tessell
       @tooltip_owner : Component?
       @tooltip_due_ms : Int64
       @tooltip_entry : OverlayEntry?
+      @debug_overlay : DebugOverlay
+      @debug_info : DebugInfo?
 
       def initialize(@content : Component, @theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
@@ -54,6 +56,8 @@ module Tessell
         @tooltip_owner = nil
         @tooltip_due_ms = 0_i64
         @tooltip_entry = nil
+        @debug_overlay = DebugOverlay.new
+        @debug_info = nil
         @router = Tessell::Input::Router.new do |target|
           component = @component_roots[target]?
           component ? component.focusable? : false
@@ -95,6 +99,20 @@ module Tessell
           entry.barrier.try(&.paint(painter, @context))
           entry.component.paint(painter, @context)
         end
+        @debug_overlay.paint(painter, @context, @debug_info, @viewport) if @debug_overlay.visible
+      end
+
+      # 帧调试 overlay（issue #11）：宿主每帧塞入 DebugInfo，F1 开关显示。
+      def debug_info=(info : DebugInfo?) : Nil
+        @debug_info = info
+      end
+
+      def debug_info : DebugInfo?
+        @debug_info
+      end
+
+      def debug_overlay : DebugOverlay
+        @debug_overlay
       end
 
       def a11y_emit(sink : Array(A11y::Node)) : Int32
@@ -162,6 +180,12 @@ module Tessell
             break unless entry.dismiss_on_blur
             close_overlay(entry)
           end
+        end
+
+        # F1：帧调试 overlay 开关（issue #11），优先于一切组件投递。
+        if event.kind == Tessell::Input::Event::Kind::KeyDown && event.key == Tessell::Input::KeyCode::F1
+          @debug_overlay.toggle
+          return true
         end
 
         if event.kind == Tessell::Input::Event::Kind::KeyDown && event.key == Tessell::Input::KeyCode::Tab

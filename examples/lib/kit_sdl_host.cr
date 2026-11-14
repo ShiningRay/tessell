@@ -194,6 +194,10 @@ module TessellKitSdl
   SDLK_7         =         55
   SDLK_8         =         56
   SDLK_9         =         57
+  SDLK_F1        = 0x40000058
+  SDLK_F2        = 0x40000059
+  SDLK_F3        = 0x4000005A
+  SDLK_F4        = 0x4000005B
 
   class SdlClipboard < Tessell::Kit::Clipboard
     def get : String?
@@ -430,9 +434,16 @@ module TessellKitSdl
 
       frames = 0
       quit = false
+      last_ticks = LibSDL.SDL_GetTicks.to_i64
       until quit
         quit = pump_events(root)
         break if quit
+
+        # 帧调试 overlay（issue #11）：上一帧 stats + 本帧耗时；F1 由 Root 拦截
+        now = LibSDL.SDL_GetTicks.to_i64
+        root.debug_info = Tessell::Kit::DebugInfo.collect(backend.stats, atlas, root,
+          (now - last_ticks).to_f32)
+        last_ticks = now
 
         if @resize_pending
           update_sizes(window, pointerof(logical_w), pointerof(logical_h),
@@ -672,6 +683,10 @@ module TessellKitSdl
       when SDLK_7         then Tessell::Input::KeyCode::Digit7
       when SDLK_8         then Tessell::Input::KeyCode::Digit8
       when SDLK_9         then Tessell::Input::KeyCode::Digit9
+      when SDLK_F1        then Tessell::Input::KeyCode::F1
+      when SDLK_F2        then Tessell::Input::KeyCode::F2
+      when SDLK_F3        then Tessell::Input::KeyCode::F3
+      when SDLK_F4        then Tessell::Input::KeyCode::F4
       else
         nil
       end
