@@ -36,6 +36,12 @@ module Tessell
       @debug_info : DebugInfo?
       # 建树期未追踪 signal 读的告警（issue #41 第一期，debug 检查开启时采集）
       @build_warnings : Array(String)
+      # apply 重入隔离（issue #42）：applying 期间的失效写 pending 通道，
+      # 外层返回后二段提交——回调不许触碰正在被消费的批缓冲。
+      @applying : Bool
+      @pending_build : Bool
+      # 连续二段提交深度：不收敛（回调每轮再失效）到上限即 raise——宁报勿挂
+      @deferred_depth : Int32
 
       def initialize(@content : Component, @theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
@@ -61,6 +67,9 @@ module Tessell
         @debug_overlay = DebugOverlay.new
         @debug_info = nil
         @build_warnings = [] of String
+        @applying = false
+        @pending_build = false
+        @deferred_depth = 0
         @router = Tessell::Input::Router.new do |target|
           component = @component_roots[target]?
           component ? component.focusable? : false
@@ -86,7 +95,17 @@ module Tessell
 
       getter build_warnings : Array(String)
 
+      # 宿主回调缝：UI.apply 中途调用（重入模拟/未来列表 bind 的挂点）。
+      # 回调里触发 root.build 会被延迟为二段提交。
+      property apply_hook : Proc(Nil)?
+
       def build : Nil
+        if @applying
+          # apply 期间重入（asuka spare batch 的 retained 树等价）：失效只记
+          # pending，绝不触碰正在消费的批缓冲；外层返回后完整重建。
+          @pending_build = true
+          return
+        end
         @builder.reset(UI::UiKey.root)
         # 建树期未追踪 signal 读检查（issue #41）：采集窗口只覆盖 emit 段
         # ——UI.apply 是宿主侧提交，不属于建树。
@@ -104,9 +123,25 @@ module Tessell
         ensure
           Tessell::Signal.exit_build
         end
-        UI.apply(@builder.buf, @node, @pool, @a11y)
+        @applying = true
+        begin
+          UI.apply(@builder.buf, @node, @pool, @a11y, @apply_hook)
+        ensure
+          @applying = false
+        end
         rebuild_node_map
         apply_pending_overlay_focus
+        if @pending_build
+          @pending_build = false
+          @deferred_depth += 1
+          if @deferred_depth > 8
+            @deferred_depth = 0
+            raise "apply reentry did not converge after 8 deferred rebuilds"
+          end
+          build # 二段提交：内层失效以完整重建落地
+        else
+          @deferred_depth = 0
+        end
       end
 
       def paint(painter : Painter) : Nil

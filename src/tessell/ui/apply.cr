@@ -110,7 +110,8 @@ module Tessell::UI
   # - When `a11y` is given, accessible meta is synced for new/changed nodes and
   #   removed for deleted nodes (keyed by node.object_id, the same id a11y uses).
   def self.apply(decls : Array(Decl), root : Node, pool : Pool,
-                 a11y : A11y::Builder? = nil) : Nil
+                 a11y : A11y::Builder? = nil,
+                 during_apply : Proc(Nil)? = nil) : Nil
     pool.gen &+= 1_u32
     g = pool.gen
     pool.activated.clear
@@ -187,6 +188,10 @@ module Tessell::UI
       end
       i += 1
     end
+
+    # 宿主回调缝（issue #42）：apply 中途允许宿主失效回调。Root 侧的
+    # 重入守卫保证回调里的 build 被延迟为二段提交，不触碰外层批缓冲。
+    during_apply.try(&.call)
 
     # Pass 2: reconcile structure DFS from root.
     reconcile_children(UiKey.root, root, pool, g)
