@@ -126,6 +126,14 @@ module Tessell
         @overlay_host.layout(@context, @viewport)
       end
 
+      # DPI/缩放变更（issue #30）：Context#scale= 联动清文本测量缓存后对
+      # 当前 viewport 重排。组件树、焦点、编辑状态全部保留——宿主跨屏
+      # 拖动/缩放时调用本方法，而不是重建 Root（重建会丢焦点与编辑态）。
+      def scale=(value : Float32) : Nil
+        @context.scale = value
+        layout(@viewport)
+      end
+
       def advance_time(now_ms : Int64) : Nil
         @context.advance_time(now_ms)
         @content.tick(now_ms, @context)

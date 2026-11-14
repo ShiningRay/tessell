@@ -26,6 +26,12 @@ root.build
 获得 SDL2 窗口、输入分发、PNG 截图（`--screenshot=x.png`）与帧调试 overlay。
 完整可运行示例：examples/app_calculator.cr（约 20 行业务代码）。
 
+**窗口 resize / DPI 变化（issue #30）**：改窗口尺寸时对现有 Root 调
+`root.layout(new_width, new_height)`；跨屏拖动/系统缩放改 DPI 时调
+`root.scale = new_scale`（联动清文本测量缓存并重排）。两者都**不重建
+Root**——组件树、焦点、编辑中状态全部保留；重建 Root 是最后的手段，
+它会丢焦点与 TextEditing 内容。
+
 ## 2. 文本与字体
 
 ```crystal

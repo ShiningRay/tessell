@@ -204,6 +204,15 @@ module Tessell
         @measure_old.clear
       end
 
+      # DPI/缩放变更（issue #30）：scale 与文本测量缓存联动。缓存的测量值
+      # 是设备像素口径，对旧 scale 全部失效——改 scale 与清缓存在同一个
+      # 入口里完成，避免调用方漏清导致旧值漂移。
+      def scale=(value : Float32) : Nil
+        return if value == @scale
+        @scale = value
+        clear_text_cache
+      end
+
       def line_height(size : Float32) : Float32
         @metrics.line_height(device_font_size(size)) / @scale
       end
