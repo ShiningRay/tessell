@@ -29,6 +29,10 @@
 - 键盘激活键：按钮用 `Space/Enter`；复选框用 `Space`；Select/Dialog/Tooltip 的键位在各自文档写明。
 - `disabled` 组件不进入焦点环、不接收激活；`read_only` 仍可聚焦、可选择、可复制，但不可修改值。
 - Tab/Shift+Tab 的焦点顺序由 Root 的焦点环决定，组件不得自建平行焦点系统。
+- 键盘键的唯一真相是 `Tessell::Input::KeyCode`；`Kit::Key` 是它的 alias（issue #27），
+  核心新增键自动对组件可见，不存在"核心已支持、Kit 收到 Unknown"的漂移
+  （spec/kit/key_mapping_spec.cr 全量锁住）。例外：`F1` 被 Root 预留给帧调试
+  overlay 开关，不投递给组件；`Unknown` 表示宿主无法识别的 keysym 占位值。
 
 ## 绘制
 

@@ -456,39 +456,13 @@ module Tessell
         false
       end
 
+      # Kit::Key 是 Input::KeyCode 的 alias（issue #27）：核心事件原样透传，
+      # 不再经过手工映射表——映射表正是两套枚举漂移的源头。
       private def to_kit(event : Tessell::Input::Event, kind : Event::Kind,
                          modifiers : Modifiers) : Event
         Event.new(kind, event.x, event.y, event.button,
-          map_key(event.key), event.text, modifiers,
+          event.key, event.text, modifiers,
           event.wheel_dx, event.wheel_dy)
-      end
-
-      private def map_key(key : Tessell::Input::KeyCode?) : Key?
-        return nil unless key
-        case key
-        when Tessell::Input::KeyCode::Tab       then Key::Tab
-        when Tessell::Input::KeyCode::Enter     then Key::Enter
-        when Tessell::Input::KeyCode::Escape    then Key::Escape
-        when Tessell::Input::KeyCode::Space     then Key::Space
-        when Tessell::Input::KeyCode::Left      then Key::Left
-        when Tessell::Input::KeyCode::Right     then Key::Right
-        when Tessell::Input::KeyCode::Up        then Key::Up
-        when Tessell::Input::KeyCode::Down      then Key::Down
-        when Tessell::Input::KeyCode::Home      then Key::Home
-        when Tessell::Input::KeyCode::End       then Key::End
-        when Tessell::Input::KeyCode::PageUp    then Key::PageUp
-        when Tessell::Input::KeyCode::PageDown  then Key::PageDown
-        when Tessell::Input::KeyCode::Backspace then Key::Backspace
-        when Tessell::Input::KeyCode::Delete    then Key::Delete
-        when Tessell::Input::KeyCode::KeyA      then Key::KeyA
-        when Tessell::Input::KeyCode::KeyB      then Key::KeyB
-        when Tessell::Input::KeyCode::KeyC      then Key::KeyC
-        when Tessell::Input::KeyCode::KeyV      then Key::KeyV
-        when Tessell::Input::KeyCode::KeyX      then Key::KeyX
-        when Tessell::Input::KeyCode::KeyZ      then Key::KeyZ
-        else
-          Key::Unknown
-        end
       end
     end
   end

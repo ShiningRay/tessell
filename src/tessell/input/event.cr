@@ -78,6 +78,10 @@ module Tessell
       F2
       F3
       F4
+      # 平台宿主遇到无法识别的 keysym 时的占位值。非 Unknown 的每个成员
+      # 必须能一路透传到 Kit::Key（spec/kit/key_mapping_spec.cr 保证不漂移）。
+      # F1 是例外：Root 预留给帧调试 overlay 开关（issue #11/#27）。
+      Unknown
     end
 
     # 统一事件：单一 struct + kind 枚举，覆盖指针/键盘/文本/滚轮/焦点/窗口事件。
