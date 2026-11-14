@@ -345,12 +345,20 @@ module Tessell
         end
       end
 
+      # 焦点投递契约（issue #26）：
+      #   组件间转移 A→B：A.on_focus_changed(false) → B.handle(Focus) → B.on_focus_changed(true)。
+      #   窗口级失焦（Input::Event::Kind::Blur）：handle#blur 分支先 B/A.handle(Blur)，
+      #   再经本方法 on_focus_changed(false)。Blur 事件语义 = 窗口失焦，转移不投递。
+      # 两条路径的顺序都有 spec/kit/focus_events_spec.cr 锁住。
       private def sync_focus : Nil
         new_component = component_for_node?(@router.focus_manager.focused)
         return if new_component == @focused_component
         @focused_component.try(&.on_focus_changed(false))
         @focused_component = new_component
-        new_component.try(&.on_focus_changed(true))
+        if new_component
+          new_component.handle(Event.focus, @context)
+          new_component.on_focus_changed(true)
+        end
       end
 
       private def sync_hover(component : Component?) : Nil

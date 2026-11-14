@@ -33,6 +33,10 @@
   核心新增键自动对组件可见，不存在"核心已支持、Kit 收到 Unknown"的漂移
   （spec/kit/key_mapping_spec.cr 全量锁住）。例外：`F1` 被 Root 预留给帧调试
   overlay 开关，不投递给组件；`Unknown` 表示宿主无法识别的 keysym 占位值。
+- 焦点投递契约（issue #26）：组件间转移 A→B 时 A 先收到 `on_focus_changed(false)`，
+  B 依次收到 `handle(Focus)` 与 `on_focus_changed(true)`；窗口级失焦时组件先收到
+  `handle(Blur)` 再收到 `on_focus_changed(false)`。`Blur` 事件语义 = 窗口失焦，
+  组件间转移不投递。顺序由 spec/kit/focus_events_spec.cr 锁住。
 
 ## 绘制
 
