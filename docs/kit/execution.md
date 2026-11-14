@@ -57,4 +57,4 @@
 - 完成：`Kit::OverlayPlacement/OverlayEntry/OverlayHost/Barrier`；Root 统一处理浮层层级、模态屏障、Escape/外部点击/blur dismiss、焦点圈定与恢复；`Kit::Tooltip` hover 延迟；`Kit::Dialog` 标题/内容/动作区与焦点陷阱；`Kit::Select` 触发区 + Popover 列表、键盘/指针选择与选中回调。
 - 验证：`crystal spec spec/kit` 62 examples / 0 failures；`kit_gallery --verify` 输出 `select=true dialog=true tooltip=true`；Dialog 背景点击被屏障阻断、Escape 恢复焦点、Tab 不逃逸。
 - 未验证：真实窗口上屏、浮层像素裁切/翻转、Windows GL 路径、屏幕阅读器。
-- 提交：待回填。
+- 提交：`e0dbf50`。
