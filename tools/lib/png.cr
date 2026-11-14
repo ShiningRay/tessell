@@ -280,3 +280,128 @@ module TessellGolden
     end
   end
 end
+
+module TessellGolden
+  # ---- 探针模式（issue #37，对照 asuka conformance）----
+  #
+  # 量测像素量而非对比参考图：注册标记定位 + Edge 0.5 交叉 + Mix 混合比例。
+  # 断言与 DPI/缩放/宿主解耦——同一组探针在 scale=1/1.5/2.0 全过，无需重录
+  # golden；像素 golden 降级为失败诊断附件。
+
+  struct Mark
+    getter x : Int32
+    getter y : Int32
+
+    def initialize(@x : Int32, @y : Int32)
+    end
+  end
+
+  # 定位画面上的注册标记（默认品红 0xFF00FFFF）。标记是与内容无关的
+  # 锚点；返回全部命中像素（调用方取聚簇/距离）。
+  def self.locate_marks(rgba : Bytes, w : Int32, h : Int32,
+                        color : UInt32 = 0xff00ffff_u32) : Array(Mark)
+    r = ((color >> 24) & 0xff).to_u8
+    g = ((color >> 16) & 0xff).to_u8
+    b = ((color >> 8) & 0xff).to_u8
+    a = (color & 0xff).to_u8
+    marks = [] of Mark
+    y = 0
+    while y < h
+      x = 0
+      while x < w
+        i = (y * w + x) * 4
+        if rgba[i] == r && rgba[i + 1] == g && rgba[i + 2] == b && rgba[i + 3] == a
+          marks << Mark.new(x, y)
+        end
+        x += 1
+      end
+      y += 1
+    end
+    marks
+  end
+
+  # 由两个标记求 px/pt 比例（标记在源里按 pt 距离放置）。
+  def self.scale_from_marks(marks : Array(Mark), pt_distance : Float32) : Float32
+    raise ArgumentError.new("need at least 2 marks") if marks.size < 2
+    max_dx = 0.0_f32
+    marks.each do |a|
+      marks.each do |b|
+        dx = (b.x - a.x).abs.to_f32
+        max_dx = dx if dx > max_dx
+      end
+    end
+    max_dx / pt_distance
+  end
+
+  # 沿线采样单通道强度（0..1）。channel: 0=R 1=G 2=B。
+  def self.profile(rgba : Bytes, w : Int32, h : Int32, x0 : Int32, y0 : Int32,
+                   x1 : Int32, y1 : Int32, channel : Int32 = 0) : Array(Float32)
+    raise ArgumentError.new("channel") unless channel >= 0 && channel <= 2
+    out = [] of Float32
+    dx = x1 - x0
+    dy = y1 - y0
+    steps = Math.max(dx.abs, dy.abs)
+    i = 0
+    while i <= steps
+      t = steps == 0 ? 0.0_f32 : i.to_f32 / steps.to_f32
+      x = (x0.to_f32 + dx * t).round.to_i.clamp(0, w - 1)
+      y = (y0.to_f32 + dy * t).round.to_i.clamp(0, h - 1)
+      out << rgba[(y * w + x) * 4 + channel].to_f32 / 255.0_f32
+      i += 1
+    end
+    out
+  end
+
+  # 剖面上的 0.5 交叉点（亚像素线性插值，容差 1 设备像素的量测基础）。
+  def self.crossings(profile : Array(Float32), threshold : Float32 = 0.5_f32) : Array(Float32)
+    out = [] of Float32
+    i = 1
+    while i < profile.size
+      a = profile[i - 1]
+      b = profile[i]
+      if (a < threshold && b >= threshold) || (a >= threshold && b < threshold)
+        span = b - a
+        frac = span == 0.0_f32 ? 0.5_f32 : (threshold - a) / span
+        out << (i - 1).to_f32 + frac
+      end
+      i += 1
+    end
+    out
+  end
+
+  # 模糊量：两个 0.5 交叉间距之半 = 高斯 σ 估计（asuka 口径）。
+  def self.sigma_between_edges(profile : Array(Float32),
+                               threshold : Float32 = 0.5_f32) : Float32?
+    c = crossings(profile, threshold)
+    return nil if c.size < 2
+    (c.last - c.first).abs / 2.0_f32
+  end
+
+  # Mix：矩形区域内前景对背景的混合比例（逐通道均值，抗噪）。
+  def self.mix_ratio(rgba : Bytes, w : Int32, h : Int32, x : Int32, y : Int32,
+                     rw : Int32, rh : Int32, fg : UInt32, bg : UInt32) : Float32
+    sum = 0.0_f32
+    count = 0
+    yy = y
+    while yy < y + rh && yy < h
+      xx = x
+      while xx < x + rw && xx < w
+        i = (yy * w + xx) * 4
+        ch = 0
+        while ch < 3
+          ch_val = rgba[i + ch].to_f32
+          fgv = (((fg >> (24 - ch * 8)) & 0xff)).to_f32
+          bgv = (((bg >> (24 - ch * 8)) & 0xff)).to_f32
+          denom = fgv - bgv
+          sum += denom.abs < 0.001_f32 ? 0.0_f32 : (ch_val - bgv) / denom
+          count += 1
+          ch += 1
+        end
+        xx += 1
+      end
+      yy += 1
+    end
+    raise ArgumentError.new("mix_ratio: empty region") if count == 0
+    sum / count
+  end
+end
