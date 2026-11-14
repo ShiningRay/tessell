@@ -180,6 +180,24 @@ Process
 - CJK 换行、Emoji、RTL、组合字符、IME 预编辑与候选窗位置，必须在 M2 出可运行样例。
 - 无障碍树与 widget 树同步维护，macOS 走 NSAccessibility，其他平台后置。
 
+### 5.6 平台宿主与渲染后端的边界（2026-11-14 修订）
+
+跨平台收口新增 `Tessell::Platform`，但不改变 `Render::Backend` 的职责：
+
+```text
+应用/Kit → Platform::Host（窗口、事件、DPI、剪贴板、IME）
+              ↓ 输入事件 / GL context
+         Render::Backend（只负责绘制）
+              ↓
+           OpenGL
+```
+
+- `Platform::Host` 是窗口/系统集成层；SDL2 只是可选实现之一，不是核心默认依赖。
+- `Render::Backend` 不感知 SDL2/Win32/Cocoa/X11，也不负责事件循环与剪贴板。
+- `require "tessell"` 不加载平台宿主；消费者显式 `require "tessell/platform/sdl2"`。
+- 原生 Win32、Cocoa、X11/Wayland 宿主可作为后续实现，不得为接入新宿主改写组件。
+- 完整计划、支持矩阵与 IME/a11y 分级见 [cross-platform-plan.md](cross-platform-plan.md)。
+
 ---
 
 ## 6. Crystal 特性的具体用法

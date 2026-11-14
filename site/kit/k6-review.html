@@ -67,6 +67,7 @@
 <a href="component-contract.html">组件契约</a>
 <a href="repository-strategy.html">仓策略</a>
 <a href="plan.html">计划</a>
+<a href="cross-platform.html">跨平台方案</a>
 <a href="execution.html">执行记录</a>
 <a href="k6-review.html">K6 复核</a>
 <a href="apps.html">示例应用</a>
@@ -77,6 +78,8 @@
 <blockquote>复核时点：2026-11-14，开发机 macOS arm64 / Crystal 1.21.1。</blockquote>
 <blockquote>结论先说：<strong>逻辑与 API 层 Go-with-conditions；不得宣称平台完整或真实窗口已验证。</strong></blockquote>
 <blockquote>架构复盘已发 GitHub issue：<a href="https://github.com/ShiningRay/tessell/issues/13">#13</a>。</blockquote>
+<p>&gt;</p>
+<blockquote><strong>2026-11-14 补记（K6 之后）</strong>：本文的“真实窗口全为否”保留为 K6 时点结论。之后新增 SDL2/OpenGL demo 宿主，macOS 已实测计算器、文本编辑器与文本上屏；FreeType FFI 修复了 LP64 布局。macOS 不再是“无可用后端”，但三平台完整支持、IME 预编辑、屏幕阅读器与打包仍未完成。当前跨平台计划见 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a>。</blockquote>
 <h2 id="1-复核范围">1. 复核范围</h2>
 <p>对照 <a href="plan.html">plan.md</a> 的 K0–K6 退出条件，检查：</p>
 <ul>

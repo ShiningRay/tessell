@@ -2,6 +2,7 @@
 
 > 中文优先。每个组件页固定包含：何时使用、最小示例、状态/variant/size、键盘、无障碍、主题 token、限制。
 > 当前状态：K2 已交付 Button、Checkbox、Text、ScrollView、VirtualList 适配；K3 已交付 Tooltip、Dialog、Select 与 Root Overlay；K4 已交付单行 Input（含 grapheme 光标/选区、剪贴板接口与 IME 预览 API，平台 IME 事件仍未接入）。
+> 跨平台（Windows/macOS/Linux）按 L0→L2 分级收口，见 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)；未完成的平台证据不得写成“已支持”。
 
 ## 入口
 
@@ -61,4 +62,4 @@ crystal run tools/build_kit_site.cr
 crystal run examples/kit_gallery.cr -- --verify --frames=60 --theme=dark --dpi=1.5
 ```
 
-真实窗口上屏需要 Windows + OpenGL 后端；当前 macOS 环境不能替代验证。
+真实窗口上屏已在本机 macOS SDL2/OpenGL 验证；Windows SDL2 与 Linux GUI 仍需按跨平台计划补证据，headless gallery 不能替代真实窗口。

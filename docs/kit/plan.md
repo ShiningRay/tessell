@@ -1,6 +1,7 @@
 # Tessell Kit：UI 组件库方案与实施计划
 
-> 状态：实施中。计划基线为 `649c59a`；K0 起在本仓落地，执行记录见 [execution.md](execution.md)。
+> 状态：K0–K6 已完成；K6 之后的跨平台收口已转入 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)。本文保留 Kit 组件库的 K0–K6 计划与验收历史。
+> 计划基线为 `649c59a`；K0 起在本仓落地，执行记录见 [execution.md](execution.md)。
 > 基线：本地 `tessell` 仓库，HEAD `649c59a`（2026-11-14 调查时点）。
 > 参考：[gpui-kit 组件目录](https://gpui-kit.com/zh-CN/component/)，借用其组件覆盖、文档组织与 Root/Theme/状态分离思想；不照搬 Rust/GPUI API，不复制其聊天、编辑器等全部范围。
 
@@ -17,7 +18,7 @@
 ### 2.1 当前现实
 
 - 核心与组件仍会同频修改。现有 `Theme` 只有 6 个颜色字段；`DrawCmd` 只有 Rect/Text/Line；输入缺修饰键、完整按键、滚轮 delta；a11y 只有进程内树。首批组件会反向暴露核心缺口。
-- 当前验证基线为 Windows + msys2 ucrt64；macOS No-Go、Linux 未运行验证。拆仓不会解决平台能力，只会增加跨仓联调。
+- 当前历史验证基线为 Windows + msys2 ucrt64；K6 之后 macOS 已补 SDL2/OpenGL 真实窗口与 FreeType LP64 文本证据，Linux 仍未运行验证。平台能力由 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md) 接管；拆仓不会解决平台能力，只会增加跨仓联调。
 - Shards 官方规范以一个项目中的 `shard.yml` 描述名称、版本与依赖，Git tag 用于版本解析；没有为同仓多 shard 独立发版设计的机制。
 - Crystal 官方 `require` 规则支持嵌套路径。同一 shard 可提供 `require "tessell/kit"`，使 Kit 保持可选加载，而不必立即拆仓。
 
@@ -65,7 +66,7 @@
 - 首版不做动画系统、复杂矢量图标、Markdown/HTML、代码编辑器、图表、Dock、GridLayout。
 - 不把聊天 Bubble/Message/Attachment 等行业组件纳入通用首版。
 - 不宣称屏幕阅读器可用：UIA/平台无障碍 provider 仍需独立项目阶段。
-- 不承诺 macOS/Linux 支持，直至相应环境真实验证。
+- K0–K6 不把 macOS/Linux 支持当作完成条件；K6 之后的三平台支持由 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md) 按 L0/L1/L2/L3 分级推进，未真实验证的平台仍不得宣称支持。
 - 不在本计划中改核心版本号、发布 release 或迁移既有 `Widgets::VirtualList` 路径。
 
 ## 4. 现状依据与核心缺口
@@ -379,7 +380,7 @@ Root 是窗口级组合边界，不承担业务状态：
 | 主题 token 膨胀 | 定制难、组件不一致 | 语义色优先，组件 token 仅在有差异时增加 |
 | 文档截图与实现漂移 | 用户示例失效 | Showcase 生成截图、recipe 编译、发布复核 |
 | 过早拆仓 | 双仓版本和 CI 成本 | 同仓可选入口；满足触发条件再拆 |
-| 当前 macOS 环境产生错误跨平台推断 | 验证结论失真 | 只在真实环境声明支持；Windows gate 在 Windows 执行 |
+| 当前 macOS 环境产生错误跨平台推断 | 验证结论失真 | 只在真实环境声明支持；Windows gate 在 Windows 执行；三平台分级见 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md) |
 
 ## 12. 本轮证据与未验证项
 
@@ -388,3 +389,14 @@ Root 是窗口级组合边界，不承担业务状态：
 - 已核实官方资料：[Crystal Requiring Files](https://crystal-lang.org/reference/latest/syntax_and_semantics/requiring_files.html)、[shard.yml 规范](https://github.com/crystal-lang/shards/blob/master/docs/shard.yml.adoc)、[Shards 命令](https://crystal-lang.org/reference/latest/man/shards/index.html)、[Writing Shards](https://crystal-lang.org/reference/latest/guides/writing_shards.html)。
 - 本轮只制定计划；未运行 Crystal 测试或 Windows 图形 gate，未实现组件，未创建/发布仓库或网站。
 - 文档站生成器、最终主题数值、冻结后的 Crystal API 签名和未来拆仓名均为实施时决策，不在此虚构定案。
+
+## 13. K6 之后的跨平台收口
+
+K6 的结论是“逻辑/API 层 Go-with-conditions；平台完整 No-Go”。2026-11-14 的 macOS SDL2/OpenGL 示例与 FreeType LP64 修复改变了证据边界，但不等于三平台完成。后续按 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md) 执行：
+
+- L0：三平台编译与逻辑测试。
+- L1：三平台真实窗口、输入、文本、GL 上屏。
+- L2：DPI、剪贴板、字体回退、基础 IME、打包。
+- L3：完整 IME 预编辑、平台无障碍 provider、签名/公证。
+
+在 L1/L2 证据齐全前，组件文档不得把“K0–K6 已交付”改写成“平台完整”。

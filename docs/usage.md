@@ -1,5 +1,7 @@
 # Tessell 使用说明（M4 app_demo）
 
+> 本文是 Windows + msys2 ucrt64 的 `app_demo` 专项说明；三平台支持级别、SDL2 宿主与待验证项见 [cross-platform-plan.md](cross-platform-plan.md)。
+
 ## 前置条件
 - Crystal 1.22（Windows，msys2 ucrt64 工具链）。
 - 构建/运行前设置 PATH：`$env:PATH="C:\msys64\ucrt64\bin;$env:PATH"`

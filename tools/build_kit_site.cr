@@ -26,6 +26,7 @@ module KitSite
     Page.new("组件契约", "docs/kit/component-contract.md", "component-contract.html"),
     Page.new("仓策略", "docs/kit/repository-strategy.md", "repository-strategy.html"),
     Page.new("计划", "docs/kit/plan.md", "plan.html"),
+    Page.new("跨平台方案", "docs/cross-platform-plan.md", "cross-platform.html"),
     Page.new("执行记录", "docs/kit/execution.md", "execution.html"),
     Page.new("K6 复核", "docs/kit/K6-review.md", "k6-review.html"),
     Page.new("示例应用", "docs/kit/apps.md", "apps.html"),
@@ -140,7 +141,7 @@ HTML
 <main>
 <h1>Tessell Kit</h1>
 <p>Tessell 的 retained-mode 自绘组件库，同仓可选入口 <code>require "tessell/kit"</code>。</p>
-<p><a href="kit/index.html">进入组件文档 →</a></p>
+<p><a href="kit/index.html">进入组件文档 →</a> · <a href="kit/cross-platform.html">跨平台方案 →</a></p>
 <p><img src="previews/gallery-light.png" alt="Tessell Kit gallery light" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></p>
 <p class="meta">本页由 <code>tools/build_kit_site.cr</code> 生成；组件运行时与文档站解耦。</p>
 </main>
@@ -439,7 +440,9 @@ HTML
     escaped.gsub(/\[([^\]]+)\]\(([^)]+)\)/) do
       label = $1
       href = $2
-      href = href.sub(/\.md(\#.*)?$/, ".html")
+      unless href.starts_with?("http://") || href.starts_with?("https://") || href.starts_with?("#")
+        href = href.sub(/\.md(\#.*)?$/, ".html")
+      end
       %(<a href="#{href}">#{label}</a>)
     end
   end

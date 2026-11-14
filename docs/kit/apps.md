@@ -1,6 +1,6 @@
 # 示例应用
 
-两个可运行的 Kit app demo：计算器与多行文本编辑器。它们使用 SDL2 窗口 + OpenGL 宿主，组件与状态逻辑走 Tessell Kit；窗口宿主只存在于 `examples/`，不进入 shard 核心。
+两个可运行的 Kit app demo：计算器与多行文本编辑器。它们使用 SDL2 窗口 + OpenGL 宿主，组件与状态逻辑走 Tessell Kit；当前窗口宿主只存在于 `examples/`，不进入 shard 核心（计划提升为可选 `tessell/platform/sdl2`，见跨平台方案）。
 
 ## 运行
 
@@ -20,6 +20,13 @@ crystal run examples/app_calculator.cr --link-flags "-L/opt/homebrew/lib"
 Windows：安装 SDL2 开发库（msys2/ucrt64 或官方 dev 包），确保 `SDL2.dll` 在 PATH 或 exe 同目录，然后：
 
 ```powershell
+crystal run examples/app_calculator.cr
+```
+
+Linux（Ubuntu/Debian，X11/XWayland；待实测）：
+
+```bash
+sudo apt install libsdl2-dev libfreetype6-dev libharfbuzz-dev libgl1-mesa-dev
 crystal run examples/app_calculator.cr
 ```
 
@@ -65,10 +72,20 @@ crystal run examples/app_calculator.cr --link-flags "-L/opt/homebrew/lib" -- \
 ffmpeg -y -i /tmp/calculator.ppm /tmp/calculator.png
 ```
 
+## 跨平台状态
+
+| 平台 | SDL2 demo | 说明 |
+|---|---|---|
+| macOS arm64 | 已实测 | 计算器/编辑器真实窗口、文本上屏、截图通过 |
+| Windows x64 | 待验证 | 现有真实窗口证据来自 Win32/WGL `examples/app_demo.cr`，不是 SDL2 demo |
+| Linux x64 | 待验证 | 需要 SDL2、OpenGL/GLX 与 X11/XWayland；尚无 GUI 运行证据 |
+
+三平台收口方案、L0/L1/L2/L3 支持级别和工作包见 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)。
+
 ## 限制
 
-- SDL2 只是 demo 宿主；核心仍不依赖 SDL2。Windows 上需要单独安装 SDL2。
+- 当前 SDL2 只是 demo 宿主；计划提升为可选平台宿主，核心仍不依赖 SDL2。Windows/Linux 需要单独安装 SDL2。
 - 未接平台 IME composition；SDL_TEXTINPUT 可输入普通文本，但复杂输入法状态未验证。
 - 未接屏幕阅读器 provider；只有进程内 A11y 树。
 - 文本编辑器 Save/Open 固定 `notes.txt`，没有撤销/重做、查找替换、自动换行与多文档。
-- 真实窗口证据来自 macOS SDL2/OpenGL；Windows 窗口仍待验证。
+- 真实窗口证据来自 macOS SDL2/OpenGL；Windows SDL2 与 Linux 窗口仍待验证。

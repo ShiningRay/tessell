@@ -67,6 +67,7 @@
 <a href="component-contract.html">组件契约</a>
 <a href="repository-strategy.html">仓策略</a>
 <a href="plan.html">计划</a>
+<a href="cross-platform.html">跨平台方案</a>
 <a href="execution.html">执行记录</a>
 <a href="k6-review.html">K6 复核</a>
 <a href="apps.html">示例应用</a>
@@ -74,7 +75,8 @@
 <main>
 <div class="meta">来源：docs/kit/plan.md</div>
 <h1 id="tessell-kit-ui-组件库方案与实施计划">Tessell Kit：UI 组件库方案与实施计划</h1>
-<blockquote>状态：实施中。计划基线为 <code>649c59a</code>；K0 起在本仓落地，执行记录见 <a href="execution.html">execution.md</a>。</blockquote>
+<blockquote>状态：K0–K6 已完成；K6 之后的跨平台收口已转入 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a>。本文保留 Kit 组件库的 K0–K6 计划与验收历史。</blockquote>
+<blockquote>计划基线为 <code>649c59a</code>；K0 起在本仓落地，执行记录见 <a href="execution.html">execution.md</a>。</blockquote>
 <blockquote>基线：本地 <code>tessell</code> 仓库，HEAD <code>649c59a</code>（2026-11-14 调查时点）。</blockquote>
 <blockquote>参考：<a href="https://gpui-kit.com/zh-CN/component/">gpui-kit 组件目录</a>，借用其组件覆盖、文档组织与 Root/Theme/状态分离思想；不照搬 Rust/GPUI API，不复制其聊天、编辑器等全部范围。</blockquote>
 <h2 id="1-决策摘要">1. 决策摘要</h2>
@@ -83,7 +85,7 @@
 <h3 id="2-1-当前现实">2.1 当前现实</h3>
 <ul>
 <li>核心与组件仍会同频修改。现有 <code>Theme</code> 只有 6 个颜色字段；<code>DrawCmd</code> 只有 Rect/Text/Line；输入缺修饰键、完整按键、滚轮 delta；a11y 只有进程内树。首批组件会反向暴露核心缺口。</li>
-<li>当前验证基线为 Windows + msys2 ucrt64；macOS No-Go、Linux 未运行验证。拆仓不会解决平台能力，只会增加跨仓联调。</li>
+<li>当前历史验证基线为 Windows + msys2 ucrt64；K6 之后 macOS 已补 SDL2/OpenGL 真实窗口与 FreeType LP64 文本证据，Linux 仍未运行验证。平台能力由 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a> 接管；拆仓不会解决平台能力，只会增加跨仓联调。</li>
 <li>Shards 官方规范以一个项目中的 <code>shard.yml</code> 描述名称、版本与依赖，Git tag 用于版本解析；没有为同仓多 shard 独立发版设计的机制。</li>
 <li>Crystal 官方 <code>require</code> 规则支持嵌套路径。同一 shard 可提供 <code>require &quot;tessell/kit&quot;</code>，使 Kit 保持可选加载，而不必立即拆仓。</li>
 </ul>
@@ -128,7 +130,7 @@
 <li>首版不做动画系统、复杂矢量图标、Markdown/HTML、代码编辑器、图表、Dock、GridLayout。</li>
 <li>不把聊天 Bubble/Message/Attachment 等行业组件纳入通用首版。</li>
 <li>不宣称屏幕阅读器可用：UIA/平台无障碍 provider 仍需独立项目阶段。</li>
-<li>不承诺 macOS/Linux 支持，直至相应环境真实验证。</li>
+<li>K0–K6 不把 macOS/Linux 支持当作完成条件；K6 之后的三平台支持由 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a> 按 L0/L1/L2/L3 分级推进，未真实验证的平台仍不得宣称支持。</li>
 <li>不在本计划中改核心版本号、发布 release 或迁移既有 <code>Widgets::VirtualList</code> 路径。</li>
 </ul>
 <h2 id="4-现状依据与核心缺口">4. 现状依据与核心缺口</h2>
@@ -396,7 +398,7 @@ button.on_action { save_via_channel }
 <tr><td>主题 token 膨胀</td><td>定制难、组件不一致</td><td>语义色优先，组件 token 仅在有差异时增加</td></tr>
 <tr><td>文档截图与实现漂移</td><td>用户示例失效</td><td>Showcase 生成截图、recipe 编译、发布复核</td></tr>
 <tr><td>过早拆仓</td><td>双仓版本和 CI 成本</td><td>同仓可选入口；满足触发条件再拆</td></tr>
-<tr><td>当前 macOS 环境产生错误跨平台推断</td><td>验证结论失真</td><td>只在真实环境声明支持；Windows gate 在 Windows 执行</td></tr>
+<tr><td>当前 macOS 环境产生错误跨平台推断</td><td>验证结论失真</td><td>只在真实环境声明支持；Windows gate 在 Windows 执行；三平台分级见 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a></td></tr>
 </tbody></table>
 <h2 id="12-本轮证据与未验证项">12. 本轮证据与未验证项</h2>
 <ul>
@@ -406,6 +408,15 @@ button.on_action { save_via_channel }
 <li>本轮只制定计划；未运行 Crystal 测试或 Windows 图形 gate，未实现组件，未创建/发布仓库或网站。</li>
 <li>文档站生成器、最终主题数值、冻结后的 Crystal API 签名和未来拆仓名均为实施时决策，不在此虚构定案。</li>
 </ul>
+<h2 id="13-k6-之后的跨平台收口">13. K6 之后的跨平台收口</h2>
+<p>K6 的结论是“逻辑/API 层 Go-with-conditions；平台完整 No-Go”。2026-11-14 的 macOS SDL2/OpenGL 示例与 FreeType LP64 修复改变了证据边界，但不等于三平台完成。后续按 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a> 执行：</p>
+<ul>
+<li>L0：三平台编译与逻辑测试。</li>
+<li>L1：三平台真实窗口、输入、文本、GL 上屏。</li>
+<li>L2：DPI、剪贴板、字体回退、基础 IME、打包。</li>
+<li>L3：完整 IME 预编辑、平台无障碍 provider、签名/公证。</li>
+</ul>
+<p>在 L1/L2 证据齐全前，组件文档不得把“K0–K6 已交付”改写成“平台完整”。</p>
 
 </main>
 </div>

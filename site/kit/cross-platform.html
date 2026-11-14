@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tessell 跨平台方案与实施计划（Windows / macOS / Linux） — Tessell Kit</title>
+<style>  :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
+  nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
+  nav h1 { font-size:16px; margin:0 0 16px; }
+  nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
+  nav a:hover { background:var(--bg); }
+  main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
+  h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
+  h1 { font-size:30px; margin-top:0; }
+  h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  p, li { color:var(--fg); }
+  code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
+  pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
+  pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
+  blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
+  table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
+  th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  main img { max-width:100%; height:auto; border:1px solid var(--border); border-radius:8px; margin:12px 0; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h1>Tessell Kit</h1>
+<a href="index.html">概览</a>
+<a href="components/button.html">Button</a>
+<a href="components/checkbox.html">Checkbox</a>
+<a href="components/text.html">Text</a>
+<a href="components/input.html">Input</a>
+<a href="components/select.html">Select</a>
+<a href="components/tooltip.html">Tooltip</a>
+<a href="components/dialog.html">Dialog</a>
+<a href="components/scroll-view.html">ScrollView</a>
+<a href="components/virtual-list.html">VirtualList</a>
+<a href="design-tokens.html">设计 token</a>
+<a href="component-contract.html">组件契约</a>
+<a href="repository-strategy.html">仓策略</a>
+<a href="plan.html">计划</a>
+<a href="cross-platform.html">跨平台方案</a>
+<a href="execution.html">执行记录</a>
+<a href="k6-review.html">K6 复核</a>
+<a href="apps.html">示例应用</a>
+</nav>
+<main>
+<div class="meta">来源：docs/cross-platform-plan.md</div>
+<h1 id="tessell-跨平台方案与实施计划-windows-macos-linux">Tessell 跨平台方案与实施计划（Windows / macOS / Linux）</h1>
+<blockquote>状态：2026-11-14 修订，计划基线 <code>4106f2b</code>。本文只修订方案与计划，不宣称三平台已经完成。</blockquote>
+<blockquote>关系：核心架构见 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/architecture.md">architecture.md</a>；Kit 的 K0–K6 计划见 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/kit/plan.md">kit/plan.md</a>；本文接管 K6 之后的跨平台收口，并替代 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/roadmap.md">roadmap.md</a> 中“Windows 先行、macOS/Linux 后置”的平台顺序假设。</blockquote>
+<blockquote>证据边界：macOS 已有真实窗口与文本上屏证据；Windows 有 M0–M4 的 Win32/WGL 证据；Linux 尚无 GUI 运行证据。未运行的项目一律标为未验证。</blockquote>
+<h2 id="0-结论先行">0. 结论先行</h2>
+<p>1. <strong>跨平台不是把 Win32 代码复制三遍。</strong> 保留自绘核心，把“窗口/事件/剪贴板/DPI/IME”收敛为可选的 <code>Tessell::Platform</code> 平台层；<code>Render::Backend</code> 继续只负责渲染。 2. <strong>SDL2 从示例宿主提升为可选的官方平台宿主，但不进入核心默认依赖。</strong> 新增 <code>require &quot;tessell/platform/sdl2&quot;</code>；核心入口 <code>require &quot;tessell&quot;</code> 不加载 SDL2，<code>shard.yml</code> 不新增 SDL2 依赖。 3. <strong>先做可验证的 L1，再做可交付的 L2。</strong> L1 = 三平台真实窗口、输入、文本、GL 上屏；L2 = DPI、剪贴板、字体回退、基础 IME、打包。完整 IME 预编辑与平台无障碍 provider 单独列为 L3，不阻塞 L1/L2。 4. <strong>最大的风险不是 OpenGL，而是 IME、无障碍和字体差异。</strong> SDL2 能解决窗口/上下文/普通文本输入，但不能单独解决 macOS/Windows/Linux 的完整 IME 预编辑与屏幕阅读器。 5. <strong>先建立跨平台质量门，再扩组件。</strong> 没有三平台 CI、真实窗口证据和字体测试分层，不做 P1 组件扩张。</p>
+<h2 id="1-现状与证据">1. 现状与证据</h2>
+<table>
+<thead><tr><th>平台</th><th>已有证据</th><th>关键缺口</th></tr></thead>
+<tbody>
+<tr><td>macOS arm64</td><td>SDL2/OpenGL 真实窗口跑通计算器与文本编辑器；FreeType LP64 布局修复；<code>spec/apps + spec/text_unix_smoke + spec/kit</code> 100 examples / 0 failures</td><td>完整 <code>crystal spec</code> 仍受 Windows 字体路径影响；无 CI；无 IME 预编辑、平台剪贴板已验证的跨平台门禁、无打包</td></tr>
+<tr><td>Windows 10/11 x64</td><td>M0–M4 的 Win32/WGL 真实窗口、文本、脏区、DPI、路径填充与 gate 证据</td><td>SDL2 宿主未构建/运行；<code>package.ps1</code> 与 <code>gate.ps1</code> 仅 Windows；无 Linux/macOS 对等门禁</td></tr>
+<tr><td>Linux</td><td>仅有工具与静态站可在非 Windows 构建的局部事实</td><td>无 GUI 运行证据；SDL2/GLX/EGL、X11/Wayland、字体与输入法均未验证</td></tr>
+<tr><td>核心</td><td><code>GLBackend</code> 使用 OpenGL 2.1 兼容路径；<code>@[Link]</code> 已按 Windows/macOS/Linux 分支；FreeType/HarfBuzz FFI 已按 LP64/LLP64 分支</td><td>平台层尚未正式化；字体发现散落在 examples/spec；测试大量硬编码 <code>C:/Windows/Fonts/...</code></td></tr>
+</tbody></table>
+<h3 id="1-1-现有-sdl2-宿主的定位">1.1 现有 SDL2 宿主的定位</h3>
+<p>当前 <a href="https://github.com/ShiningRay/tessell/blob/main/examples/lib/kit_sdl_host.cr">examples/lib/kit_sdl_host.cr</a> 已包含：</p>
+<ul>
+<li>窗口创建、OpenGL context、帧循环、resize、截图。</li>
+<li>SDL 事件到 <code>Tessell::Input::Event</code> 的映射。</li>
+<li><code>SDL_GetClipboardText</code> / <code>SDL_SetClipboardText</code>。</li>
+<li>通过 <code>SDL_GL_GetDrawableSize</code> 推导 Retina/高 DPI 的 drawable scale。</li>
+<li>字体候选路径与示例生命周期。</li>
+</ul>
+<p>它是“示例宿主”，不是稳定库 API：包含 <code>KitDemoApp</code>、示例专用参数和 Kit 依赖。跨平台方案要把通用部分上移，示例只保留应用装配。</p>
+<h2 id="2-目标-支持矩阵与支持级别">2. 目标、支持矩阵与支持级别</h2>
+<h3 id="2-1-支持级别">2.1 支持级别</h3>
+<table>
+<thead><tr><th>级别</th><th>定义</th><th>必须证据</th><th>不包含</th></tr></thead>
+<tbody>
+<tr><td>L0 构建/逻辑</td><td>三平台都能编译核心、Kit、纯逻辑 app；headless 组件矩阵通过</td><td>CI 编译日志、<code>crystal spec</code> 选定套件、headless gallery 输出</td><td>真实窗口、像素、IME</td></tr>
+<tr><td>L1 真实窗口</td><td>三平台都能创建窗口、GL context、处理鼠标/键盘/滚轮、显示文本与组件</td><td>真实窗口启动日志、截图、<code>--frames</code>/<code>--verify</code>、像素回读</td><td>完整 IME、屏幕阅读器、安装器</td></tr>
+<tr><td>L2 可交付</td><td>三平台 DPI、剪贴板、字体回退、基础 IME、可分发产物</td><td>平台矩阵表、干净机器/容器运行、产物清单</td><td>完整预编辑、UIA/NSAccessibility/AT-SPI</td></tr>
+<tr><td>L3 完整桌面</td><td>各平台 IME 预编辑/候选窗、无障碍 provider、签名/公证</td><td>平台 IME 人工记录、a11y 客户端验收、签名产物</td><td>移动端、WebView</td></tr>
+</tbody></table>
+<p><strong>本轮把 L1 + L2 作为跨平台目标；L3 单列，不隐藏在“已跨平台”里。</strong></p>
+<h3 id="2-2-目标平台矩阵">2.2 目标平台矩阵</h3>
+<table>
+<thead><tr><th>维度</th><th>首版承诺</th><th>后续/不承诺</th></tr></thead>
+<tbody>
+<tr><td>架构</td><td>64-bit：x86_64 与 arm64</td><td>32-bit 不支持（FreeType 断言按 64-bit 指针）</td></tr>
+<tr><td>Windows</td><td>Windows 10 1809+ / Windows 11，MSYS2 UCRT64</td><td>ARM64 Windows 后续</td></tr>
+<tr><td>macOS</td><td>macOS 13+，arm64 与 x86_64</td><td>macOS 12 及更早不承诺</td></tr>
+<tr><td>Linux</td><td>Ubuntu 22.04/24.04、Debian 12/13，glibc，x86_64/arm64</td><td>其他发行版需单独验证</td></tr>
+<tr><td>图形</td><td>OpenGL 2.1 兼容上下文</td><td>OpenGL 3.3 core、Metal、Vulkan 后续</td></tr>
+<tr><td>Linux 显示</td><td>X11 与 XWayland 为基线</td><td>原生 Wayland 后续；不得把 XWayland 当原生 Wayland</td></tr>
+<tr><td>工具链</td><td>Crystal 1.21+；SDL2 2.x；FreeType/HarfBuzz 系统库</td><td>版本矩阵在 CI 中固定</td></tr>
+<tr><td>文本</td><td>普通 Unicode 文本、CJK、基础 Emoji 回退</td><td>彩色 Emoji 三平台完全一致不承诺</td></tr>
+<tr><td>IME</td><td>已提交文本（committed text）</td><td>预编辑/候选窗按 L3 平台适配</td></tr>
+<tr><td>无障碍</td><td>进程内 A11y 树</td><td>平台 provider 按 L3</td></tr>
+</tbody></table>
+<h3 id="2-3-非目标">2.3 非目标</h3>
+<ul>
+<li>不把 SDL2 放进 <code>Tessell::Render::Backend</code>，不强制所有消费者安装 SDL2。</li>
+<li>不在本轮做原生 Wayland、Metal、Vulkan 或 OpenGL core profile。</li>
+<li>不在 L1 承诺完整中文/日文/韩文 IME 预编辑、候选窗与屏幕阅读器。</li>
+<li>不承诺三平台彩色 Emoji 完全一致；先保证不崩溃、有合理回退。</li>
+<li>不做移动端、WebView、DOM/CSS、Web 组件运行时。</li>
+</ul>
+<h2 id="3-方案">3. 方案</h2>
+<h3 id="3-1-分层与依赖方向">3.1 分层与依赖方向</h3>
+<pre><code class="language-text">应用 / Kit
+   │  Input::Event、Root、PaintList
+   ▼
+Platform::Host（可选：SDL2 / Win32 / Cocoa / X11-Wayland）
+   │  窗口、事件循环、DPI、剪贴板、IME、光标
+   ▼
+Render::Backend（GLBackend）
+   │  DrawList、atlas、scissor、stencil
+   ▼
+OpenGL 2.1 兼容上下文
+
+文本栈：FreeType + HarfBuzz（独立于平台宿主）
+</code></pre>
+<p>依赖规则：</p>
+<ul>
+<li><code>Tessell::Platform</code> 不依赖 Kit；Kit/示例依赖平台宿主。</li>
+<li><code>Render::Backend</code> 不知道窗口系统；平台宿主不知道组件。</li>
+<li>核心入口不自动加载任何平台宿主。</li>
+<li>平台宿主可以可选依赖 SDL2，但 SDL2 不得成为核心入口的隐式依赖。</li>
+</ul>
+<h3 id="3-2-为什么不把-sdl2-塞进-render-backend">3.2 为什么不把 SDL2 塞进 <code>Render::Backend</code></h3>
+<p><code>Tessell::Render::Backend</code> 的职责是渲染管线：<code>init/resize/begin_frame/sync_atlas/draw_text/draw_draw_list/end_frame</code>。SDL2 的职责是窗口、GL context、事件与系统集成。二者混在一起会导致：</p>
+<p>1. 所有消费者被迫安装 SDL2，包括 headless、服务端和纯逻辑测试。 2. 平台实现被写死，无法再提供 Win32/Cocoa/GLFW 等宿主。 3. Kit 组件被迫感知平台 FFI，违反现有仓策略。 4. 测试无法用假宿主验证事件与生命周期。</p>
+<p>因此新增的是 <code>Platform::Host</code>，不是新的 <code>Render::Backend</code>。</p>
+<h3 id="3-3-platform-host-契约-形状-未冻结">3.3 <code>Platform::Host</code> 契约（形状，未冻结）</h3>
+<pre><code class="language-crystal"><span class="tok-kw">require</span> <span class="tok-str">&quot;tessell&quot;</span>
+
+<span class="tok-kw">module</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Platform</span>
+  <span class="tok-kw">abstract</span> <span class="tok-kw">class</span> <span class="tok-type">Host</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> logical_size : <span class="tok-type">Size</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> drawable_size : <span class="tok-type">Size</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> scale : <span class="tok-type">Float32</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> poll_event : <span class="tok-type">Input</span>::<span class="tok-type">Event?</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> clipboard : <span class="tok-type">Platform</span>::<span class="tok-type">Clipboard</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> ime : <span class="tok-type">ImeCapabilities</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> close : <span class="tok-type">Nil</span>
+  <span class="tok-kw">end</span>
+
+  <span class="tok-com"># OpenGL 宿主在 Host 上增加 make_current/swap_buffers；</span>
+  <span class="tok-com"># 未来的 Metal/Vulkan 宿主不实现这组 GL 方法。</span>
+  <span class="tok-kw">abstract</span> <span class="tok-kw">class</span> <span class="tok-type">GLHost</span> <span class="tok-op">&lt;</span> <span class="tok-type">Host</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> make_current : <span class="tok-type">Nil</span>
+    <span class="tok-kw">abstract</span> <span class="tok-kw">def</span> swap_buffers : <span class="tok-type">Nil</span>
+  <span class="tok-kw">end</span>
+
+  <span class="tok-kw">class</span> <span class="tok-type">SDL2</span> <span class="tok-op">&lt;</span> <span class="tok-type">Host</span>
+    <span class="tok-com"># 可选入口：require &quot;tessell/platform/sdl2&quot;</span>
+  <span class="tok-kw">end</span>
+<span class="tok-kw">end</span>
+</code></pre>
+<p>首个实现只覆盖 GL 宿主需要的最小能力：</p>
+<ul>
+<li>窗口创建/销毁、标题、resizable、高 DPI。</li>
+<li><code>poll_event</code>：Quit/Close、resize、key down/up、text input、mouse move/down/up、wheel、focus/blur。</li>
+<li><code>logical_size</code> / <code>drawable_size</code> / <code>scale</code>：布局用逻辑像素，绘制用 drawable 像素。</li>
+<li><code>clipboard</code>：平台层定义 <code>Platform::Clipboard</code>（get/set）；Kit 只做适配，避免 <code>Platform → Kit</code> 反向依赖；测试用 <code>MemoryClipboard</code>。</li>
+<li><code>ime</code>：至少报告 <code>committed_text</code> 能力；预编辑能力按平台报告 <code>unsupported</code>，不允许假装支持。</li>
+<li>截图/像素回读：只作为测试/示例工具，不进入组件 API。</li>
+</ul>
+<p>后续可扩展但不在首版：多窗口、光标形状、文件对话框、菜单、拖放、原生 IME 候选窗、屏幕阅读器 provider。</p>
+<h3 id="3-4-平台宿主策略对比">3.4 平台宿主策略对比</h3>
+<table>
+<thead><tr><th>策略</th><th>覆盖</th><th>优点</th><th>代价</th><th>决策</th></tr></thead>
+<tbody>
+<tr><td><strong>A. SDL2 可选宿主</strong></td><td>Win/Mac/Linux</td><td>已有 macOS 验证；窗口/GL/事件/剪贴板齐全；实现量最小</td><td>IME 预编辑、a11y、原生菜单弱；多一个系统库</td><td><strong>L1/L2 基线</strong></td></tr>
+<tr><td>B. 原生 Win32/WGL</td><td>Windows</td><td>现有证据最完整；IME/IMM32 可控</td><td>仅 Windows；样板多</td><td>保留为 Windows 参考/IME 适配路径</td></tr>
+<tr><td>C. Cocoa/NSOpenGL</td><td>macOS</td><td>原生 IME/a11y 可控</td><td>新写宿主；OpenGL deprecated</td><td>L3 需要时再评估</td></tr>
+<tr><td>D. X11/Wayland 原生</td><td>Linux</td><td>原生显示/IME 可控</td><td>两套显示服务器；工作量大</td><td>L3 需要时再评估</td></tr>
+<tr><td>E. GLFW</td><td>三平台</td><td>API 简洁</td><td>与 SDL2 重叠；无现有集成</td><td>不采用，避免二次迁移</td></tr>
+</tbody></table>
+<p><strong>结论：A 作为跨平台基线；B 保留现有 Windows 证据并为 IME 提供参考；C/D 只作为 L3 的平台补洞，不并行重写。</strong></p>
+<h3 id="3-5-opengl-策略">3.5 OpenGL 策略</h3>
+<ul>
+<li>继续使用当前 <code>GLBackend</code> 的固定管线兼容路径，最低 OpenGL 2.1；它已在 macOS 26.6 + SDL2 实测。</li>
+<li>Windows 继续用 <code>opengl32</code>，macOS 用 <code>OpenGL</code> framework，Linux 用 <code>libGL</code>；链接分支已存在。</li>
+<li>不在本轮迁 OpenGL 3.3 core；固定管线能覆盖矩形/文本/圆角/描边/路径 stencil，迁移收益低、风险高。</li>
+<li>macOS 的 OpenGL 已 deprecated 但仍可用；在支持矩阵中明确“当前可用，不等于长期承诺”。Metal 后端是独立后续项。</li>
+<li>Linux 以 X11/XWayland + Mesa 为基线；原生 Wayland 的 EGL/GL 上下文作为 L3 验证，不与 X11 混为一谈。</li>
+</ul>
+<h3 id="3-6-文本-字体与-emoji">3.6 文本、字体与 Emoji</h3>
+<p>当前 <code>FtMeasurer.open</code> 和多个 spec/example 硬编码 Windows 字体路径，这是跨平台的第一道硬障碍。方案：</p>
+<p>1. 新增 <code>Text::FontCatalog</code> / <code>Platform::Fonts</code>：</p>
+<ul>
+<li>Windows：<code>Segoe UI</code>、<code>Microsoft YaHei</code>、<code>Segoe UI Emoji</code>、<code>Arial</code>。</li>
+<li>macOS：<code>Helvetica</code>/<code>SF Pro</code>、<code>PingFang SC</code>、<code>Apple Color Emoji</code>、<code>Arial Unicode</code>。</li>
+<li>Linux：<code>DejaVu Sans</code>、<code>Noto Sans</code>、<code>Noto Sans CJK</code>、<code>Noto Color Emoji</code>。</li>
+<li>统一支持 <code>TESSELL_FONT</code> 覆盖；找不到字体时返回明确错误，不静默回退到空字体。</li>
+</ul>
+<p>2. 测试字体：</p>
+<ul>
+<li>通用测试使用 <code>TESSELL_TEST_FONT</code>；CI 按平台安装 DejaVu/Noto。</li>
+<li>平台特有测试加 <code>windows</code>/<code>macos</code>/<code>linux</code> tag；缺字体时 <code>pending</code> 并打印原因，不伪装通过。</li>
+<li>需要固定度量的测试使用可再分发字体 fixture（OFL/DejaVu 许可），不把系统字体复制进仓库。</li>
+</ul>
+<p>3. Emoji：</p>
+<ul>
+<li>现有 COLRv0/CPAL 路径继续保留；Windows Segoe UI Emoji 是已验证样例。</li>
+<li>Linux Noto Color Emoji 常见 CBDT/CBLC，macOS Apple Color Emoji 是 sbix；在 L2 先做“可显示/可回退”，L3 再补格式。</li>
+<li>彩色 Emoji 不支持时回退单色或豆腐块，必须可观测，不得崩溃。</li>
+</ul>
+<h3 id="3-7-ime-策略">3.7 IME 策略</h3>
+<p>SDL2 只稳定提供 <code>SDL_TEXTINPUT</code>（已提交文本），不提供可靠的预编辑事件。这决定了：</p>
+<ul>
+<li><strong>L1/L2</strong>：保证普通 Unicode 文本输入；<code>Kit::Input</code> 的 <code>set_preedit/commit_preedit</code> 仍可由测试驱动，但平台预编辑显示标记为“未接入”。</li>
+<li><strong>L3 前置 spike</strong>：比较三条路线，再决定：</li>
+</ul>
+<p>1. 迁 SDL3：原生 text editing/composition 事件与候选矩形 API； 2. Windows 原生 IMM32（已有探针基础）； 3. macOS NSTextInputClient / Linux IBus 或 GTK IM context。</p>
+<ul>
+<li>候选窗位置、组合取消、重复提交、死键、输入法切换必须有平台人工记录；没有记录不得写“IME 完成”。</li>
+</ul>
+<table>
+<thead><tr><th>平台</th><th>L1/L2</th><th>L3 候选方案</th><th>风险</th></tr></thead>
+<tbody>
+<tr><td>Windows</td><td>SDL2 committed text</td><td>IMM32 + WndProc/IME 消息，接 SDL 窗口句柄</td><td>组合消息与 SDL 事件顺序、候选窗位置</td></tr>
+<tr><td>macOS</td><td>SDL2 committed text</td><td>Cocoa NSTextInputClient 宿主或 SDL3</td><td>OpenGL/Cocoa 生命周期、候选窗定位</td></tr>
+<tr><td>Linux</td><td>SDL2 committed text</td><td>IBus/Fcitx + GTK/Qt IM context 或 SDL3</td><td>X11/Wayland 差异、输入法守护进程</td></tr>
+</tbody></table>
+<h3 id="3-8-无障碍">3.8 无障碍</h3>
+<p>进程内 A11y 树保留；平台 provider 单列 L3：</p>
+<ul>
+<li>Windows：UIA provider（COM vtable、跨线程封送）。</li>
+<li>macOS：NSAccessibility。</li>
+<li>Linux：AT-SPI。</li>
+</ul>
+<p>在 L1/L2 文档中必须写“进程内树，不可被屏幕阅读器读取”，不得用组件目录或 a11y 元数据冒充平台支持。</p>
+<h3 id="3-9-打包与分发">3.9 打包与分发</h3>
+<table>
+<thead><tr><th>平台</th><th>首版产物</th><th>依赖策略</th><th>验证</th></tr></thead>
+<tbody>
+<tr><td>Windows</td><td>zip + exe + DLL 闭包</td><td>现有 <code>package.ps1</code> 扩展 SDL2.dll、FreeType/HarfBuzz 依赖；<code>objdump</code> 闭包</td><td>无 msys2 PATH 的干净目录运行</td></tr>
+<tr><td>macOS</td><td><code>.app</code> 或带 dylib 的 tar</td><td><code>otool -L</code> + <code>install_name_tool</code> 打包 FreeType/HarfBuzz/SDL2；签名/公证后续</td><td>干净用户目录运行；Gatekeeper 记录</td></tr>
+<tr><td>Linux</td><td>tar.gz 或 AppImage</td><td><code>ldd</code> 收集；依赖系统 GL/字体；AppImage 需 FUSE 说明</td><td>Ubuntu 22.04/24.04 容器/真机运行</td></tr>
+</tbody></table>
+<p>不在首版承诺安装器、自动更新、商店发布。</p>
+<h2 id="4-工作包-顺序与工期">4. 工作包、顺序与工期</h2>
+<p>估算为单人全职 pd，仅作排期参考，未实测。L1 与 L2 是最小跨平台承诺；L3 单独排期。</p>
+<h3 id="4-1-工作包">4.1 工作包</h3>
+<table>
+<thead><tr><th>ID</th><th>工作包</th><th>内容</th><th>依赖</th><th>估算</th></tr></thead>
+<tbody>
+<tr><td>X0</td><td>基线清理与测试分层</td><td>冻结支持矩阵；拆 <code>spec/core</code>、<code>spec/text</code>、<code>spec/platform</code>、<code>spec/visual</code>；移除通用 spec 的 Windows 字体路径；加 <code>TESSELL_TEST_FONT</code>；平台 tag；跨平台 gate 脚本骨架</td><td>无</td><td>2–4 pd</td></tr>
+<tr><td>X1</td><td>Platform::Host 与 SDL2 提取</td><td>新增 <code>src/tessell/platform/host.cr</code>、<code>src/tessell/platform/sdl2.cr</code>、<code>src/tessell/platform/sdl2/host.cr</code>；迁移 <code>examples/lib/kit_sdl_host.cr</code> 的通用部分；示例改为装配；加假宿主测试</td><td>X0</td><td>4–6 pd</td></tr>
+<tr><td>X2</td><td>三平台 L0 CI</td><td>GitHub Actions matrix：Ubuntu/Windows/macOS；安装 Crystal、SDL2、FreeType/HarfBuzz、Xvfb/Mesa；编译核心/Kit/apps/demos；headless gallery；产物日志</td><td>X0, X1</td><td>4–6 pd</td></tr>
+<tr><td>X3</td><td>三平台真实窗口 L1</td><td>三平台运行计算器/编辑器/Kit gallery；<code>--frames</code>、截图、鼠标/键盘/滚轮、resize、关闭；GL 像素回读；记录 DPI/GL 版本</td><td>X1, X2</td><td>5–8 pd</td></tr>
+<tr><td>X4</td><td>字体、DPI、Emoji 跨平台</td><td>FontCatalog/字体发现、测试字体、CJK/Emoji 回退、DPI 1.0/1.5/2.0、Linux/macOS/Windows 字体矩阵</td><td>X0, X1</td><td>4–7 pd</td></tr>
+<tr><td>X5a</td><td>IME 路线 spike</td><td>SDL3 vs 原生适配对比；选定 L3 路线；输出决策记录与最小探针</td><td>X1, X3</td><td>2–3 pd</td></tr>
+<tr><td>X5b</td><td>Windows IME 预编辑</td><td>IMM32/窗口消息 → <code>Input::Event</code> 的 preedit/commit/cancel；候选窗位置</td><td>X5a</td><td>3–5 pd</td></tr>
+<tr><td>X5c</td><td>macOS IME 预编辑</td><td>Cocoa NSTextInputClient 或 SDL3 方案；候选窗与生命周期</td><td>X5a</td><td>4–6 pd</td></tr>
+<tr><td>X5d</td><td>Linux IME 预编辑</td><td>IBus/Fcitx + GTK/Qt IM context 或 SDL3；X11/Wayland 差异</td><td>X5a</td><td>4–6 pd</td></tr>
+<tr><td>X6</td><td>三平台打包</td><td>Windows 扩展 DLL 闭包；macOS dylib bundle；Linux tar/AppImage；干净环境运行</td><td>X3, X4</td><td>5–9 pd</td></tr>
+<tr><td>X7</td><td>平台无障碍 provider</td><td>UIA / NSAccessibility / AT-SPI；独立验收客户端；不阻塞 L1/L2</td><td>X3</td><td>10–20+ pd</td></tr>
+<tr><td>X8</td><td>跨平台发布门与文档</td><td>三平台证据表、支持矩阵、已知限制、CI badge、发布检查单</td><td>X2–X6</td><td>2–3 pd</td></tr>
+</tbody></table>
+<h3 id="4-2-阶段">4.2 阶段</h3>
+<table>
+<thead><tr><th>阶段</th><th>工作包</th><th>目标</th><th>估算</th></tr></thead>
+<tbody>
+<tr><td>A 跨平台可运行（L1）</td><td>X0 → X1 → X2 → X3</td><td>三平台真实窗口、输入、文本、GL 上屏</td><td>15–24 pd</td></tr>
+<tr><td>B 跨平台可交付（L2）</td><td>X4 → X5a → X6 → X8</td><td>字体/DPI/基础 IME/打包/发布门</td><td>13–22 pd</td></tr>
+<tr><td>C 完整桌面（L3）</td><td>X5b/c/d → X7</td><td>平台 IME 预编辑、候选窗、屏幕阅读器、签名</td><td>20–40+ pd</td></tr>
+</tbody></table>
+<h3 id="4-3-依赖与并行边界">4.3 依赖与并行边界</h3>
+<ul>
+<li>X0 必须先于 X1/X2；否则测试与宿主会继续绑定 Windows。</li>
+<li>X1 与 X2 可部分并行：Host 契约稳定后即可搭 CI 骨架；但 CI 的 GUI 步骤依赖 X1。</li>
+<li>X3 必须用真实硬件/真实显示环境；CI 的 Xvfb/dummy 不能替代 L1 证据。</li>
+<li>X4 与 X3 可并行，但字体 API 冻结前不要改 Kit 文本组件。</li>
+<li>X5a 必须在 X6 打包前完成，因为 IME 路线可能影响宿主依赖（SDL2 vs SDL3 vs 原生）。</li>
+<li>X7 不与 L1/L2 抢同一核心接口；provider 只读 A11y 树/焦点状态。</li>
+</ul>
+<h2 id="5-验证与门禁">5. 验证与门禁</h2>
+<h3 id="5-1-每平台-l0">5.1 每平台 L0</h3>
+<pre><code class="language-bash">crystal build src/tessell.cr --no-codegen
+crystal build examples/app_demo.cr --no-codegen
+crystal build examples/app_calculator.cr --no-codegen
+crystal build examples/app_text_editor.cr --no-codegen
+crystal spec spec/core spec/kit spec/apps
+crystal run examples/kit_gallery.cr -- --verify --frames=30
+</code></pre>
+<p>通过条件：编译 0 退出；spec 0 failures；gallery 输出 <code>KIT_GALLERY_VERIFY verify=pass</code>。Windows 保留 <code>tools/gate.ps1</code>，新增 <code>tools/gate.sh</code>（或跨平台 Crystal 脚本），两者共享同一组判据。</p>
+<h3 id="5-2-每平台-l1">5.2 每平台 L1</h3>
+<ul>
+<li>窗口创建成功，<code>--frames=3</code> 退出 0。</li>
+<li>截图非空，像素回读与全量重绘一致；至少验证一个负例（裁切/弹层/滚动）。</li>
+<li>键盘：Tab/Shift+Tab、Enter/Space、方向键、Escape、Backspace、文本输入。</li>
+<li>鼠标：click、drag、wheel、resize、关闭。</li>
+<li>DPI：1.0/1.5/2.0（平台支持范围内）。</li>
+<li>记录 GL 版本、renderer、drawable size、scale、字体路径。</li>
+</ul>
+<h3 id="5-3-每平台-l2">5.3 每平台 L2</h3>
+<ul>
+<li>字体发现不依赖硬编码路径；缺字体时错误明确。</li>
+<li>剪贴板读写；Windows/macOS/Linux 各一次。</li>
+<li>基础 IME committed text；预编辑状态按能力表报告。</li>
+<li>干净目录/容器运行打包产物；记录依赖清单与 SHA256。</li>
+<li>文档包含该平台截图、运行命令、已知限制。</li>
+</ul>
+<h3 id="5-4-ci-矩阵">5.4 CI 矩阵</h3>
+<table>
+<thead><tr><th>任务</th><th>Ubuntu</th><th>Windows</th><th>macOS</th></tr></thead>
+<tbody>
+<tr><td>Crystal 安装</td><td>官方 tarball/action</td><td>MSYS2 UCRT64</td><td>Homebrew/官方 tarball</td></tr>
+<tr><td>系统依赖</td><td><code>libsdl2-dev libfreetype6-dev libharfbuzz-dev libgl1-mesa-dev xvfb</code></td><td><code>mingw-w64-ucrt-x86_64-SDL2 freetype harfbuzz</code></td><td><code>brew install sdl2 freetype harfbuzz</code></td></tr>
+<tr><td>L0</td><td>headless + <code>xvfb-run</code></td><td>headless</td><td>headless</td></tr>
+<tr><td>L1</td><td>Xvfb + Mesa llvmpipe；真机另跑</td><td>Windows runner 或 self-hosted；记录是否有交互桌面</td><td>self-hosted macOS 或本地真机；runner 不冒充真实窗口</td></tr>
+<tr><td>产物</td><td>log + screenshot</td><td>log + screenshot</td><td>log + screenshot</td></tr>
+</tbody></table>
+<p>CI 只证明“可构建/可跑”；L1 的“真实窗口”必须有人工或 self-hosted 证据，不能把 dummy video driver 当真实窗口。</p>
+<h2 id="6-风险与控制">6. 风险与控制</h2>
+<table>
+<thead><tr><th>风险</th><th>影响</th><th>控制</th></tr></thead>
+<tbody>
+<tr><td>SDL2 不提供可靠 IME 预编辑</td><td>中文/日文输入体验不完整</td><td>L1/L2 明确 committed text；X5a 早做 SDL3/原生决策；不写“IME 完成”</td></tr>
+<tr><td>Linux X11/Wayland 差异</td><td>窗口/输入/GL 行为不一致</td><td>先 X11/XWayland 基线；Wayland 单列；CI 用 Xvfb；真机记录</td></tr>
+<tr><td>macOS OpenGL deprecated</td><td>未来系统可能移除</td><td>当前支持矩阵写明；Metal 后端独立评估；不阻塞 L1</td></tr>
+<tr><td>三平台字体/Emoji 差异</td><td>文本布局/截图不一致</td><td>FontCatalog + 测试字体 + 回退；彩色 Emoji 分格式验收</td></tr>
+<tr><td>平台真实窗口 CI 不可用</td><td>把 headless 当真实证据</td><td>L1 必须 self-hosted/真机；CI 只做 L0/L2 自动项</td></tr>
+<tr><td>测试仍硬编码 Windows 路径</td><td>非 Windows 全量 spec 不可跑</td><td>X0 先拆测试与字体解析；平台 tag/pending 明确</td></tr>
+<tr><td>打包动态库/签名</td><td>产物不可移植</td><td>三平台闭包清单；干净环境验证；签名/公证单列</td></tr>
+<tr><td>过早做 P1 组件</td><td>平台债扩大</td><td>跨平台 L1/L2 未达标前不扩组件</td></tr>
+</tbody></table>
+<h2 id="7-文档与发布规则">7. 文档与发布规则</h2>
+<ul>
+<li>每个平台的支持声明必须附证据：命令、截图/日志、日期、Crystal/SDL2/GL/字体版本。</li>
+<li><code>README</code> 的“当前状态”按 L0/L1/L2/L3 标注，不写笼统的“跨平台完成”。</li>
+<li><code>docs/kit/plan.md</code> 只保留 K0–K6 历史；K6 之后的跨平台工作以本文为准。</li>
+<li>新增平台/宿主时先加 <code>Platform::Host</code> 契约测试，再改示例；禁止在组件里 <code>require &quot;sdl2&quot;</code>。</li>
+<li>发布前跑三平台 L0；L1/L2 未完成的平台不得出现在“支持”列，只能列“待验证/实验”。</li>
+</ul>
+<h2 id="8-立即执行顺序-建议">8. 立即执行顺序（建议）</h2>
+<p>1. <strong>X0（2–4 pd）</strong>：冻结本文矩阵；拆测试目录；把 <code>C:/Windows/Fonts/...</code> 从通用 spec 中清除；加 <code>TESSELL_TEST_FONT</code> 与平台 tag。 2. <strong>X1（4–6 pd）</strong>：抽 <code>Platform::Host</code> + <code>Platform::SDL2</code>；示例只保留应用装配；核心入口与 <code>shard.yml</code> 不出现 SDL2。 3. <strong>X2（4–6 pd）</strong>：三平台 L0 CI 先绿；Windows 用 MSYS2，Linux 用 Xvfb，macOS 用 Homebrew。 4. <strong>X3（5–8 pd）</strong>：三平台真实窗口 L1；先 Windows/Linux 补证据，再汇总 macOS 已有证据。 5. <strong>X4（4–7 pd）</strong>：字体/DPI/Emoji 矩阵；再决定是否扩 P1 组件。 6. <strong>X5a（2–3 pd）</strong>：IME 路线 spike；在此之前不承诺预编辑。</p>
+<h2 id="9-待确认事项">9. 待确认事项</h2>
+<p>以下问题会实质改变工期，但在当前上下文无法从代码/证据推断；本文按“L1/L2 先交付、L3 单列”的假设修订：</p>
+<p>1. 跨平台 1.0 是否必须包含三平台完整 IME 预编辑/候选窗？若是，L3 的 X5b/c/d 要并入 1.0，工期显著增加。 2. 是否必须包含屏幕阅读器（UIA/NSAccessibility/AT-SPI）？若是，X7 不能后置。 3. Linux 是否要求原生 Wayland（非 XWayland）？若是，需增加独立显示后端与输入法验证。 4. macOS 是否要求 Intel + arm64 双架构、签名/公证？这会改变打包与 CI 成本。 5. 是否允许把 SDL2 作为可选系统依赖（而非核心内置）？本文按允许处理；若不允许，所有平台宿主需原生实现，工期翻倍。</p>
+<h2 id="10-证据与未验证项">10. 证据与未验证项</h2>
+<ul>
+<li>已读：<code>README.md</code>、<code>docs/architecture.md</code>、<code>docs/roadmap.md</code>、<code>docs/kit/plan.md</code>、<code>docs/kit/execution.md</code>、<code>docs/kit/K6-review.md</code>、<code>docs/kit/apps.md</code>、<code>docs/research/m3-platform-matrix.md</code>、<code>src/tessell/render/gl/gl_backend.cr</code>、<code>src/tessell/text/ffi/freetype.cr</code>、<code>src/tessell/text/ffi/harfbuzz.cr</code>、<code>examples/lib/kit_sdl_host.cr</code>、<code>tools/gate.ps1</code>、<code>tools/package.ps1</code>。</li>
+<li>已实证：macOS SDL2/OpenGL 真实窗口与文本上屏；FreeType LP64 修复；选定 Kit/apps 套件 100/0；三平台链接分支存在于源码。</li>
+<li>未实测：Windows SDL2 构建/窗口；Linux 编译/GUI/GL；三平台 CI；SDL2/系统字体版本矩阵；SDL3 IME；macOS/Linux 打包；UIA/NSAccessibility/AT-SPI。</li>
+<li>本文只修订方案与计划，未改代码、未新增依赖、未提交实现。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

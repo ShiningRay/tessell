@@ -3,6 +3,8 @@
 > 复核时点：2026-11-14，开发机 macOS arm64 / Crystal 1.21.1。
 > 结论先说：**逻辑与 API 层 Go-with-conditions；不得宣称平台完整或真实窗口已验证。**
 > 架构复盘已发 GitHub issue：[#13](https://github.com/ShiningRay/tessell/issues/13)。
+>
+> **2026-11-14 补记（K6 之后）**：本文的“真实窗口全为否”保留为 K6 时点结论。之后新增 SDL2/OpenGL demo 宿主，macOS 已实测计算器、文本编辑器与文本上屏；FreeType FFI 修复了 LP64 布局。macOS 不再是“无可用后端”，但三平台完整支持、IME 预编辑、屏幕阅读器与打包仍未完成。当前跨平台计划见 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)。
 
 ## 1. 复核范围
 

@@ -4,9 +4,9 @@
 
 ## 环境口径
 
-- 当前开发机：macOS arm64，Crystal 1.21.1（Homebrew），FreeType/HarfBuzz 库可加载但既有 Windows FFI 结构在本机不可安全用于真实字体渲染。
+- 当前开发机：macOS arm64，Crystal 1.21.1（Homebrew）。FreeType LP64 修复后，本机已能真实测字、栅格化并经 SDL2/OpenGL 上屏；完整 `crystal spec` 仍受 Windows 字体路径影响。
 - 既有 M0–M4 的真实窗口证据来自 Windows + msys2 ucrt64；本机不能替代运行 `tools/gate.ps1`。
-- Kit 的纯逻辑、声明、绘制命令、布局、输入与 a11y 测试可在 macOS 运行；真实 GL 上屏仍以 Windows 证据为准。
+- Kit 的纯逻辑、声明、绘制命令、布局、输入与 a11y 测试可在 macOS 运行；三平台跨平台收口计划见 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)，Linux 与 Windows SDL2 路径仍未验证。
 
 ## K0 契约与纵向原型
 
@@ -101,3 +101,10 @@
 - 验证：`crystal spec spec/apps spec/text_unix_smoke_spec.cr spec/kit` 100 examples / 0 failures；macOS SDL2/OpenGL 真实窗口运行计算器与文本编辑器 `--frames=2/3` 成功并截图；PNG 预览可打开。
 - 未验证：Windows SDL2 构建/窗口、平台 IME composition、屏幕阅读器 provider、多文档/撤销等编辑器完整功能。
 - 提交：`2f8acee`。
+
+#### 跨平台方案修订（计划，不是实现）
+
+- 完成：新增 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)，把目标从“Windows 先行、macOS/Linux 后置”修订为 Windows/macOS/Linux 三平台 L0→L1→L2→L3 分级收口；明确 SDL2 只作为可选 `Tessell::Platform::SDL2` 宿主，不进入 `Render::Backend` 或核心默认依赖；列出 Platform::Host 契约、字体/IME/a11y/打包工作包、估算与验收门禁。
+- 同步：roadmap 增加 C.7 修订；Kit 计划、K6 复核与 README 的旧平台口径加补记；未改代码、未新增依赖、未运行新平台测试。
+- 未验证：计划中的 Windows/Linux CI、真实窗口、字体、IME、打包全部待执行。
+- 提交：待回填。

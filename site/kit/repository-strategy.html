@@ -67,6 +67,7 @@
 <a href="component-contract.html">组件契约</a>
 <a href="repository-strategy.html">仓策略</a>
 <a href="plan.html">计划</a>
+<a href="cross-platform.html">跨平台方案</a>
 <a href="execution.html">执行记录</a>
 <a href="k6-review.html">K6 复核</a>
 <a href="apps.html">示例应用</a>
@@ -90,6 +91,7 @@
 <li><code>src/tessell.cr</code> 不 require <code>kit</code>。</li>
 <li><code>src/tessell/kit.cr</code> 只 require 核心公开入口与 Kit 子模块。</li>
 <li>组件不得 require <code>render/gl</code>、平台 FFI 或示例私有路径。</li>
+<li>SDL2 只允许出现在可选平台入口 <code>require &quot;tessell/platform/sdl2&quot;</code> 或消费者宿主中；<code>src/tessell.cr</code> 与 <code>src/tessell/kit.cr</code> 不得自动加载 SDL2。</li>
 <li>核心新增 API 必须先在核心 spec 中验证，再被 Kit 使用。</li>
 </ul>
 <h2 id="未来迁移">未来迁移</h2>

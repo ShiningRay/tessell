@@ -25,6 +25,7 @@ Kit 留在 `tessell` 同仓，通过 `require "tessell/kit"` 提供可选入口�
 - `src/tessell.cr` 不 require `kit`。
 - `src/tessell/kit.cr` 只 require 核心公开入口与 Kit 子模块。
 - 组件不得 require `render/gl`、平台 FFI 或示例私有路径。
+- SDL2 只允许出现在可选平台入口 `require "tessell/platform/sdl2"` 或消费者宿主中；`src/tessell.cr` 与 `src/tessell/kit.cr` 不得自动加载 SDL2。
 - 核心新增 API 必须先在核心 spec 中验证，再被 Kit 使用。
 
 ## 未来迁移

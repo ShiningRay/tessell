@@ -3,6 +3,8 @@
 > 文档职责：本文件是 **A 方案（Design）** 与 **B 规划（WBS）** 的权威主体，回答“是什么、怎么设计、拆成哪些工作包”。  
 > 不负责什么：不写阶段门禁细节与并行/平台路线全貌（见 [roadmap.md](roadmap.md)），不写本轮逐任务执行清单、复盘与裁剪排期细节（见 [plan-execution.md](plan-execution.md)）。  
 > 与另两份的关系：B 节工作包编号（`M*-WP*`）供 [roadmap.md](roadmap.md) 引用门禁/并行与 [plan-execution.md](plan-execution.md) 落地执行；执行与路线若调整，须回写本文件对应工作包定义。
+>
+> **2026-11-14 跨平台修订**：Windows / macOS / Linux 三平台收口不在本文 M0–M4 工作包内展开，见 [cross-platform-plan.md](cross-platform-plan.md)。本文保留 M0–M4 的设计/WBS 与历史证据；平台顺序以新计划为准。
 
 **状态与证据边界**  
 - 草拟依据：[architecture.md](architecture.md)（236 行）、仓库现状、本机任务输入；翰林调研 [research/ecosystem.md](research/ecosystem.md) 与 [research/crystal-capabilities.md](research/crystal-capabilities.md)（本机实测 Crystal 1.22.1 / Windows ucrt64，探针脚本位于 `%TEMP%\tessell-probe\`，2026-11-12 会话实测）已到货并纳入 [来源: research/crystal-capabilities.md:L1-L6,L19]。  

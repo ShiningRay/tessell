@@ -3,6 +3,8 @@
 > 文档职责：定义阶段**顺序与门禁**（进入/退出/Go-No-Go）、**并行轨道**、**平台顺序与 Windows 冲突解法**、**技术债与押后项**、总工期区间（单人全职口径）。  
 > 不负责什么：不重复 [plan.md](plan.md) 的模块/API 设计细节与 B 节工作包验收标准全文；不展开 W1 逐日任务与复盘模板细节（见 [plan-execution.md](plan-execution.md)）。  
 > 与另两份的关系：门禁与轨道按 [plan.md](plan.md) 的 `M0–M4` / `M*-WP*` 编号引用；执行节奏与裁剪落地见 [plan-execution.md](plan-execution.md)。
+>
+> **2026-11-14 修订**：用户目标已明确为 Windows / macOS / Linux 三平台。Windows 先行、macOS/Linux 后置的旧平台顺序不再作为当前承诺；三平台收口以 [cross-platform-plan.md](cross-platform-plan.md) 为准。本文件保留历史门禁与证据，不删除旧的 No-Go 记录；C.3/C.4 中与新计划冲突的平台顺序由 C.7 修订。
 
 **证据规则**：技术/选型论断标注 `[来源: architecture.md:Lx]`、`[来源: research/ecosystem.md:Lx]`、`[来源: research/crystal-capabilities.md:Lx]`、`[本机实测 Crystal 1.22.1 / Windows ucrt64]`、`[来源: 任务输入]`、`[来源: 推演]`、`[待证据]`、`[未验证]`。ecosystem.md 中“未能核实/未实测/许可证未确认”项**不得升级为已定案** [来源: research/ecosystem.md:L6,L28,L41-L42,L48-L49,L97-L105]。capabilities.md 中 GC 实现仅接口侧证、ExecutionContext 重载未穷举、Parallel 迁移 `migrated_any=false` 仅为 24 样本观测等限制须照抄 [来源: research/crystal-capabilities.md:L18]。时间用相对周 `W1/W2…`；工期单人全职（每周 5 天）。
 
@@ -94,5 +96,21 @@
 | 并行 | T1–T4 重叠有同步点；单人切换执行 | [来源: plan.md B] |
 | 平台 | Windows 先行（P-WIN-2 首选 / P-WIN-1 跨平台备选 / P-WIN-3，降级 P-WIN-4；user32 FFI 已实证），M3 补齐 macOS/Linux；**不动摇“自绘”定案** | [来源: architecture.md:L57,L76-L81,L217,L220; research/crystal-capabilities.md:L13; research/ecosystem.md:L12] |
 | 关键风险 | 文本栈/IME/字体许可、稳态零分配达成与度量工具链、平台/分发依赖；GC 实现/ExecutionContext 重载/Parallel 迁移仍有限制性证据 | [来源: architecture.md:L231-L236; research/crystal-capabilities.md:L18] |
+
+## C.7 跨平台修订（2026-11-14）
+
+**结论**：平台顺序从“Windows 先行，macOS/Linux 后置”改为“三平台按 L0→L1→L2 分级收口”。此修订替代 C.3.4 的平台顺序表与 C.4 中“macOS/Linux 后置”的平台债描述；历史 M0–M4 证据保留，不追溯改写。
+
+| 旧假设 | 新计划 | 影响 |
+|---|---|---|
+| macOS 无后端，M3 才能对齐 | macOS 已有 SDL2/OpenGL 真实窗口与 FreeType LP64 文本证据 | macOS 不再被当作完全 No-Go；但完整 spec、IME、a11y、打包仍未闭合 |
+| Linux 仅在 M3 做编译级验证 | Linux 纳入 X0–X3 的 L0/L1 门禁，X11/XWayland + Mesa 为基线 | 需要 Ubuntu CI、Xvfb 与真机证据；原生 Wayland 后置 |
+| Windows 是唯一真实窗口基线 | Windows 保留 Win32/WGL 证据，同时补 SDL2 宿主验证 | 需确认 SDL2 DLL/链接与现有 WGL 路径兼容 |
+| SDL2 只是 examples 临时宿主 | SDL2 提升为可选 `Tessell::Platform::SDL2`；核心不自动加载 | 新增可选平台入口，不增加核心依赖 |
+| 平台完整由 M3 一次收口 | 分为 L1 可运行、L2 可交付、L3 完整 IME/a11y | IME、a11y、签名不再隐藏在“跨平台完成”中 |
+
+**门禁**：三平台 L0 未绿，不宣称跨平台；L1 必须有真实窗口证据；L2 必须有干净环境打包与运行证据；L3 单独立项。详细工作包、支持矩阵、风险和验收命令见 [cross-platform-plan.md](cross-platform-plan.md)。
+
+**工期**：L1 约 15–24 pd；L2 约 13–22 pd；L3 约 20–40+ pd。估算为单人全职口径，未实测。
 
 *（文末）*
