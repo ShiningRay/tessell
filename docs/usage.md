@@ -129,6 +129,43 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - `unexpected token "@["`：源码含 UTF-8 BOM；请另存为不带 BOM 的 UTF-8
   （Crystal 源文件不得包含 BOM）。
 
+## 写示例常撞的 Crystal 编译错误（issue #18，均在 1.21.1 实测）
+1. **带类型注解的 ivar 用 `self` 参与初始化不被认作初始化**：
+
+   ```crystal
+   class Sheet
+     @evaluator : Evaluator   # 显式注解时必踩
+
+     def initialize
+       @evaluator = Evaluator.new(self)  # Error: doesn't explicitly initialize '@evaluator'
+     end
+   end
+   ```
+
+   编译器无法证明含 `self` 的调用顺序安全。workaround：去掉类级注解靠
+   推断，或 `@evaluator = uninitialized Evaluator` 后立刻赋值（注明原因）；
+   更好的解法是让 Evaluator 不持有所有者——`Evaluator.new` +
+   `evaluate(sheet)` 传参。
+2. **`extend` 不能作参数名**：`def select_cell(row : Int32, extend : Bool)`
+   直接语法错误（`extend` 是关键字），改 `extending` / `extend_selection`。
+3. **`Int32#to_char` 不存在**：用 `chr`（越界抛异常）或 `unsafe_chr`
+   （热路径/已验证范围）。IDE 补全常误导出 `to_char`。
+4. **`<=>` 的结果可能是 `Int32?`**：内建 `Int32#<=>`/`String#<=>` 返回
+   非空 `Int32`；但走 `Comparable` mixin 或自定义可比较 union（如单元格
+   值 `Number | String`）时 `<=>` 理论上可返回 nil，直接赋给 `Int32` 报错。
+   写 `(a <=> b) || 0` 显式兜底。
+5. **`Rasterizer` 只收 `FtMeasurer`（分工契约，不是 bug）**：Rasterizer
+   直接驱动 FT/HB 句柄（face/buffer/upem），需要原始 `FtMeasurer`；
+   布局测量用 `CachingMeasurer.new(ft_measurer)` 包装同一个实例。宿主
+   不要把 `CachingMeasurer` 传给 `Rasterizer`——两个对象共享一个
+   `FtMeasurer` 是既定用法：
+
+   ```crystal
+   ft = Tessell::Text::FtMeasurer.open(font_path)
+   rasterizer = Tessell::Text::Rasterizer.new(ft, atlas, 0)
+   caching = Tessell::Text::CachingMeasurer.new(ft)   # 布局/测量用
+   ```
+
 ## 已知 API 缺口（示例层，未改 src）
 - `Input::KeyCode` 无 `KeyT`：运行中 `T` 切换主题通过列表聚焦时的
   `Event.text_input("T"/"t")` 处理（顶部输入框聚焦时 `T` 作为字符追加）。

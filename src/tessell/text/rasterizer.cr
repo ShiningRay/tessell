@@ -3,6 +3,14 @@
 # Requires FtMeasurer (face/font) and GlyphAtlas. Steady-state hit path does not rasterize again.
 # M2-WP4: shaped-run cache keyed by (font_id, size_px, text_hash) caches whole shaped placement runs;
 # frame-guarded LRU (no eviction inside begin_frame/end_frame), bounded capacity.
+#
+# Measurer 分工契约 (issue #18): Rasterizer drives FT/HB handles directly
+# (face/buffer/upem), so its constructor takes the raw FtMeasurer — NOT a
+# CachingMeasurer wrapper. For layout measurements, wrap the SAME FtMeasurer
+# instance with CachingMeasurer and hand that to the layout/text-metrics side:
+#   ft = FtMeasurer.open(path)
+#   rasterizer = Rasterizer.new(ft, atlas, 0)
+#   caching = CachingMeasurer.new(ft)   # layout/measure path
 
 require "./ffi/freetype"
 require "./ffi/harfbuzz"
