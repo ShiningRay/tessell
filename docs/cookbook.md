@@ -29,7 +29,7 @@ root.build
 ## 2. 文本与字体
 
 ```crystal
-# 度量（逻辑单位，内建缓存；文本集合变化时 ctx.clear_text_cache）
+# 度量（逻辑单位，内建缓存）
 s = ctx.measure_text("120000", 14.0_f32)
 
 # 字体度量：不要再用 0.36*size 猜 baseline
@@ -38,6 +38,14 @@ m = ctx.text_metrics(14.0_f32)   # ascent/descent/line_height
 # 矩形内九宫格对齐
 Tessell::Kit::TextDrawing.draw_in_rect(ctx, painter, rect, "标题",
   color, 14.0_f32, Tessell::Kit::HAlign::Center, Tessell::Kit::VAlign::Middle)
+```
+
+**测量缓存契约（issue #24）**：缓存键含文本内容，正确性不依赖任何人清空——
+组件改内容自动产生新键，不需要调用方记得 `clear_text_cache`。容量有界
+（两代淘汰，上限 `Context::MEASURE_CACHE_CAP = 4096` 条），表格/行情这类
+高频换文本集合的应用只需在**整体数据快照替换后**调一次
+`ctx.clear_text_cache`（内存卫生，非每帧）。观测面：
+`ctx.text_cache_stats`（hits/misses/size）与 `ctx.text_cache_size`。
 ```
 
 多段异色/异字号：按顺序多次 `painter.text(...)`（调用顺序即绘制顺序，

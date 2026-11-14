@@ -94,7 +94,17 @@ module Tessell
       getter now_ms : Int64
       property overlay_host : OverlayHost?
 
-      @measure_cache : Hash({String, Float32, Float32}, Size)
+      # 文本测量缓存（issue #6/#24）：两代淘汰的有界缓存，键 (text,size,max_width)。
+      # 正确性不依赖任何人清空——键含文本内容，内容变化天然产生新键；
+      # clear_text_cache 是表格/行情这类高频换文本集合应用的内存卫生措施
+      # （整体数据快照替换后调用一次即可，不必每帧）。容量有界：cur 代满
+      # MEASURE_CACHE_CAP 条时整体换代（old=cur，cur 重建），old 命中会提升回 cur。
+      MEASURE_CACHE_CAP = 4096
+
+      @measure_cur : Hash({String, Float32, Float32}, Size)
+      @measure_old : Hash({String, Float32, Float32}, Size)
+      @measure_hits : Int32
+      @measure_misses : Int32
 
       def initialize(theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
@@ -103,7 +113,10 @@ module Tessell
         @theme = theme
         @render_theme = theme.to_render
         @overlay_host = nil
-        @measure_cache = {} of {String, Float32, Float32} => Size
+        @measure_cur = {} of {String, Float32, Float32} => Size
+        @measure_old = {} of {String, Float32, Float32} => Size
+        @measure_hits = 0
+        @measure_misses = 0
       end
 
       def theme=(theme : Theme) : Nil
@@ -114,28 +127,58 @@ module Tessell
       # 逻辑单位契约（issue #14）：以设备字号测量（与 Painter 提交的实际
       # 字形尺寸一致），再除回 scale 返回**逻辑**尺寸。组件在 scale=1 与
       # scale=2 下得到相同逻辑 bounds，宿主无须自写除法适配器。
-      # measure 结果缓存（issue #6）：key=(text,size,max_width)，与应用的
-      # 文本清单规模同阶；文本集合变化时调用 clear_text_cache。
       def measure_text(text : String, size : Float32) : Size
-        if (hit = @measure_cache[{text, size, Float32::INFINITY}]?)
-          return hit
+        cached_measure({text, size, Float32::INFINITY}) do
+          s = @metrics.measure(text, device_font_size(size))
+          Size.new(s.width / @scale, s.height / @scale)
         end
-        s = @metrics.measure(text, device_font_size(size))
-        result = Size.new(s.width / @scale, s.height / @scale)
-        @measure_cache[{text, size, Float32::INFINITY}] = result
-        result
       end
 
       def measure_text(text : String, size : Float32, max_width : Float32) : Size
         # 设备空间整体放大 scale 倍：设备字号 = size*scale，设备 max_width
         # 也必须 = max_width*scale，换行行为才与逻辑空间一致。
-        if (hit = @measure_cache[{text, size, max_width}]?)
+        cached_measure({text, size, max_width}) do
+          s = @metrics.measure(text, device_font_size(size), max_width * @scale)
+          Size.new(s.width / @scale, s.height / @scale)
+        end
+      end
+
+      private def cached_measure(key : {String, Float32, Float32}, &) : Size
+        if (hit = @measure_cur[key]?)
+          @measure_hits += 1
           return hit
         end
-        s = @metrics.measure(text, device_font_size(size), max_width * @scale)
-        result = Size.new(s.width / @scale, s.height / @scale)
-        @measure_cache[{text, size, max_width}] = result
+        if (hit = @measure_old[key]?)
+          @measure_hits += 1
+          @measure_cur[key] = hit
+          return hit
+        end
+        @measure_misses += 1
+        result = yield
+        if @measure_cur.size >= MEASURE_CACHE_CAP
+          @measure_old = @measure_cur
+          @measure_cur = {} of {String, Float32, Float32} => Size
+        end
+        @measure_cur[key] = result
         result
+      end
+
+      # 缓存观测面（issue #24）：应用据此判断是否需要 clear_text_cache。
+      def text_cache_hits : Int32
+        @measure_hits
+      end
+
+      def text_cache_misses : Int32
+        @measure_misses
+      end
+
+      def text_cache_size : Int32
+        @measure_cur.size
+      end
+
+      # 与 CachingMeasurer#stats 同风格的汇总读数。
+      def text_cache_stats : NamedTuple(hits: Int32, misses: Int32, size: Int32)
+        {hits: @measure_hits, misses: @measure_misses, size: @measure_cur.size}
       end
 
       # 字体度量（逻辑单位，issue #6）：组件不再猜 baseline（旧 hack 是
@@ -147,7 +190,8 @@ module Tessell
       end
 
       def clear_text_cache : Nil
-        @measure_cache.clear
+        @measure_cur.clear
+        @measure_old.clear
       end
 
       def line_height(size : Float32) : Float32
