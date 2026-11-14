@@ -114,6 +114,48 @@ module Tessell
       def a11y_scroll_offset : Int32
         0
       end
+
+      # ---- 二维网格语义（issue #31）----
+      # 虚拟化大控件的 a11y 契约：坐标/选区/表头语义经结构化字段声明，
+      # 不再把坐标拼进 a11y_value 字符串。全部默认 nil/false——既有组件
+      # 零改动；表格类组件按需覆盖。
+      def a11y_row : Int32?
+        nil
+      end
+
+      def a11y_col : Int32?
+        nil
+      end
+
+      def a11y_row_count : Int32?
+        nil
+      end
+
+      def a11y_col_count : Int32?
+        nil
+      end
+
+      # 行列表头的朗读文本（如 "A"/"1"）；nil = 非表头。
+      def a11y_row_index_text : String?
+        nil
+      end
+
+      def a11y_col_index_text : String?
+        nil
+      end
+
+      def a11y_selected : Bool?
+        nil
+      end
+
+      def a11y_active_cell : Bool?
+        nil
+      end
+
+      # 可视窗口在逻辑总量中的起点（虚拟化网格用）。
+      def a11y_first_visible_index : Int32?
+        nil
+      end
     end
   end
 end

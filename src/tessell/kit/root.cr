@@ -329,7 +329,12 @@ module Tessell
         @a11y.set_meta(target.object_id.to_u64, component.a11y_role,
           component.a11y_name, component.a11y_value, component.focusable?,
           component.a11y_enabled, component.a11y_children_count,
-          component.a11y_scroll_offset)
+          component.a11y_scroll_offset,
+          component.a11y_row, component.a11y_col,
+          component.a11y_row_count, component.a11y_col_count,
+          component.a11y_row_index_text, component.a11y_col_index_text,
+          component.a11y_selected, component.a11y_active_cell,
+          component.a11y_first_visible_index)
       end
 
       private def focus_component(component : Component?) : Nil

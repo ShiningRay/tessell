@@ -56,6 +56,10 @@
 - 可访问名称是必需契约。无可见文本的按钮必须提供名称；Input 必须关联 label/description/error。
 - `a11y_role/name/value/focusable/enabled` 随声明同步；装饰性子节点不重复曝光。
 - 本库只产出进程内 a11y 树，不承诺 UIA/AppKit/AT-SPI provider。文档必须写明这个限制。
+- 二维网格 a11y（issue #31）：坐标/选区/表头用 Meta 结构化字段
+  （a11y_row/col/row_count/col_count/row_index_text/col_index_text/selected/
+  active_cell/first_visible_index），禁止把坐标拼进 a11y_value 字符串；
+  Role 用 Grid/GridCell/RowHeader/ColumnHeader。
 
 ## 测试门槛
 

@@ -31,6 +31,16 @@
 - 虚拟化控件必须报告逻辑总数：`a11y_children_count`（逻辑行数）与
   `a11y_scroll_offset`（当前 offset 取整）；进程内树 ≠ 平台 provider，
   文档不得暗示屏幕阅读器可用。
+- 二维网格控件（issue #31）：坐标/选区/表头走结构化字段，**不拼 value 字符串**。
+  容器声明 `a11y_role = Grid` + `a11y_row_count`/`a11y_col_count` +
+  `a11y_first_visible_index`（可视窗口起点，provider 据此定位在逻辑总量中
+  的位置）；单元格声明 `a11y_role = GridCell` + `a11y_row`/`a11y_col` +
+  `a11y_row_index_text`/`a11y_col_index_text`（"1"/"A" 的朗读文本）+
+  `a11y_selected`/`a11y_active_cell`；行/列标头声明
+  `RowHeader`/`ColumnHeader` + 对应 index_text。全部字段默认 nil，
+  非网格组件零改动。读方语义（对齐 UIA `DataItem`/NSAccessibility
+  `GridCell`/AT-SPI `TableCell`）：当前活动单元格 = active_cell=true 的
+  GridCell，"我在 B4" = row_index_text+col_index_text，不再出现 `"A1 42"`。
 
 ## 6. 半可见与边界
 - 行坐标 = `offset_at(index) - model.offset`；首末行允许部分可见，交给

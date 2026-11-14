@@ -28,6 +28,12 @@ module Tessell
       Option
       ScrollView
       Scrollbar
+      # 二维网格语义（issue #31）：命名对齐 UIA DataItem/Grid /
+      # NSAccessibility GridCell / AT-SPI TableCell，平台 provider 可直接映射。
+      Grid
+      GridCell
+      RowHeader
+      ColumnHeader
     end
 
     struct Meta
@@ -39,6 +45,18 @@ module Tessell
       # nil = 使用 retained 子节点数；虚拟列表等可覆盖为逻辑总数。
       getter children_count : Int32?
       getter scroll_offset : Int32
+      # 二维网格语义（issue #31）：全部默认 nil/false，既有节点零改动。
+      # 虚拟化大控件可只报逻辑总量 + first_visible_index（可视窗口起点），
+      # provider 能算出可视窗口在逻辑总量中的位置。
+      getter row : Int32?
+      getter col : Int32?
+      getter row_count : Int32?
+      getter col_count : Int32?
+      getter row_index_text : String?
+      getter col_index_text : String?
+      getter selected : Bool?
+      getter active : Bool?
+      getter first_visible_index : Int32?
 
       def initialize(@role : Role = Role::Group,
                      @name : String = "",
@@ -46,7 +64,16 @@ module Tessell
                      @focusable : Bool = false,
                      @enabled : Bool = true,
                      @children_count : Int32? = nil,
-                     @scroll_offset : Int32 = 0)
+                     @scroll_offset : Int32 = 0,
+                     @row : Int32? = nil,
+                     @col : Int32? = nil,
+                     @row_count : Int32? = nil,
+                     @col_count : Int32? = nil,
+                     @row_index_text : String? = nil,
+                     @col_index_text : String? = nil,
+                     @selected : Bool? = nil,
+                     @active : Bool? = nil,
+                     @first_visible_index : Int32? = nil)
       end
     end
 
@@ -62,6 +89,16 @@ module Tessell
       getter children_count : Int32
       getter index_in_parent : Int32
       getter scroll_offset : Int32
+      # 二维网格语义（issue #31）：nil = 非 grid 场景。
+      getter row : Int32?
+      getter col : Int32?
+      getter row_count : Int32?
+      getter col_count : Int32?
+      getter row_index_text : String?
+      getter col_index_text : String?
+      getter selected : Bool?
+      getter active : Bool?
+      getter first_visible_index : Int32?
 
       def initialize(@id : UInt64,
                      @role : Role,
@@ -73,7 +110,16 @@ module Tessell
                      @enabled : Bool,
                      @children_count : Int32,
                      @index_in_parent : Int32,
-                     @scroll_offset : Int32 = 0)
+                     @scroll_offset : Int32 = 0,
+                     @row : Int32? = nil,
+                     @col : Int32? = nil,
+                     @row_count : Int32? = nil,
+                     @col_count : Int32? = nil,
+                     @row_index_text : String? = nil,
+                     @col_index_text : String? = nil,
+                     @selected : Bool? = nil,
+                     @active : Bool? = nil,
+                     @first_visible_index : Int32? = nil)
       end
     end
 
@@ -89,9 +135,15 @@ module Tessell
                    name : String = "", value : String = "",
                    focusable : Bool = false, enabled : Bool = true,
                    children_count : Int32? = nil,
-                   scroll_offset : Int32 = 0) : Nil
+                   scroll_offset : Int32 = 0,
+                   row : Int32? = nil, col : Int32? = nil,
+                   row_count : Int32? = nil, col_count : Int32? = nil,
+                   row_index_text : String? = nil, col_index_text : String? = nil,
+                   selected : Bool? = nil, active : Bool? = nil,
+                   first_visible_index : Int32? = nil) : Nil
         @meta[id] = Meta.new(role, name, value, focusable, enabled,
-          children_count, scroll_offset)
+          children_count, scroll_offset, row, col, row_count, col_count,
+          row_index_text, col_index_text, selected, active, first_visible_index)
       end
 
       def meta_for(id : UInt64) : Meta?
@@ -143,7 +195,16 @@ module Tessell
           enabled: enabled,
           children_count: children_count,
           index_in_parent: index_in_parent,
-          scroll_offset: scroll_offset
+          scroll_offset: scroll_offset,
+          row: m.try(&.row),
+          col: m.try(&.col),
+          row_count: m.try(&.row_count),
+          col_count: m.try(&.col_count),
+          row_index_text: m.try(&.row_index_text),
+          col_index_text: m.try(&.col_index_text),
+          selected: m.try(&.selected),
+          active: m.try(&.active),
+          first_visible_index: m.try(&.first_visible_index)
         )
         children = node.children
         i = 0

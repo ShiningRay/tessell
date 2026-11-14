@@ -409,7 +409,8 @@ module Tessell::UI
         id: nid, role: role, name: name, value: value, bounds: node.bounds,
         focusable: focusable, focused: focused, enabled: enabled,
         children_count: vlist.row_count, index_in_parent: idx,
-        scroll_offset: vlist.scroll_y)
+        scroll_offset: vlist.scroll_y,
+        first_visible_index: vlist.visible_first)
       first = vlist.visible_first
       last = vlist.visible_last
       if last >= first
@@ -433,7 +434,13 @@ module Tessell::UI
       id: nid, role: role, name: name, value: value, bounds: node.bounds,
       focusable: focusable, focused: focused, enabled: enabled,
       children_count: children_count, index_in_parent: idx,
-      scroll_offset: scroll_offset)
+      scroll_offset: scroll_offset,
+      row: m.try(&.row), col: m.try(&.col),
+      row_count: m.try(&.row_count), col_count: m.try(&.col_count),
+      row_index_text: m.try(&.row_index_text),
+      col_index_text: m.try(&.col_index_text),
+      selected: m.try(&.selected), active: m.try(&.active),
+      first_visible_index: m.try(&.first_visible_index))
     children = node.children
     i = 0
     while i < children.size
