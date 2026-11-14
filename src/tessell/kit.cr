@@ -22,6 +22,7 @@ require "./kit/tooltip"
 require "./kit/dialog"
 require "./kit/select"
 require "./kit/text_editing"
+require "./kit/text_align"
 require "./kit/input"
 require "./kit/root"
 

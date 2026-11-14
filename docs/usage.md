@@ -121,6 +121,20 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 外部消费者验证：`bash tools/kit_consumer_verify.sh`（临时目录 + Shards path 依赖）。
 - 限制：真实窗口/GL、平台 IME、屏幕阅读器 provider、平台剪贴板未验证。
 
+## 文本 API（issue #6）
+- 测量：`ctx.measure_text(text, size[, max_width])` 返回**逻辑**尺寸并内建
+  缓存（key=(text,size,max_width)，文本集合变化时 `ctx.clear_text_cache`）；
+  底层建议注入 `CoreTextMetrics.new(CachingMeasurer.new(ft))` 与渲染同走
+  shaped-run 路径。
+- 字体度量：`ctx.text_metrics(size)` 返回逻辑单位 ascent/descent/
+  line_height；垂直居中用 `(rect.h - (ascent+descent))/2 + ascent`，不要
+  再用 `0.36 * size` 之类的经验系数。
+- 矩形内对齐：`Tessell::Kit::TextDrawing.draw_in_rect(ctx, p, rect, text,
+  color, size, halign, valign)`，HAlign left/center/right、VAlign
+  top/middle/bottom。
+- 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
+  调用顺序即绘制顺序，同 clip 内自动合批）。
+
 ## 常见错误
 - `-1073741515`（0xC0000135）：缺少运行时 DLL。将 msys2 ucrt64 bin 加入
   PATH，或按 M4-WP2-packaging.md 将所需 DLL 放到 exe 同目录。

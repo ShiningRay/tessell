@@ -241,6 +241,35 @@ module Tessell
         end
       end
 
+      # 字体度量（issue #6）：读 FT size metrics（26.6 定点 → px）。
+      def font_metrics(font_id : Int32, size : Float32) : FontMetrics
+        return FontMetrics.new(0.0_f32, 0.0_f32, size * 1.2_f32) if @closed
+        px = size <= 0 ? 1_u32 : size.round.to_u32
+        px = 1_u32 if px == 0
+        err = FT::Lib.set_pixel_sizes(@ft_face, 0_u32, px)
+        if err != 0
+          @last_error = "FT_Set_Pixel_Sizes failed: #{err}"
+          return FontMetrics.new(size * 0.8_f32, size * 0.2_f32, size * 1.2_f32)
+        end
+        sz = @ft_face.value.size
+        ascent = size * 0.8_f32
+        descent = size * 0.2_f32
+        line_height = size * 1.2_f32
+        if sz && !sz.null?
+          m = sz.value.metrics
+          if m.ascender != 0 || m.descender != 0
+            ascent = (m.ascender.abs.to_f32 / 64.0_f32)
+            descent = (m.descender.abs.to_f32 / 64.0_f32)
+            line_height = ((m.ascender - m.descender).abs.to_f32 / 64.0_f32)
+          end
+          if m.height != 0
+            lh = m.height.abs.to_f32 / 64.0_f32
+            line_height = lh if lh > 0.0_f32
+          end
+        end
+        FontMetrics.new(ascent, descent, line_height)
+      end
+
       # 测量辅助：返回 HB shaping 的 glyph ids 与 x_advances(px) 供 spec 验证
       def shape_info(text : String, size : Float32) : NamedTuple(glyph_ids: Array(UInt32), advances_px: Array(Float32), ft_char_index: Hash(UInt32, UInt32))
         result_ids = [] of UInt32

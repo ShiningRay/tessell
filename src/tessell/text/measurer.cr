@@ -40,6 +40,18 @@ module Tessell
       end
     end
 
+    # 字体度量（issue #6）：设备像素单位，与 measure 的 size 口径一致。
+    # ascent/descent 以 baseline 为界（ascent 向上为正），line_height 为
+    # 推荐行距（FT size metrics height，回退 (ascent-descent)）。
+    struct FontMetrics
+      getter ascent : Float32
+      getter descent : Float32
+      getter line_height : Float32
+
+      def initialize(@ascent : Float32, @descent : Float32, @line_height : Float32)
+      end
+    end
+
     # 文本测量抽象。真实实现（M2 FreeType/HarfBuzz）不得引用本文件
     abstract class Measurer
       # 主接口：按文本内容、字体、字号、可用宽测量
@@ -47,6 +59,11 @@ module Tessell
       # 可选接口：按缓存键测量，内部使用；默认未实现
       def measure(key : MeasureKey) : Size
         raise NotImplementedError.new("measure(key) not implemented")
+      end
+
+      # 字体度量（issue #6）：默认按比例桩值；真实实现应读 FT size metrics。
+      def font_metrics(font_id : Int32, size : Float32) : FontMetrics
+        FontMetrics.new(size * 0.8_f32, size * 0.2_f32, size * 1.2_f32)
       end
     end
 

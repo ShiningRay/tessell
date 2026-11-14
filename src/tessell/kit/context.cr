@@ -17,6 +17,13 @@ module Tessell
         measure(text, size)
       end
 
+      # 字体度量（issue #6）：设备像素单位。默认与 line_height(size)=1.25*size
+      # 口径一致（ascent+descent=line_height）；CoreTextMetrics 委托给底层
+      # Measurer#font_metrics（FT size metrics）。
+      def font_metrics(size : Float32) : Tessell::Text::FontMetrics
+        Tessell::Text::FontMetrics.new(size * 1.0_f32, size * 0.25_f32, size * 1.25_f32)
+      end
+
       def line_height(size : Float32) : Float32
         size * 1.25_f32
       end
@@ -57,6 +64,8 @@ module Tessell
     end
 
     # 适配核心 Text::Measurer。真实实现由调用方注入，Kit 不直接碰 FFI。
+    # 建议：注入 `CachingMeasurer.new(ft_measurer)` 复用按
+    # (font_id, size, text_hash, max_width) 的测量缓存（issue #6）。
     class CoreTextMetrics < TextMetrics
       def initialize(@measurer : Tessell::Text::Measurer, @font_id : Int32 = 0)
       end
@@ -68,6 +77,10 @@ module Tessell
       def measure(text : String, size : Float32, max_width : Float32) : Size
         @measurer.measure(text, @font_id, size, max_width)
       end
+
+      def font_metrics(size : Float32) : Tessell::Text::FontMetrics
+        @measurer.font_metrics(@font_id, size)
+      end
     end
 
     class Context
@@ -77,26 +90,53 @@ module Tessell
       getter now_ms : Int64
       property overlay_host : OverlayHost?
 
+      @measure_cache : Hash({String, Float32, Float32}, Size)
+
       def initialize(@theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
                      @scale : Float32 = 1.0_f32,
                      @now_ms : Int64 = 0_i64)
         @overlay_host = nil
+        @measure_cache = {} of {String, Float32, Float32} => Size
       end
 
       # 逻辑单位契约（issue #14）：以设备字号测量（与 Painter 提交的实际
       # 字形尺寸一致），再除回 scale 返回**逻辑**尺寸。组件在 scale=1 与
       # scale=2 下得到相同逻辑 bounds，宿主无须自写除法适配器。
+      # measure 结果缓存（issue #6）：key=(text,size,max_width)，与应用的
+      # 文本清单规模同阶；文本集合变化时调用 clear_text_cache。
       def measure_text(text : String, size : Float32) : Size
+        if (hit = @measure_cache[{text, size, Float32::INFINITY}]?)
+          return hit
+        end
         s = @metrics.measure(text, device_font_size(size))
-        Size.new(s.width / @scale, s.height / @scale)
+        result = Size.new(s.width / @scale, s.height / @scale)
+        @measure_cache[{text, size, Float32::INFINITY}] = result
+        result
       end
 
       def measure_text(text : String, size : Float32, max_width : Float32) : Size
         # 设备空间整体放大 scale 倍：设备字号 = size*scale，设备 max_width
         # 也必须 = max_width*scale，换行行为才与逻辑空间一致。
+        if (hit = @measure_cache[{text, size, max_width}]?)
+          return hit
+        end
         s = @metrics.measure(text, device_font_size(size), max_width * @scale)
-        Size.new(s.width / @scale, s.height / @scale)
+        result = Size.new(s.width / @scale, s.height / @scale)
+        @measure_cache[{text, size, max_width}] = result
+        result
+      end
+
+      # 字体度量（逻辑单位，issue #6）：组件不再猜 baseline（旧 hack 是
+      # `0.36 * size`），用 ascent/descent/line_height 做垂直居中。
+      def text_metrics(size : Float32) : Tessell::Text::FontMetrics
+        m = @metrics.font_metrics(device_font_size(size))
+        Tessell::Text::FontMetrics.new(m.ascent / @scale, m.descent / @scale,
+          m.line_height / @scale)
+      end
+
+      def clear_text_cache : Nil
+        @measure_cache.clear
       end
 
       def line_height(size : Float32) : Float32
