@@ -135,7 +135,7 @@ ffmpeg -y -i /tmp/calculator.ppm /tmp/calculator.png
 <p>三平台收口方案、L0/L1/L2/L3 支持级别和工作包见 <a href="https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md">跨平台方案</a>。</p>
 <h2 id="限制">限制</h2>
 <ul>
-<li>SDL2 只是 demo 宿主；核心仍不依赖 SDL2。Windows/Linux 需要单独安装 SDL2。</li>
+<li>当前 SDL2 只是 demo 宿主；计划提升为可选平台宿主，核心仍不依赖 SDL2。Windows/Linux 需要单独安装 SDL2。</li>
 <li>未接平台 IME composition；SDL_TEXTINPUT 可输入普通文本，但复杂输入法状态未验证。</li>
 <li>未接屏幕阅读器 provider；只有进程内 A11y 树。</li>
 <li>文本编辑器 Save/Open 固定 <code>notes.txt</code>，没有撤销/重做、查找替换、自动换行与多文档。</li>
