@@ -4,7 +4,10 @@
 
 ## 身份与状态
 
-- 每个组件必须有一个跨帧稳定的 `Tessell::UI::UiKey`。子部件从组件根 key 派生子 key，禁止用显示文本生成身份。
+- 每个组件必须有一个跨帧稳定且**唯一**的 `Tessell::UI::UiKey`。子部件从组件根 key
+  派生子 key（`key.child(n)`），禁止用显示文本生成身份。同帧两组件共用 key 会让
+  节点父链成环（曾导致遍历无限挂死，issue #43）——`UI.apply` 现在任何变更前
+  fail-fast raise `ArgumentError`；跨帧同 key 稳定复用是正常语义，不受影响。
 - 应用持有业务值（输入文本、选中项、开关值）；组件只持有 `hovered/pressed/focused/open/scroll` 等瞬态。首版默认受控。
 - 组件统一识别：`disabled`、`read_only`、`hovered`、`pressed`、`focused`、`selected`、`open`、`invalid`。不适用时显式忽略，不把 `disabled` 与 `read_only` 混用。
 - 一次用户动作最多触发一次语义回调。指针抬起与键盘激活不得双发；程序化 setter 是否触发回调必须逐组件写明。

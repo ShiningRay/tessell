@@ -1,6 +1,8 @@
 require "../core/node"
 require "../a11y/tree"
 require "./key"
+
+# Set 用于重复 key 预检（issue #43）
 require "./builder"
 
 module Tessell::UI
@@ -43,6 +45,10 @@ module Tessell::UI
     getter remove_buf : Array(UiKey)
     getter activated : Array(UiKey)
     property gen : UInt32
+    # 重复 key 预检集合（issue #43）：同帧两组件共用 UiKey 会让节点父链成环，
+    # 任何沿 parent 上溯的遍历（component_for_node/HitTest/a11y）无限挂死。
+    # apply 在任何变更前 fail-fast（Set#clear 保留容量，稳态零分配）。
+    getter seen_keys : Set(UiKey)
 
     def initialize
       @map = Hash(UiKey, Node).new
@@ -53,6 +59,7 @@ module Tessell::UI
       @active_index = Hash(UiKey, Int32).new(initial_capacity: 0)
       @remove_buf = [] of UiKey
       @activated = [] of UiKey
+      @seen_keys = Set(UiKey).new
       @gen = 0_u32
     end
 
@@ -115,6 +122,20 @@ module Tessell::UI
     pool.gen &+= 1_u32
     g = pool.gen
     pool.activated.clear
+
+    # 重复 key 预检（issue #43）：在任何 pool 变更前完成——异常路径不留下
+    # 半套状态。跨帧同 key 稳定复用是正常语义（identity）；单帧 decl 缓冲内
+    # 同 key 出现两次 = 身份冲突（两个组件共享身份），编译期无法发现。
+    pool.seen_keys.clear
+    i = 0
+    n = decls.size
+    while i < n
+      key = decls.unsafe_fetch(i).key
+      unless pool.seen_keys.add?(key)
+        raise ArgumentError.new("duplicate UiKey #{key.id64} in one apply: two components share an identity (parent chain would cycle and hang traversal, issue #43); derive child keys via key.child")
+      end
+      i += 1
+    end
 
     # Pass 1: update/create nodes, record desired children, mark seen.
     i = 0
