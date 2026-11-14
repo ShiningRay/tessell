@@ -28,6 +28,11 @@
    都要测 dispose"）。
 10. **断言 op 流与计数，不用 wall-clock**：性能正确性用"measure 调用数/帧命令数/
     分配字节"表达（issue #36 口径）；帧时间分布只出现在人工 bench。
+    **门禁看计数、优化看分布**：CI 门禁只跑计数 spec（spec/kit/
+    counting_assertions_spec.cr、spec/layout_cached_spec.cr）与 zero_alloc 探针
+    （判据 alloc_bytes ≤ 预热余量，见 tools/zero_alloc_frame.cr 文件头——
+    余量存在的原因是 GC 探针粒度，不是给退化留后门）；bench_frame_time/
+    bench_scroll 只做人工定位，其输出禁止写进门禁判据。
 11. **平台行为拿不准先查 `docs/research/`** 既有结论（crystal-capabilities、
     m3-platform-matrix 等），再自己发明。
 

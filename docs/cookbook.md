@@ -119,6 +119,12 @@ backend.sync_atlas_dirty(atlas)   # 每帧调用；无变化时是纯整数比�
 
 ## 8. 截图与 CI 测试
 
+**性能口径（issue #36）**：门禁看计数、优化看分布。CI 只跑计数断言
+（measure 调用数/批数/事件路由次数/帧命令数，见 spec/kit/
+counting_assertions_spec.cr 与 spec/layout_cached_spec.cr）与
+zero_alloc 探针；`bench_frame_time`/`bench_scroll` 是人工定位工具，
+其 wall-clock 分布不进门禁。
+
 ```sh
 ./bin/app_calculator --frames=2 --screenshot=shot.png   # 直出 PNG
 ./bin/golden baseline.png shot.png --max-diff 0         # 退出码 0/1
