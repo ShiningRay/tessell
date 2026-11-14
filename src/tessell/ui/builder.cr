@@ -17,6 +17,11 @@ module Tessell::UI
   # Paint-only change: paint token.
   # a11y_* fields carry the accessible metadata for this declaration; all of
   # them default so existing call sites keep working unchanged.
+  #
+  # Auto layout（issue #5）：auto=true 的声明不使用显式 bounds，由
+  # `UI.apply_auto_layout` 依核心两遍内核（padding/gap/Fraction grow/
+  # 文本测量）求解并把结果写回 Node.bounds——命中树与布局结果同源。
+  # paint 是变更探测 token（状态变化时改变它触发 Paint 失效），不是颜色。
   struct Decl
     getter key : UiKey
     getter parent : UiKey
@@ -25,6 +30,10 @@ module Tessell::UI
     getter bounds : Rect
     getter direction : Layout::Direction
     getter paint : UInt32
+    getter auto : Bool
+    getter padding : Insets
+    getter gap : Float32
+    getter text_size : Float32
     getter a11y_role : A11y::Role
     getter a11y_name : String
     getter a11y_value : String
@@ -35,6 +44,10 @@ module Tessell::UI
                    @text : String = "", @bounds : Rect = Rect.new,
                    @direction : Layout::Direction = Layout::Direction::Vertical,
                    @paint : UInt32 = 0_u32,
+                   @auto : Bool = false,
+                   @padding : Insets = Insets.new,
+                   @gap : Float32 = 0.0_f32,
+                   @text_size : Float32 = 0.0_f32,
                    @a11y_role : A11y::Role = A11y::Role::Group,
                    @a11y_name : String = "",
                    @a11y_value : String = "",
@@ -90,6 +103,20 @@ module Tessell::UI
                      a11y_focusable : Bool = false,
                      a11y_enabled : Bool = true) : Nil
       @buf << Decl.new(key, current_parent, kind, text, bounds, dir, paint,
+        false, Insets.new, 0.0_f32, 0.0_f32,
+        a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
+    end
+
+    private def emit_auto(key : UiKey, kind : DeclKind, text : String,
+                          dir : Layout::Direction, paint : UInt32,
+                          padding : Insets, gap : Float32, text_size : Float32,
+                          a11y_role : A11y::Role,
+                          a11y_name : String,
+                          a11y_value : String,
+                          a11y_focusable : Bool,
+                          a11y_enabled : Bool) : Nil
+      @buf << Decl.new(key, current_parent, kind, text, Rect.new, dir, paint,
+        true, padding, gap, text_size,
         a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
     end
 
@@ -170,22 +197,82 @@ module Tessell::UI
       pop_parent
     end
 
-    # Generic nested group.
-    def group(key : UiKey, bounds : Rect = Rect.new,
-              dir : Layout::Direction = Layout::Direction::Vertical,
-              paint : UInt32 = 0_u32,
-              a11y_role : A11y::Role = A11y::Role::Group,
-              a11y_name : String = "",
-              a11y_value : String = "",
-              a11y_focusable : Bool = false,
-              a11y_enabled : Bool = true, & : Builder ->) : Nil
-      emit(key, DeclKind::Node, "", bounds, dir, paint,
-        a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
-      push_parent(key)
-      yield self
-      pop_parent
-    end
+  # Generic nested group.
+  def group(key : UiKey, bounds : Rect = Rect.new,
+            dir : Layout::Direction = Layout::Direction::Vertical,
+            paint : UInt32 = 0_u32,
+            a11y_role : A11y::Role = A11y::Role::Group,
+            a11y_name : String = "",
+            a11y_value : String = "",
+            a11y_focusable : Bool = false,
+            a11y_enabled : Bool = true, & : Builder ->) : Nil
+    emit(key, DeclKind::Node, "", bounds, dir, paint,
+      a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
+    push_parent(key)
+    yield self
+    pop_parent
   end
+
+  # ---- Auto layout 声明（issue #5）----
+  # vstack/hstack 容器不写 bounds，由 UI.apply_auto_layout 依内核求解；
+  # 子项可用 auto_text（测量定尺寸）或显式 bounds（Fixed）参与排布。
+  def vstack(key : UiKey, padding : Insets = Insets.new, gap : Float32 = 0.0_f32,
+             paint : UInt32 = 0_u32,
+             a11y_role : A11y::Role = A11y::Role::Group,
+             a11y_name : String = "",
+             a11y_value : String = "",
+             a11y_focusable : Bool = false,
+             a11y_enabled : Bool = true, & : Builder ->) : Nil
+    emit_auto(key, DeclKind::Column, "", Layout::Direction::Vertical, paint,
+      padding, gap, 0.0_f32,
+      a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
+    push_parent(key)
+    yield self
+    pop_parent
+  end
+
+  def hstack(key : UiKey, padding : Insets = Insets.new, gap : Float32 = 0.0_f32,
+             paint : UInt32 = 0_u32,
+             a11y_role : A11y::Role = A11y::Role::Group,
+             a11y_name : String = "",
+             a11y_value : String = "",
+             a11y_focusable : Bool = false,
+             a11y_enabled : Bool = true, & : Builder ->) : Nil
+    emit_auto(key, DeclKind::Row, "", Layout::Direction::Horizontal, paint,
+      padding, gap, 0.0_f32,
+      a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
+    push_parent(key)
+    yield self
+    pop_parent
+  end
+
+  # 自动尺寸文本叶子：宽度/高度由注入的 Measurer 测量（Auto）。
+  def auto_text(key : UiKey, str : String, size : Float32,
+                paint : UInt32 = 0_u32,
+                a11y_role : A11y::Role = A11y::Role::Group,
+                a11y_name : String = "",
+                a11y_value : String = "",
+                a11y_focusable : Bool = false,
+                a11y_enabled : Bool = true) : Nil
+    emit_auto(key, DeclKind::Text, str, Layout::Direction::Vertical, paint,
+      Insets.new, 0.0_f32, size,
+      a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
+  end
+
+  # 自动尺寸叶子/容器节点（非文本）：宽高 Auto，可与 vstack/hstack 嵌套。
+  def auto_node(key : UiKey, dir : Layout::Direction = Layout::Direction::Vertical,
+                padding : Insets = Insets.new, gap : Float32 = 0.0_f32,
+                paint : UInt32 = 0_u32,
+                a11y_role : A11y::Role = A11y::Role::Group,
+                a11y_name : String = "",
+                a11y_value : String = "",
+                a11y_focusable : Bool = false,
+                a11y_enabled : Bool = true) : Nil
+    emit_auto(key, DeclKind::Node, "", dir, paint,
+      padding, gap, 0.0_f32,
+      a11y_role, a11y_name, a11y_value, a11y_focusable, a11y_enabled)
+  end
+end
 
   # Build declarations into caller-provided reusable buffers.
   # Usage: UI.build(root_key, builder) { |b| b.text(k, "hi") }

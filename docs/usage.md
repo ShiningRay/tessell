@@ -30,6 +30,30 @@ bin/app_demo.exe --frames=120 --verify
 文本输入追加到聚焦的顶部输入框；`Tab` 切换焦点；`Backspace` 删除。
 
 ## UI DSL 与帧流程
+`paint` 参数语义：**变更探测 token**（状态变化时改变它触发 Paint 失效），
+不是颜色；应用从外部状态派生（如对内容做 hash）。
+
+### 自动布局（issue #5）
+显式 bounds 之外，DSL 支持把子树交给核心两遍内核求解（布局与命中树
+同源，Router/HitTest 直接读同一棵树）：
+
+```crystal
+UI.build(UiKey.root, builder) do |x|
+  x.vstack(key10, Tessell::Insets.all(10.0_f32), gap: 8.0_f32) do |y|
+    y.auto_text(key1, "标题", 20.0_f32)   # 宽高按注入 Measurer 测量
+    y.node(key2, Rect.new(0, 0, 120, 40)) # 显式 bounds 按 Fixed 参与
+  end
+end
+UI.apply(buf, node, pool)
+UI.apply_auto_layout(buf, pool, viewport, measurer)  # 求解并写回 bounds
+```
+
+- `vstack`/`hstack`（padding/gap）、`auto_text`（测量定尺寸）、
+  `auto_node`（Auto 容器）；容器按内容收缩（Auto 语义）。
+- 内核 `Layout::LayoutNode` 新增 `gap`：主轴子项间距，计入 intrinsic
+  与 Fraction 余量分配。
+- 顺序：先 `UI.apply` 再 `UI.apply_auto_layout`；稳态回写为 0（零改动）。
+- 命中测试无需另建命中树：`UI.apply_auto_layout` 写回的就是 Node.bounds。
 每帧：`UI.build -> UI.apply(decls, root, pool) -> Node.collect_dirty
 -> UI.consume`。
 

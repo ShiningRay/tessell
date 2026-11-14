@@ -19,6 +19,8 @@ module Tessell
       getter padding : Insets
       getter margin : Insets
       getter direction : Direction
+      # 主轴子项间距（issue #5）；gap 计入容器 intrinsic 与 arrange 游标推进。
+      getter gap : Float32
       getter children : Array(LayoutNode)
 
       # 可选测量缓存字段（纯函数路径不写入；由外层 retained 树按失效策略填充）。
@@ -35,6 +37,7 @@ module Tessell
                      @padding : Insets = Insets.new,
                      @margin : Insets = Insets.new,
                      @direction : Direction = Direction::Vertical,
+                     @gap : Float32 = 0.0_f32,
                      @children : Array(LayoutNode) = [] of LayoutNode,
                      @measured : Size? = nil,
                      @text : String = "",
@@ -108,6 +111,7 @@ module Tessell
       main_sizes = resolve_main(node, node.children, child_sizes, content)
       child_boxes = [] of LayoutBox
       cursor = node.vertical? ? content.origin.y : content.origin.x
+      # gap 只加在子项之间；剩余主轴分配（Fraction）在 resolve_main 内扣除。
 
       node.children.each_with_index do |ch, i|
         cross = resolve_cross(node, ch, child_sizes[i], node.vertical? ? content.size.width : content.size.height)
@@ -118,7 +122,7 @@ module Tessell
                        Rect.new(cursor, content.origin.y, ms, cross)
                      end
         child_boxes << arrange(ch, child_rect, measurer)
-        cursor += ms
+        cursor += ms + node.gap
       end
 
       LayoutBox.new(rect, child_boxes)
@@ -144,12 +148,13 @@ module Tessell
     end
 
     private def self.aggregate_intrinsic(node : LayoutNode, sizes : Array(Size)) : {Float32, Float32}
+      gaps = node.gap * (sizes.size > 1 ? sizes.size - 1 : 0)
       if node.vertical?
         w = sizes.empty? ? 0.0_f32 : sizes.map(&.width).max
-        h = sizes.map(&.height).sum
+        h = sizes.map(&.height).sum + gaps
         {w, h}
       else
-        w = sizes.map(&.width).sum
+        w = sizes.map(&.width).sum + gaps
         h = sizes.empty? ? 0.0_f32 : sizes.map(&.height).max
         {w, h}
       end
@@ -170,7 +175,9 @@ module Tessell
           fixed_total += node.vertical? ? sizes[i].height : sizes[i].width
         end
       end
-      remaining = avail - fixed_total
+      # 子项之间的 gap 占用主轴空间，从可分配余量中扣除（issue #5）。
+      gaps = node.gap * (children.size > 1 ? children.size - 1 : 0)
+      remaining = avail - fixed_total - gaps
       remaining = 0.0_f32 if remaining < 0.0_f32
       result = Array(Float32).new(children.size, 0.0_f32)
       children.each_with_index do |ch, i|

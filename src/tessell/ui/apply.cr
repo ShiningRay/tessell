@@ -448,4 +448,90 @@ module Tessell::UI
     base = list.object_id.to_u64
     (base &* 131542391_u64) ^ index.to_u64 ^ 0x9e3779b97f4a7c15_u64
   end
+
+  # ---- Auto layout（issue #5）----
+  # 把 auto=true 的声明子树交给核心两遍内核求解，并把结果写回
+  # Node.bounds——布局与命中树同源（Router/HitTest 直接读同一棵树）。
+  #
+  # 调用顺序：先 `UI.apply`（建立 Node/映射），再 `apply_auto_layout`。
+  # measurer 注入后 auto_text 叶子按文本测量；不注入则按 0 尺寸。
+  # 显式 bounds 的声明混入 auto 子树时按 Fixed 尺寸参与排布。
+  # 返回值：bounds 被改写的节点数（稳态为 0）。
+  def self.apply_auto_layout(decls : Array(Decl), pool : Pool,
+                             viewport : Rect,
+                             measurer : Text::Measurer? = nil) : Int32
+    # 父→子（保持声明序）：全部声明都入映射，非 auto 子项由
+    # layout_node_for 转成 Fixed 尺寸参与排布；auto_keys 只用于根判定。
+    children_of = Hash(UiKey, Array(Decl)).new
+    auto_keys = Set(UiKey).new
+    decls.each do |d|
+      auto_keys << d.key if d.auto
+      (children_of[d.parent] ||= [] of Decl) << d
+    end
+
+    # 顶层 auto 子树：父不在 auto 集合内。
+    roots = [] of Decl
+    decls.each do |d|
+      next unless d.auto
+      roots << d unless auto_keys.includes?(d.parent)
+    end
+    return 0 if roots.empty?
+
+    changed = 0
+    roots.each do |rd|
+      tree = layout_node_for(rd, children_of, measurer)
+      box = Layout.solve(tree, Constraints.new(0.0_f32, viewport.size.width,
+        0.0_f32, viewport.size.height), viewport.origin, measurer)
+      changed += write_back(rd, box, pool, children_of)
+    end
+    changed
+  end
+
+  private def self.layout_node_for(d : Decl,
+                                   children_of : Hash(UiKey, Array(Decl)),
+                                   measurer : Text::Measurer?) : Layout::LayoutNode
+    kids = children_of[d.key]? || [] of Decl
+    child_nodes = kids.map do |c|
+      if c.auto
+        layout_node_for(c, children_of, measurer)
+      else
+        # 显式 bounds 的声明混入 auto 子树：按 Fixed 尺寸参与排布。
+        Layout::LayoutNode.new(
+          width: Fixed.new(c.bounds.size.width),
+          height: Fixed.new(c.bounds.size.height),
+          padding: c.padding, direction: c.direction, gap: c.gap,
+          children: (children_of[c.key]? || [] of Decl).map { |gc| layout_node_for(gc, children_of, measurer) })
+      end
+    end
+    if d.kind == DeclKind::Text
+      Layout::LayoutNode.new(
+        text: d.text, font_id: 0, font_size: d.text_size,
+        width: Auto.new, height: Auto.new)
+    else
+      Layout::LayoutNode.new(
+        width: Auto.new, height: Auto.new,
+        padding: d.padding, direction: d.direction, gap: d.gap,
+        children: child_nodes)
+    end
+  end
+
+  private def self.write_back(d : Decl, box : Layout::LayoutBox, pool : Pool,
+                              children_of : Hash(UiKey, Array(Decl))) : Int32
+    changed = 0
+    if node = pool.map[d.key]?
+      if node.bounds != box.rect
+        node.bounds = box.rect
+        node.mark_dirty(Invalidation::Layout)
+        changed += 1
+      end
+    end
+    kids = children_of[d.key]? || [] of Decl
+    kid_boxes = box.children
+    i = 0
+    while i < kids.size && i < kid_boxes.size
+      changed += write_back(kids[i], kid_boxes[i], pool, children_of)
+      i += 1
+    end
+    changed
+  end
 end
