@@ -69,3 +69,20 @@
 3. 核心布局/焦点作用域：measure/arrange 声明管线与 modal focus scope，减少 Kit 侧映射层。
 4. 平台剪贴板与 IME provider。
 5. P1 组件按真实需求排队，不按目录数量扩张。
+
+## 7. 复盘问题处置状态（2026-11-14，issue #13 关闭时回填）
+
+K0–K5 复盘提出的 7 个内核问题，处置映射如下（hash 为主分支提交）：
+
+| # | 问题 | 处置 | 证据 |
+| --- | --- | --- | --- |
+| 1 | 扁平 DSL 迫使 Kit 自建布局 | issue #5：DSL 接入两遍内核（vstack/hstack/auto_text + `UI.apply_auto_layout`，内核 gap 支持），布局与命中树同源 | ec27e48；spec/ui_auto_layout_spec.cr |
+| 2 | DrawList 有命令无执行者 | issue #2：`Render::Canvas` 门面 + `draw_polygon` dirty 裁剪；issue #15：文本按命令序交错上屏、per-marker scissor。GL 像素证据为 macOS SDL 真机（计算器/编辑器截图、m3_sdl_dirty_probe 脏区像素对比）；**Windows 真机 gate 仍未跑，平台完整 No-Go 维持** | 1c456ee、7fde2a3；spec/render_canvas_spec.cr、spec/kit/painter_contract_spec.cr |
+| 3 | 事件模型平台闭环 | issue #4：KeyT/Digit0-9、timestamp/repeat、Router click/double-click/drag 语义 + SDL 宿主透传；**Win32 WM_* 收敛仍归 issue #3（未关闭）** | acdbf31；spec/input_* |
+| 4 | 焦点作用域 | issue #16：`Component#wants_tab?` 组件根先拿 Tab、Ctrl/Meta+Tab 保留焦点环出口。Node 级 focus scope 仍留后续 | 001e37d；spec/kit/root_spec.cr |
+| 5 | 裁切语义下沉 | issue #15：Painter 契约成文（调用顺序即绘制顺序、clip 同时约束形状与文本），GL per-command scissor；issue #2：draw_polygon dirty 覆盖逐脏矩形裁剪。不支持的默认后端 `draw_draw_list` 返回 0（显式不支持） | 同上 |
+| 6 | a11y 逻辑子节点数/滚动偏移 | 核心契约已在位：`A11y::Meta.children_count/scroll_offset`，Kit 组件经 `a11y_children_count/a11y_scroll_offset` 覆盖；平台 provider 仍单独立项（第 4 节限制不解除） | tree.cr L40-49 |
+| 7 | 主题 token 太薄 | issue #8：核心 Theme 扩展 panel/grid/up/down 等 15 token，Kit `ctx.render_theme` 镜像 | f2059dc；spec/theme_spec.cr |
+
+「下一步优先级」更新：1→已交付（#2/#15）；2→事件字段已补、平台层收敛归
+#3；3→DSL 管线已交付（#5）、焦点作用域部分交付（#16）；4/5 维持。
