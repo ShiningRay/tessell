@@ -107,4 +107,4 @@
 - 完成：新增 [跨平台方案](https://github.com/ShiningRay/tessell/blob/main/docs/cross-platform-plan.md)，把目标从“Windows 先行、macOS/Linux 后置”修订为 Windows/macOS/Linux 三平台 L0→L1→L2→L3 分级收口；明确 SDL2 只作为可选 `Tessell::Platform::SDL2` 宿主，不进入 `Render::Backend` 或核心默认依赖；列出 Platform::Host 契约、字体/IME/a11y/打包工作包、估算与验收门禁。
 - 同步：roadmap 增加 C.7 修订；Kit 计划、K6 复核与 README 的旧平台口径加补记；未改代码、未新增依赖、未运行新平台测试。
 - 未验证：计划中的 Windows/Linux CI、真实窗口、字体、IME、打包全部待执行。
-- 提交：待回填。
+- 提交：`9d7be74`。
