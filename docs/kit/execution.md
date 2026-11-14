@@ -71,4 +71,4 @@
 - 完成：`tools/build_kit_site.cr` 生成 `site/kit/*.html` 静态文档站（中文导航、组件页、计划/契约/执行记录）；`Kit::SvgPainter` 无窗口 SVG 预览；`site/previews/gallery-light/dark.{svg,png}`；`tools/kit_consumer_verify.sh` 用临时 Shards path 消费者验证核心入口与 Kit 入口；README/usage 更新；`tools/gate.ps1` 加入 `spec_kit` 与 `kit_gallery --verify`。
 - 验证：`crystal spec spec/kit` 86 examples / 0 failures；`kit_gallery --verify` 输出 `verify=pass`（select/dialog/tooltip/input 全 true）；`kit_consumer_verify.sh` 输出 `CORE_CONSUMER_OK` 与 `KIT_CONSUMER_VERIFY verify=pass`；静态站生成成功。
 - 未验证：真实 Windows gate、站点部署、截图与真实窗口一致性；PNG 由 SVG 预览转换，不是 GL 回读。
-- 提交：待回填。
+- 提交：`ef15e52`。
