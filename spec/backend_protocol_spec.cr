@@ -442,3 +442,24 @@ describe "Backend protocol (M3-WP1)" do
     backend.stats.stencil_fills.should eq(2)
   end
 end
+
+# issue #22：增量 atlas 同步进 Backend 抽象——宿主按抽象编程可调用，
+# 无需 is_a?(GLBackend) 强转。
+describe "Backend sync_atlas_dirty protocol (issue #22)" do
+  it "falls back to full sync_atlas through the abstract interface" do
+    backend = RecordingBackend.new
+    ref : Tessell::Render::Backend = backend
+    atlas = Tessell::Text::GlyphAtlas.new(64, 64)
+    ref.sync_atlas_dirty(atlas)
+    backend.calls.includes?("sync_atlas").should be_true
+  end
+
+  it "SoftwareBackend implements sync_atlas_dirty (reference update, no GL)" do
+    atlas = Tessell::Text::GlyphAtlas.new(64, 64)
+    sw = Tessell::Render::SoftwareBackend.new
+    sw.init(8, 8)
+    ref : Tessell::Render::Backend = sw
+    ref.sync_atlas_dirty(atlas)
+    ref.sync_atlas_dirty(atlas) # 幂等调用不报错
+  end
+end

@@ -97,6 +97,11 @@ module Tessell
         @atlas = atlas
       end
 
+      # 软件后端无上传概念，增量与全量同为引用更新（issue #22）。
+      def sync_atlas_dirty(atlas : Text::GlyphAtlas) : Nil
+        @atlas = atlas
+      end
+
       def pixel(x : Int32, y : Int32) : UInt32
         return 0_u32 if x < 0 || y < 0 || x >= @width || y >= @height
         i = (y * @width + x) * 4

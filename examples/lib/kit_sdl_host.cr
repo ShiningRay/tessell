@@ -290,10 +290,11 @@ module TessellKitSdl
       @draw.pop_clip
     end
 
-    def flush(backend : Tessell::Render::GL::GLBackend) : Nil
+    def flush(backend : Tessell::Render::Backend) : Nil
       # Dynamic text inserts glyphs into existing pages; page_count is not a
       # change signal (issue #1). sync_atlas_dirty re-uploads only pages whose
-      # content revision changed.
+      # content revision changed. It lives on the Backend abstraction since
+      # issue #22 — no GLBackend cast needed, SoftwareBackend accepts it too.
       backend.sync_atlas_dirty(@atlas)
       # Issue #15: command order == paint order. Walk the list; a Text marker
       # flushes the pending shape segment first, then exactly the text batches

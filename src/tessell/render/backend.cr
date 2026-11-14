@@ -26,6 +26,8 @@ module Tessell
       abstract def init(width : Int32, height : Int32) : Nil
       abstract def resize(width : Int32, height : Int32) : Nil
       abstract def begin_frame(dirty : Array(Tessell::Rect)? = nil, theme : Tessell::Render::Theme = Tessell::Render::Theme.light) : Nil
+      # 全量重传 glyph atlas 所有页（冷启动/整体重建用）。动态文本场景禁止
+      # 每帧调用——增量路径走 sync_atlas_dirty（issue #22）。
       abstract def sync_atlas(atlas : Text::GlyphAtlas) : Nil
       # Issue #15 contract: text is part of the command order — a host may draw
       # text segments interleaved with draw_draw_list segments. `from_batch`
@@ -38,6 +40,14 @@ module Tessell
       abstract def close : Nil
       abstract def stats : FrameStats
       abstract def resolved_texture(page : Int32) : Int32
+
+      # 增量 glyph atlas 同步（issue #22）：只上传内容 revision 变化的页。
+      # 宿主按 Backend 抽象编程即可每帧调用——有增量实现的后端（GL）在
+      # atlas 未变化时是 no-op；基类默认退化为全量 sync_atlas，第三方后端
+      # 不必强制实现。禁止用 page_count 比较自行判断是否同步（issue #1 口径）。
+      def sync_atlas_dirty(atlas : Text::GlyphAtlas) : Nil
+        sync_atlas(atlas)
+      end
 
       # Color-page resolution: batches carrying color=true read RGBA atlas pages.
       # Backends without RGBA pages fall back to the R8 resolution (gray semantics).
