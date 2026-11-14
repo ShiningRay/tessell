@@ -49,6 +49,7 @@
 <a href="repository-strategy.html">仓策略</a>
 <a href="plan.html">计划</a>
 <a href="execution.html">执行记录</a>
+<a href="k6-review.html">K6 复核</a>
 </nav>
 <main>
 <div class="meta">来源：docs/kit/execution.md</div>
@@ -107,12 +108,26 @@
 <li>未验证：真实窗口上屏、浮层像素裁切/翻转、Windows GL 路径、屏幕阅读器。</li>
 <li>提交：<code>e0dbf50</code>。</li>
 </ul>
-<h4 id="k4-本轮">K4（本轮）</h4>
+<h4 id="k4">K4</h4>
 <ul>
 <li>完成：<code>Kit::Graphemes</code> 常见 cluster 边界；<code>Kit::TextEditing</code> 光标/选区/插入/删除/剪贴板/preedit；<code>Kit::Clipboard</code> 与 <code>MemoryClipboard</code>；<code>Kit::Input</code> 单行输入、label/placeholder/read-only/invalid/error、水平滚动、光标与选区绘制、IME 预览 API。</li>
 <li>验证：<code>crystal spec spec/kit</code>（含 grapheme/editing/input）通过；<code>kit_gallery --verify</code> 输出 <code>input=true</code>；Root 焦点路由下 TextInput 写入。</li>
 <li>未验证：平台 IME 事件接入（C7 仍人工/未关闭）、平台剪贴板适配、密码模式、撤销/重做、Windows 真实窗口像素。</li>
 <li>提交：<code>b550bbb</code>。</li>
+</ul>
+<h4 id="k5">K5</h4>
+<ul>
+<li>完成：<code>tools/build_kit_site.cr</code> 生成 <code>site/kit/*.html</code> 静态文档站（中文导航、组件页、计划/契约/执行记录）；<code>Kit::SvgPainter</code> 无窗口 SVG 预览；<code>site/previews/gallery-light/dark.{svg,png}</code>；<code>tools/kit_consumer_verify.sh</code> 用临时 Shards path 消费者验证核心入口与 Kit 入口；README/usage 更新；<code>tools/gate.ps1</code> 加入 <code>spec_kit</code> 与 <code>kit_gallery --verify</code>。</li>
+<li>验证：<code>crystal spec spec/kit</code> 86 examples / 0 failures；<code>kit_gallery --verify</code> 输出 <code>verify=pass</code>（select/dialog/tooltip/input 全 true）；<code>kit_consumer_verify.sh</code> 输出 <code>CORE_CONSUMER_OK</code> 与 <code>KIT_CONSUMER_VERIFY verify=pass</code>；静态站生成成功。</li>
+<li>未验证：真实 Windows gate、站点部署、截图与真实窗口一致性；PNG 由 SVG 预览转换，不是 GL 回读。</li>
+<li>提交：<code>ef15e52</code>。</li>
+</ul>
+<h4 id="k6-本轮">K6（本轮）</h4>
+<ul>
+<li>完成：独立复核 <a href="K6-review.html">K6-review.md</a>；组件 DoD 矩阵、未关闭项与发布判断；架构复盘与下一步优先级已发 <a href="https://github.com/ShiningRay/tessell/issues/13">#13</a>。</li>
+<li>复核证据：<code>crystal spec spec/kit</code> 86/0；light 与 dark/DPI 1.5 gallery <code>verify=pass</code>；消费者脚本通过；核心入口构建通过；格式检查通过。</li>
+<li>结论：逻辑/API 层 Go-with-conditions；平台完整 No-Go。真实 Windows gate、IME、屏幕阅读器、平台剪贴板、GL DrawList 闭环未验证。</li>
+<li>提交：待回填。</li>
 </ul>
 
 </main>
