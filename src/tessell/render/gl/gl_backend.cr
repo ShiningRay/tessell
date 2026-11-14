@@ -890,6 +890,9 @@ module Tessell
           TessellGL.glDisable(TessellGL::GL_TEXTURE_2D)
           was_scissor = !@dirty.nil?
           TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST) if was_scissor
+          # Dirty 模式下 scissor 暂关只允许 stencil parity 这一步；颜色覆盖
+          # 必须逐脏矩形裁剪，否则覆盖包围盒会写到脏区之外（issue #2）。
+          dirty_rects = @dirty
 
           min_x = points[0].x
           max_x = points[0].x
@@ -932,18 +935,37 @@ module Tessell
           b = ((color >> 8) & 0xFF).to_f32 / 255.0_f32
           a = (color & 0xFF).to_f32 / 255.0_f32
           TessellGL.glColor4f(r, g, b, a)
-          TessellGL.glBegin(TessellGL::GL_QUADS)
-          TessellGL.glVertex2f(min_x, min_y)
-          TessellGL.glVertex2f(max_x, min_y)
-          TessellGL.glVertex2f(max_x, max_y)
-          TessellGL.glVertex2f(min_x, max_y)
-          TessellGL.glEnd
+          if rects = dirty_rects
+            # 每个脏矩形单独 scissor 后覆盖一次；parity 已在 stencil 中，
+            # 逐矩形重放覆盖只写入各自区域，脏区外像素保持不动。
+            TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST)
+            ri = 0
+            while ri < rects.size
+              sx, sy, sw, sh_i = scissor_params(rects[ri])
+              TessellGL.glScissor(sx, sy, sw, sh_i)
+              TessellGL.glBegin(TessellGL::GL_QUADS)
+              TessellGL.glVertex2f(min_x, min_y)
+              TessellGL.glVertex2f(max_x, min_y)
+              TessellGL.glVertex2f(max_x, max_y)
+              TessellGL.glVertex2f(min_x, max_y)
+              TessellGL.glEnd
+              ri += 1
+            end
+          else
+            TessellGL.glBegin(TessellGL::GL_QUADS)
+            TessellGL.glVertex2f(min_x, min_y)
+            TessellGL.glVertex2f(max_x, min_y)
+            TessellGL.glVertex2f(max_x, max_y)
+            TessellGL.glVertex2f(min_x, max_y)
+            TessellGL.glEnd
+          end
 
           TessellGL.glDisable(TessellGL::GL_STENCIL_TEST)
           TessellGL.glStencilMask(0xFF_u32)
           TessellGL.glColorMask(1_u8, 1_u8, 1_u8, 1_u8)
           TessellGL.glEnable(TessellGL::GL_TEXTURE_2D)
-          TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST) if was_scissor
+          # dirty 模式 scissor 已在逐矩形覆盖时重新开启（保持 begin_frame 语义）；
+          # 整帧模式保持关闭。
 
           @stencil_fills += 1
           true
