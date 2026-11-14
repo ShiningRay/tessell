@@ -28,6 +28,9 @@ module Tessell
       getter x2 : Float32
       getter y2 : Float32
       getter font_size : Float32
+      # 字体 face 维度（issue #29）：0 = 默认 face；多 face 栈按宿主 renderer
+      # 表选取。与 DrawListPainter 写入 DrawCmd#atlas_id 的语义一致。
+      getter font_id : Int32
       # 命令生效时的裁切矩形（push_clip/pop_clip 交集结果），与
       # DrawListPainter 的 DrawCmd#clip 同语义（issue #25）。nil = 无裁切。
       getter clip : Rect?
@@ -38,7 +41,7 @@ module Tessell
                      @x : Float32 = 0.0_f32, @y : Float32 = 0.0_f32,
                      @font_size : Float32 = 0.0_f32,
                      @x2 : Float32 = 0.0_f32, @y2 : Float32 = 0.0_f32,
-                     @clip : Rect? = nil)
+                     @clip : Rect? = nil, @font_id : Int32 = 0)
       end
     end
 
@@ -127,7 +130,7 @@ module Tessell
       abstract def line(x1 : Float32, y1 : Float32, x2 : Float32, y2 : Float32,
                         color : UInt32, width : Float32 = 1.0_f32) : Nil
       abstract def text(x : Float32, baseline_y : Float32, text : String,
-                        color : UInt32, size : Float32) : Nil
+                        color : UInt32, size : Float32, font_id : Int32 = 0) : Nil
       abstract def push_clip(rect : Rect) : Nil
       abstract def pop_clip : Nil
     end
@@ -170,9 +173,10 @@ module Tessell
       end
 
       def text(x : Float32, baseline_y : Float32, text : String,
-               color : UInt32, size : Float32) : Nil
+               color : UInt32, size : Float32, font_id : Int32 = 0) : Nil
         @list.push(PaintCmd.new(PaintKind::Text, Rect.new, color, text: text,
-          x: x, y: baseline_y, font_size: size, clip: current_clip))
+          x: x, y: baseline_y, font_size: size, clip: current_clip,
+          font_id: font_id))
       end
 
       def push_clip(rect : Rect) : Nil

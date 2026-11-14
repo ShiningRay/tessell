@@ -261,14 +261,16 @@ module TessellKitSdl
     end
 
     def text(x : Float32, baseline_y : Float32, text : String,
-             color : UInt32, size : Float32) : Nil
+             color : UInt32, size : Float32, font_id : Int32 = 0) : Nil
       px_size = (size * @scale).round.to_i
       return if px_size <= 0
       dx = x * @scale
       dy = baseline_y * @scale
       # Text payload goes into the command itself (issue #21). flush() reads
       # cmd.text/font_size and submits in command order — no parallel
-      # batch-boundary array to keep in sync.
+      # batch-boundary array to keep in sync. font_id (issue #29) is accepted
+      # but this single-face example host ignores it; multi-face hosts build
+      # a renderer table keyed by font_id.
       @draw.text(dx, dy, text, color, px_size.to_f32)
     end
 

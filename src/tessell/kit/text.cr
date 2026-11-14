@@ -18,23 +18,28 @@ module Tessell
       property size : ControlSize
       property wrap : Bool
       property max_lines : Int32?
+      # 字重（issue #29）：经 ctx.font_id_for 解析为 face 的 font_id，
+      # measure 与 paint 用同一 id（宽度和字形一致）。
+      property weight : FontWeight
 
       def initialize(@key : UI::UiKey, @content : String,
                      @tone : TextTone = TextTone::Normal,
                      @size : ControlSize = ControlSize::Medium,
                      @wrap : Bool = false,
                      @max_lines : Int32? = nil,
-                     enabled : Bool = true)
+                     enabled : Bool = true,
+                     @weight : FontWeight = FontWeight::Normal)
         super(@key, enabled)
       end
 
       def measure(ctx : Context, constraints : Constraints) : Size
         fs = ctx.theme.font_size(@size)
+        font_id = ctx.font_id_for(@content, @weight)
         max_w = constraints.max_width
         measured = if @wrap
-                     ctx.measure_text(@content, fs, max_w)
+                     ctx.measure_text(@content, fs, max_w, font_id)
                    else
-                     ctx.measure_text(@content, fs)
+                     ctx.measure_text(@content, fs, font_id)
                    end
         width = if @wrap && !max_w.infinite?
                   Math.min(max_w, measured.width)
@@ -66,12 +71,14 @@ module Tessell
         lines = layout_lines(ctx, fs)
         m = ctx.text_metrics(fs)
         line_h = ctx.line_height(fs)
+        # 与 measure 同一 face（issue #29）：宽度和字形一致
+        font_id = ctx.font_id_for(@content, @weight)
         # 行距与测量同源（issue #19）：基线 = top + ascent，行距 = line_height；
         # 不再用 top + fs 的第三种口径。
         baseline = @bounds.origin.y + m.ascent
         lines.each_with_index do |line, index|
           break if index >= (@max_lines || Int32::MAX)
-          p.text(@bounds.origin.x, baseline + index * line_h, line, color, fs)
+          p.text(@bounds.origin.x, baseline + index * line_h, line, color, fs, font_id)
         end
       end
 

@@ -53,7 +53,9 @@ module Tessell
       end
 
       def text(x : Float32, baseline_y : Float32, text : String,
-               color : UInt32, size : Float32) : Nil
+               color : UInt32, size : Float32, font_id : Int32 = 0) : Nil
+        # font_id（issue #29）：SVG 输出的 face 映射是应用侧关注点
+        # （font-family 由 CSS/宿主决定），这里接受并忽略。
         emit %(<text x="#{f(x)}" y="#{f(baseline_y)}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="#{f(size)}" fill="#{css(color)}">#{HTML.escape(text)}</text>)
       end
 

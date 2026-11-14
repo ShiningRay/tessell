@@ -11,13 +11,16 @@ module Tessell
       property variant : Variant
       property size : ControlSize
       property on_click : Proc(Nil)?
+      # 字重（issue #29）：与 Kit::Text 同口径，font_id 经 Context 解析。
+      property weight : FontWeight
       getter hovered : Bool
       getter pressed : Bool
 
       def initialize(@key : UI::UiKey, @label : String,
                      @variant : Variant = Variant::Secondary,
                      @size : ControlSize = ControlSize::Medium,
-                     enabled : Bool = true)
+                     enabled : Bool = true,
+                     @weight : FontWeight = FontWeight::Normal)
         super(@key, enabled)
         @hovered = false
         @pressed = false
@@ -26,7 +29,7 @@ module Tessell
 
       def measure(ctx : Context, constraints : Constraints) : Size
         fs = ctx.theme.font_size(@size)
-        text = ctx.measure_text(@label, fs)
+        text = ctx.measure_text(@label, fs, ctx.font_id_for(@label, @weight))
         w = text.width + ctx.theme.padding_x(@size) * 2.0_f32
         h = ctx.theme.control_height(@size)
         constraints.constrain(Size.new(w, h))
@@ -63,11 +66,12 @@ module Tessell
             ctx.theme.metrics.focus_ring_width)
         end
 
-        text_size = ctx.measure_text(@label, fs)
+        text_size = ctx.measure_text(@label, fs, ctx.font_id_for(@label, @weight))
         tx = @bounds.origin.x + (@bounds.size.width - text_size.width) / 2.0_f32
         # 垂直居中走 text_metrics 口径（issue #19），不用 fs*0.1 经验系数
         baseline = TextDrawing.middle_baseline(@bounds, ctx.text_metrics(fs))
-        p.text(tx, baseline, @label, colors.foreground, fs)
+        p.text(tx, baseline, @label, colors.foreground, fs,
+          ctx.font_id_for(@label, @weight))
       end
 
       def focusable? : Bool

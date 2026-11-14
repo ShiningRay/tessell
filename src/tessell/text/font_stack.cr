@@ -74,6 +74,13 @@ module Tessell
         @faces.find { |f| f.covers?(text) }
       end
 
+      # 按字重选脸（issue #29）：先找覆盖文本且字重匹配的 face；没有匹配
+      # 字重的覆盖脸时退回第一个覆盖脸（缺 bold 时不至于拿到错宽度的脸）。
+      def pick(text : String, weight : Weight) : Face?
+        @faces.find { |f| f.weight == weight && f.covers?(text) } ||
+          @faces.find { |f| f.covers?(text) }
+      end
+
       # 选脸并测量：优先级第一的覆盖脸的度量（逻辑入口）。
       def measure(text : String, size : Float32) : Size
         if face = pick(text)
