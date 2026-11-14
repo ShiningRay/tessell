@@ -6,6 +6,10 @@
 module Tessell
   module Kit
     abstract class TextMetrics
+      # 单位契约（issue #14）：`measure` / `line_height` 的入参 size 与返回值
+      # 一律为**设备像素**单位（宿主渲染字形所用的实际字号）。逻辑单位的换算
+      # 由 `Context#measure_text` / `Context#line_height` 统一负责——组件层只
+      # 见逻辑单位，宿主不需要再包一层除法适配器。
       abstract def measure(text : String, size : Float32) : Size
 
       # 带可用宽度的测量；默认忽略 max_width，支持换行的实现应覆盖。
@@ -80,16 +84,23 @@ module Tessell
         @overlay_host = nil
       end
 
+      # 逻辑单位契约（issue #14）：以设备字号测量（与 Painter 提交的实际
+      # 字形尺寸一致），再除回 scale 返回**逻辑**尺寸。组件在 scale=1 与
+      # scale=2 下得到相同逻辑 bounds，宿主无须自写除法适配器。
       def measure_text(text : String, size : Float32) : Size
-        @metrics.measure(text, device_font_size(size))
+        s = @metrics.measure(text, device_font_size(size))
+        Size.new(s.width / @scale, s.height / @scale)
       end
 
       def measure_text(text : String, size : Float32, max_width : Float32) : Size
-        @metrics.measure(text, device_font_size(size), max_width)
+        # 设备空间整体放大 scale 倍：设备字号 = size*scale，设备 max_width
+        # 也必须 = max_width*scale，换行行为才与逻辑空间一致。
+        s = @metrics.measure(text, device_font_size(size), max_width * @scale)
+        Size.new(s.width / @scale, s.height / @scale)
       end
 
       def line_height(size : Float32) : Float32
-        @metrics.line_height(device_font_size(size))
+        @metrics.line_height(device_font_size(size)) / @scale
       end
 
       # DPI 只影响文本设备字号；逻辑布局尺寸仍由 Metrics 给出。
