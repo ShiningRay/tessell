@@ -33,6 +33,10 @@ module Tessell
       @scissor_calls : Int32
       @culled_quads : Int32
       @stencil_fills : Int32
+      # 外部纹理表（issue #28）：handle → {w, h, RGBA bytes}。
+      # handle 从 1 起独立命名空间，与 glyph atlas 页号不混用。
+      @textures : Hash(Int32, Tuple(Int32, Int32, Bytes))
+      @texture_seq : Int32
 
       def initialize
         @width = 0
@@ -45,6 +49,8 @@ module Tessell
         @scissor_calls = 0
         @culled_quads = 0
         @stencil_fills = 0
+        @textures = {} of Int32 => Tuple(Int32, Int32, Bytes)
+        @texture_seq = 0
       end
 
       def init(width : Int32, height : Int32) : Nil
@@ -159,11 +165,110 @@ module Tessell
             submitted += 1
           when Tessell::Render::CmdKind::Text
             # 文本由 draw_text 按命令序交错提交（issue #15）
+          when Tessell::Render::CmdKind::Image
+            draw_image_pixels(cmd, clip)
+            submitted += 1
           else
           end
           i += 1
         end
         submitted
+      end
+
+      # ---- 外部纹理生命周期（issue #28）----
+
+      def create_texture(width : Int32, height : Int32, pixels : Bytes) : Int32
+        raise ArgumentError.new("texture pixel size mismatch") if pixels.size < width * height * 4
+        @texture_seq += 1
+        handle = @texture_seq
+        @textures[handle] = {width, height, pixels.dup}
+        handle
+      end
+
+      def update_texture(handle : Int32, x : Int32, y : Int32,
+                         width : Int32, height : Int32, pixels : Bytes) : Nil
+        entry = @textures[handle]?
+        return unless entry
+        tw, th, data = entry
+        raise ArgumentError.new("update region out of bounds") if x < 0 || y < 0 ||
+          x + width > tw || y + height > th
+        sy = 0
+        while sy < height
+          dy = y + sy
+          row = (dy * tw + x) * 4
+          src = sy * width * 4
+          data[row, width * 4].copy_from(pixels[src, width * 4])
+          sy += 1
+        end
+      end
+
+      def destroy_texture(handle : Int32) : Nil
+        @textures.delete(handle)
+      end
+
+      def resolved_texture_external(handle : Int32) : Int32
+        @textures.has_key?(handle) ? handle : 0
+      end
+
+      # Image 光栅化（issue #28）：像素块拷贝 + clip 交集 + tint 乘法
+      # （premultiplied 空间；tint 全白 = 原样）。源矩形 p1/p2 缺省整图。
+      # dirty 模式下写出的像素落在脏区外时被 blend_pixel 口径覆盖——
+      # 与形状命令同一裁剪纪律（脏区外不写）。
+      private def draw_image_pixels(cmd : Tessell::Render::DrawCmd,
+                                    clip : Tessell::Rect?) : Nil
+        entry = @textures[cmd.texture_id]?
+        return unless entry
+        tw, th, data = entry
+        bounds = cmd.bounds
+        return if bounds.size.width <= 0 || bounds.size.height <= 0
+
+        # 源矩形（像素坐标）：p1/p2 缺省 (0,0)-(0,0) = 整图
+        sx0 = cmd.p1.x.round.to_i.clamp(0, tw)
+        sy0 = cmd.p1.y.round.to_i.clamp(0, th)
+        sx1 = cmd.p2.x.round.to_i
+        sx1 = tw if sx1 <= 0
+        sy1 = cmd.p2.y.round.to_i
+        sy1 = th if sy1 <= 0
+        sx1 = sx1.clamp(sx0, tw)
+        sy1 = sy1.clamp(sy0, th)
+        sw = sx1 - sx0
+        sh = sy1 - sy0
+        return if sw <= 0 || sh <= 0
+
+        tint_r, tint_g, tint_b = premultiply(cmd.color)
+        # premultiply 返回的是乘过 alpha 的分量：全白 tint 时还原为 1.0
+        if cmd.color == 0xffffffff_u32
+          tint_r = 1.0_f32
+          tint_g = 1.0_f32
+          tint_b = 1.0_f32
+        end
+
+        effective = clip ? intersect(bounds, clip) : bounds
+        bx0 = Math.max(0, effective.origin.x.round.to_i)
+        by0 = Math.max(0, effective.origin.y.round.to_i)
+        bx1 = Math.min(@width - 1, (effective.origin.x + effective.size.width).round.to_i - 1)
+        by1 = Math.min(@height - 1, (effective.origin.y + effective.size.height).round.to_i - 1)
+        return if bx0 > bx1 || by0 > by1
+
+        scale_x = sw.to_f32 / bounds.size.width
+        scale_y = sh.to_f32 / bounds.size.height
+        y = by0
+        while y <= by1
+          sy = sy0 + (((y.to_f32 - bounds.origin.y) * scale_y).round.to_i.clamp(0, sh - 1))
+          x = bx0
+          while x <= bx1
+            sx = sx0 + (((x.to_f32 - bounds.origin.x) * scale_x).round.to_i.clamp(0, sw - 1))
+            si = (sy * tw + sx) * 4
+            # 纹理像素为 straight RGBA → premultiplied 后 tint → src_over
+            pa = data[si + 3].to_f32 / 255.0_f32
+            pr = (data[si].to_f32 / 255.0_f32) * pa * tint_r
+            pg = (data[si + 1].to_f32 / 255.0_f32) * pa * tint_g
+            pb = (data[si + 2].to_f32 / 255.0_f32) * pa * tint_b
+            blend_pixel(x, y, pr, pg, pb, pa)
+            x += 1
+          end
+          y += 1
+        end
       end
 
       # even-odd 扫描填充（draw_polygon 的软件对应）。dirty 模式下逐脏矩形

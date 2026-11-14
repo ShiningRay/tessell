@@ -14,6 +14,7 @@ module Tessell
       Text
       PushClip
       PopClip
+      Image
     end
 
     struct PaintCmd
@@ -34,6 +35,8 @@ module Tessell
       # 命令生效时的裁切矩形（push_clip/pop_clip 交集结果），与
       # DrawListPainter 的 DrawCmd#clip 同语义（issue #25）。nil = 无裁切。
       getter clip : Rect?
+      # 外部纹理 handle（issue #28）：仅 Image 使用，0 = 未绑定。
+      getter texture_id : Int32
 
       def initialize(@kind : PaintKind, @rect : Rect = Rect.new,
                      @color : UInt32 = 0_u32, @width : Float32 = 0.0_f32,
@@ -41,7 +44,8 @@ module Tessell
                      @x : Float32 = 0.0_f32, @y : Float32 = 0.0_f32,
                      @font_size : Float32 = 0.0_f32,
                      @x2 : Float32 = 0.0_f32, @y2 : Float32 = 0.0_f32,
-                     @clip : Rect? = nil, @font_id : Int32 = 0)
+                     @clip : Rect? = nil, @font_id : Int32 = 0,
+                     @texture_id : Int32 = 0)
       end
     end
 
@@ -133,6 +137,13 @@ module Tessell
                         color : UInt32, size : Float32, font_id : Int32 = 0) : Nil
       abstract def push_clip(rect : Rect) : Nil
       abstract def pop_clip : Nil
+
+      # 外部纹理四边形（issue #28）：texture_id 来自 Backend#create_texture
+      # （独立命名空间）；tint 默认全白 = 原样；src 缺省 = 整图（后端按
+      # 纹理尺寸换算 uv）。
+      abstract def image(texture_id : Int32, bounds : Rect,
+                         tint : UInt32 = 0xffffffff_u32,
+                         src : Rect? = nil) : Nil
     end
 
     # PaintListPainter 与 DrawListPainter 的 clip 语义一致（issue #25）：
@@ -187,6 +198,13 @@ module Tessell
       def pop_clip : Nil
         @clips.pop unless @clips.empty?
         @list.push(PaintCmd.new(PaintKind::PopClip))
+      end
+
+      def image(texture_id : Int32, bounds : Rect,
+                tint : UInt32 = 0xffffffff_u32,
+                src : Rect? = nil) : Nil
+        @list.push(PaintCmd.new(PaintKind::Image, bounds, tint,
+          clip: current_clip, texture_id: texture_id))
       end
 
       def clip_depth : Int32

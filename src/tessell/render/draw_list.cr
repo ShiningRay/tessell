@@ -24,6 +24,11 @@ module Tessell
       RoundRect
       StrokeRect
       StrokeRoundRect
+      # 外部纹理四边形（issue #28）：bounds=目标矩形；texture_id=外部纹理
+      # handle（独立命名空间，与 atlas_id 的 glyph 页号不混用）；color=
+      # tint（默认全白 = 原样绘制）；p1/p2 = 源矩形（默认 0 = 整图，uv 由
+      # 后端按纹理尺寸换算）。
+      Image
     end
 
     struct DrawCmd
@@ -46,13 +51,17 @@ module Tessell
       # font_size 是显式字号字段，后端/golden 以它为准。
       getter text : String
       getter font_size : Float32
+      # 外部纹理 handle（issue #28）：仅 CmdKind::Image 使用，-1 = 未绑定。
+      # 与 atlas_id 的 glyph 页号独立命名空间。
+      getter texture_id : Int32
 
       def initialize(@kind : CmdKind, @bounds : Rect, @color : UInt32,
                      @atlas_id : Int32 = -1, @clip : Rect? = nil,
                      @radius : Float32 = 0.0_f32,
                      @stroke_width : Float32 = 0.0_f32,
                      @p1 : Point = Point.new, @p2 : Point = Point.new,
-                     @text : String = "", @font_size : Float32 = 0.0_f32)
+                     @text : String = "", @font_size : Float32 = 0.0_f32,
+                     @texture_id : Int32 = -1)
       end
     end
 

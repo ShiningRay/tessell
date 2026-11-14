@@ -74,6 +74,33 @@ module Tessell
                        even_odd : Bool = true) : Bool
         false
       end
+
+      # ---- 外部纹理通道（issue #28）----
+      # 位图类内容（image/canvas/离屏 webview）的地基：与 glyph atlas 页号
+      # 完全独立的 handle 命名空间。pixels 为 RGBA8（straight，后端负责
+      # premultiplied 转换——与 glyph RGBA 页同口径）。生命周期：
+      # create → update（增量区域）→ destroy；纹理内容不变时仅重绘零新增分配。
+
+      # 创建外部纹理；返回 handle（≥1，独立命名空间）。基类返回 0 = 不支持
+      # （仿 draw_polygon 先例），实现方必须返回非 0。
+      def create_texture(width : Int32, height : Int32, pixels : Bytes) : Int32
+        0
+      end
+
+      # 增量区域上传（GL 走 glTexSubImage2D 同型链路）。基类 no-op。
+      def update_texture(handle : Int32, x : Int32, y : Int32,
+                         width : Int32, height : Int32, pixels : Bytes) : Nil
+      end
+
+      # 销毁外部纹理；handle 失效后再绘制 Image 命令属应用层错误。
+      def destroy_texture(handle : Int32) : Nil
+      end
+
+      # 外部纹理 handle 解析（独立命名空间，不与 glyph atlas 页号混用）。
+      # 基类返回 0 = 不支持；软件后端返回内部引用键。
+      def resolved_texture_external(handle : Int32) : Int32
+        0
+      end
     end
   end
 end

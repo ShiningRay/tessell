@@ -59,6 +59,16 @@ module Tessell
           clip: current_clip, text: text, font_size: size))
       end
 
+      def image(texture_id : Int32, bounds : Rect,
+                tint : UInt32 = 0xffffffff_u32,
+                src : Rect? = nil) : Nil
+        src_rect = src || Tessell::Rect.new
+        @list.push(Render::DrawCmd.new(Render::CmdKind::Image, bounds, tint,
+          clip: current_clip, p1: Point.new(src_rect.origin.x, src_rect.origin.y),
+          p2: Point.new(src_rect.max_x, src_rect.max_y),
+          texture_id: texture_id))
+      end
+
       def push_clip(rect : Rect) : Nil
         @clips << current_clip_or(rect)
       end

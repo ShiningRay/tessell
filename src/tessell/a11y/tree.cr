@@ -34,6 +34,8 @@ module Tessell
       GridCell
       RowHeader
       ColumnHeader
+      # 位图内容（issue #28）：映射 UIA Image / NSAccessibility Image / AT-SPI Image
+      Image
     end
 
     struct Meta

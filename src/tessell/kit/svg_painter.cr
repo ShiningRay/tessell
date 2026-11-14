@@ -59,6 +59,14 @@ module Tessell
         emit %(<text x="#{f(x)}" y="#{f(baseline_y)}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" font-size="#{f(size)}" fill="#{css(color)}">#{HTML.escape(text)}</text>)
       end
 
+      def image(texture_id : Int32, bounds : Rect,
+                tint : UInt32 = 0xffffffff_u32,
+                src : Rect? = nil) : Nil
+        # SVG 输出纹理内容需宿主提供 URI 映射（texture-N → data URI/文件）；
+        # 这里以 href 占位，保证 headless 结构断言可用。
+        emit %(<image x="#{f(bounds.origin.x)}" y="#{f(bounds.origin.y)}" width="#{f(bounds.size.width)}" height="#{f(bounds.size.height)}" href="texture-#{texture_id}"/>)
+      end
+
       def push_clip(rect : Rect) : Nil
         effective = if parent = @clips.last?
                       Geometry.intersect(parent, rect)
