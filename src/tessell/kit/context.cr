@@ -71,11 +71,13 @@ module Tessell
       getter metrics : TextMetrics
       getter scale : Float32
       getter now_ms : Int64
+      property overlay_host : OverlayHost?
 
       def initialize(@theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
                      @scale : Float32 = 1.0_f32,
                      @now_ms : Int64 = 0_i64)
+        @overlay_host = nil
       end
 
       def measure_text(text : String, size : Float32) : Size

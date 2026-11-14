@@ -44,10 +44,17 @@
 - 未验证：GL 后端尚未消费新增 DrawCmd；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。
 - 提交：`5c7270e`。
 
-#### K2（本轮）
+#### K2
 
 - 完成：`Kit::Container/Column/Row` 线性布局；`Kit::Text`（wrap/截断/max_lines）；`Kit::Checkbox`；`Kit::ScrollView`（裁切/滚动条/键盘）；`Kit::VirtualList` 适配（可见行、逻辑 children_count）；headless `examples/kit_gallery.cr` 与组件文档。
 - 核心补层：`Node#clip` 命中继承、`A11y::Meta` 逻辑 children_count/scroll_offset、`Widgets::VirtualList#resize_viewport`、Kit Painter `line` 命令。
 - 验证：选定核心/Kit 用例 261 examples / 0 failures；`kit_gallery --verify --frames=60 --theme=dark --dpi=1.5` 输出 `verify=pass`；`crystal build examples/kit_gallery.cr --no-codegen` 通过。
 - 未验证：真实窗口/GL 上屏、滚动条拖动、变量行高 Kit 入口、Windows 像素回读。
 - 提交：`cdcf4df`。
+
+#### K3（本轮）
+
+- 完成：`Kit::OverlayPlacement/OverlayEntry/OverlayHost/Barrier`；Root 统一处理浮层层级、模态屏障、Escape/外部点击/blur dismiss、焦点圈定与恢复；`Kit::Tooltip` hover 延迟；`Kit::Dialog` 标题/内容/动作区与焦点陷阱；`Kit::Select` 触发区 + Popover 列表、键盘/指针选择与选中回调。
+- 验证：`crystal spec spec/kit` 62 examples / 0 failures；`kit_gallery --verify` 输出 `select=true dialog=true tooltip=true`；Dialog 背景点击被屏障阻断、Escape 恢复焦点、Tab 不逃逸。
+- 未验证：真实窗口上屏、浮层像素裁切/翻转、Windows GL 路径、屏幕阅读器。
+- 提交：待回填。

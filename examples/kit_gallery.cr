@@ -15,6 +15,9 @@ module KitGallery
     getter buttons : Array(Tessell::Kit::Button)
     getter checkbox : Tessell::Kit::Checkbox
     getter list : Tessell::Kit::VirtualList
+    getter select : Tessell::Kit::Select
+    getter dialog : Tessell::Kit::Dialog
+    getter dialog_button : Tessell::Kit::Button
     getter clicks : Int32
     getter changes : Int32
 
@@ -65,11 +68,18 @@ module KitGallery
         Tessell::UI::UiKey.root.child(8_u64), "Danger",
         Tessell::Kit::Variant::Danger
       )
+      ghost.tooltip_text = "Ghost action tooltip"
+      ghost.tooltip_delay_ms = 10
       @buttons = [primary, secondary, ghost, danger]
       @buttons.each do |button|
         button.on_click = -> { @clicks += 1; nil }
         row.add(button)
       end
+      @dialog_button = Tessell::Kit::Button.new(
+        Tessell::UI::UiKey.root.child(120_u64), "Open dialog",
+        Tessell::Kit::Variant::Secondary
+      )
+      row.add(@dialog_button)
       column.add(row)
 
       @checkbox = Tessell::Kit::Checkbox.new(
@@ -78,14 +88,37 @@ module KitGallery
       @checkbox.on_change = ->(value : Bool) { @changes += 1; nil }
       column.add(@checkbox)
 
+      @select = Tessell::Kit::Select.new(
+        Tessell::UI::UiKey.root.child(11_u64), ["Alpha", "Beta", "Gamma"],
+        label: "Gallery select"
+      )
+      column.add(@select)
+
       @list = Tessell::Kit::VirtualList.new(
         Tessell::UI::UiKey.root.child(10_u64), 1000, 22,
         ->(index : Int32) { "Row #{index + 1}" }, name: "Gallery rows"
       )
       column.add(@list)
 
+      dialog_content = Tessell::Kit::Text.new(
+        Tessell::UI::UiKey.root.child(121_u64),
+        "Overlays are modal, focus-trapped and restore focus on close."
+      )
+      cancel = Tessell::Kit::Button.new(
+        Tessell::UI::UiKey.root.child(122_u64), "Cancel"
+      )
+      confirm = Tessell::Kit::Button.new(
+        Tessell::UI::UiKey.root.child(123_u64), "Confirm",
+        Tessell::Kit::Variant::Primary
+      )
+      @dialog = Tessell::Kit::Dialog.new(
+        Tessell::UI::UiKey.root.child(124_u64), "Example dialog",
+        dialog_content, [cancel, confirm]
+      )
+
       @root = Tessell::Kit::Root.new(column, theme, Tessell::Kit::StubTextMetrics.new,
         Tessell::Rect.new(0.0_f32, 0.0_f32, 800.0_f32, 600.0_f32), scale)
+      @dialog_button.on_click = -> { @root.open_dialog(@dialog); nil }
     end
 
     def layout : Nil
@@ -100,7 +133,7 @@ module KitGallery
       root.paint(painter)
     end
 
-    def verify_actions : Nil
+    def verify_actions : NamedTuple(select_ok: Bool, dialog_ok: Bool, tooltip_ok: Bool)
       first = @buttons[0]
       x = first.bounds.origin.x + first.bounds.size.width / 2.0_f32
       y = first.bounds.origin.y + first.bounds.size.height / 2.0_f32
@@ -112,9 +145,46 @@ module KitGallery
       root.handle(Tessell::Input::Event.pointer_down(cx, cy))
       root.handle(Tessell::Input::Event.pointer_up(cx, cy))
 
+      sx = @select.bounds.origin.x + @select.bounds.size.width / 2.0_f32
+      sy = @select.bounds.origin.y + @select.bounds.size.height / 2.0_f32
+      root.handle(Tessell::Input::Event.pointer_down(sx, sy))
+      root.handle(Tessell::Input::Event.pointer_up(sx, sy))
+      build
+      popup = root.overlay_host.top.try(&.component).as?(Tessell::Kit::SelectPopup)
+      if popup
+        row = popup.row_rect(1)
+        root.handle(Tessell::Input::Event.pointer_down(row.origin.x + row.size.width / 2.0_f32,
+          row.origin.y + row.size.height / 2.0_f32))
+        root.handle(Tessell::Input::Event.pointer_up(row.origin.x + row.size.width / 2.0_f32,
+          row.origin.y + row.size.height / 2.0_f32))
+      end
+      build
+      select_ok = @select.selected_index == 1 && @select.selected_text == "Beta" && root.overlay_host.empty?
+
+      dx = @dialog_button.bounds.origin.x + @dialog_button.bounds.size.width / 2.0_f32
+      dy = @dialog_button.bounds.origin.y + @dialog_button.bounds.size.height / 2.0_f32
+      root.handle(Tessell::Input::Event.pointer_down(dx, dy))
+      root.handle(Tessell::Input::Event.pointer_up(dx, dy))
+      build
+      dialog_open = root.overlay_host.entries.any? { |entry| entry.kind == Tessell::Kit::OverlayKind::Dialog }
+      root.handle(Tessell::Input::Event.key_down(Tessell::Input::KeyCode::Escape))
+      build
+      dialog_ok = dialog_open && root.overlay_host.empty?
+
+      ghost = @buttons[2]
+      gx = ghost.bounds.origin.x + ghost.bounds.size.width / 2.0_f32
+      gy = ghost.bounds.origin.y + ghost.bounds.size.height / 2.0_f32
+      root.handle(Tessell::Input::Event.pointer_move(gx, gy))
+      root.advance_time(root.context.now_ms + 30)
+      build
+      tooltip_ok = root.overlay_host.entries.any? { |entry| entry.kind == Tessell::Kit::OverlayKind::Tooltip }
+      root.handle(Tessell::Input::Event.pointer_move(790.0_f32, 590.0_f32))
+      build
+
       @list.list.scroll_by(220)
       @list.on_focus_changed(true)
       @list.handle(Tessell::Kit::Event.key_down(Tessell::Kit::Key::End), root.context)
+      {select_ok: select_ok, dialog_ok: dialog_ok, tooltip_ok: tooltip_ok}
     end
 
     def node_count : Int32
@@ -161,7 +231,7 @@ module KitGallery
     visible = app.list.list.visible_last - app.list.list.visible_first + 1
 
     if verify
-      app.verify_actions
+      actions = app.verify_actions
       app.build
       painter = Tessell::Kit::DrawListPainter.new
       app.paint(painter)
@@ -175,12 +245,14 @@ module KitGallery
            app.list.list.scroll_y == app.list.list.total_height - app.list.list.viewport_h &&
            rows > 0 && rows < 30 &&
            list_node && list_node.children_count == 1000 &&
-           painter.clip_depth == 0
+           painter.clip_depth == 0 &&
+           actions[:select_ok] && actions[:dialog_ok] && actions[:tooltip_ok]
 
       puts "KIT_GALLERY_VERIFY verify=#{ok ? "pass" : "fail"} frames=#{frames} " \
            "nodes=#{node_count} paint=#{paint_count} a11y=#{a11y.size} " \
            "visible=#{visible} rows=#{rows} clicks=#{app.clicks} changes=#{app.changes} " \
            "scroll=#{app.list.list.scroll_y} clip=#{clip_depth} " \
+           "select=#{actions[:select_ok]} dialog=#{actions[:dialog_ok]} tooltip=#{actions[:tooltip_ok]} " \
            "theme=#{theme.dark ? "dark" : "light"} dpi=#{scale}"
       return ok ? 0 : 1
     end

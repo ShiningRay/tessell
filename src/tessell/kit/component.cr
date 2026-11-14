@@ -12,11 +12,15 @@ module Tessell
       property enabled : Bool
       property visible : Bool
       property focused : Bool
+      property tooltip_text : String?
+      property tooltip_delay_ms : Int32
       getter parent : Component?
 
       def initialize(@key : UI::UiKey, @enabled : Bool = true, @visible : Bool = true)
         @bounds = Rect.new
         @focused = false
+        @tooltip_text = nil
+        @tooltip_delay_ms = 600
         @parent = nil
       end
 
