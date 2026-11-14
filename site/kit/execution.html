@@ -90,7 +90,7 @@
 <ul>
 <li>完成：核心 <code>Input::Event</code> 增加 modifiers、wheel delta、PointerEnter/Leave/Cancel 与常用键码；<code>Router</code> 跟踪 enter/leave/cancel；<code>Node#clip</code> 与 <code>HitTest</code> 裁切；<code>DrawCmd</code> 增加 RoundRect/StrokeRect/StrokeRoundRect 与 radius/stroke_width；Kit 增加 <code>DrawListPainter</code>、核心 Theme 适配器与运行中换主题。</li>
 <li>验证：<code>crystal spec</code> 选定核心/Kit 用例 238 examples / 0 failures（不含 Windows 字体依赖文件）；<code>crystal build src/tessell.cr --no-codegen</code> 与 <code>examples/app_demo.cr --no-codegen</code> 通过。</li>
-<li>未验证：GL 后端尚未消费新增 DrawCmd；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。</li>
+<li>未验证：K1 时 GL 后端尚未消费新增 DrawCmd；post-K6 已补源码实现但仍未运行；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。</li>
 <li>提交：<code>5c7270e</code>。</li>
 </ul>
 <h4 id="k2">K2</h4>
@@ -127,6 +127,13 @@
 <li>完成：独立复核 <a href="K6-review.html">K6-review.md</a>；组件 DoD 矩阵、未关闭项与发布判断；架构复盘与下一步优先级已发 <a href="https://github.com/ShiningRay/tessell/issues/13">#13</a>。</li>
 <li>复核证据：<code>crystal spec spec/kit</code> 86/0；light 与 dark/DPI 1.5 gallery <code>verify=pass</code>；消费者脚本通过；核心入口构建通过；格式检查通过。</li>
 <li>结论：逻辑/API 层 Go-with-conditions；平台完整 No-Go。真实 Windows gate、IME、屏幕阅读器、平台剪贴板、GL DrawList 闭环未验证。</li>
+<li>提交：<code>9770d9d</code>。</li>
+</ul>
+<h4 id="post-k6-补丁">Post-K6 补丁</h4>
+<ul>
+<li>完成：<code>Backend#draw_draw_list</code> 默认契约与 <code>GLBackend#draw_draw_list</code> 源码实现（Rect/Line/RoundRect/StrokeRect/StrokeRoundRect、每命令 scissor、premultiplied 颜色）；<code>DrawCmd</code> 颜色格式明确为 0xRRGGBBAA；默认 unsupported 返回 0 的协议测试。</li>
+<li>验证：<code>crystal spec spec/render_backend_draw_list_spec.cr spec/kit</code> 87 examples / 0 failures；<code>crystal build examples/app_demo.cr --no-codegen</code> 通过。</li>
+<li>未验证：GL 路径未在 Windows 真机运行/像素回读；仍不能据此宣称平台完整。</li>
 <li>提交：待回填。</li>
 </ul>
 

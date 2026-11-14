@@ -50,7 +50,7 @@
 2. 平台 IME composition 事件未接入 `Kit::Event`；Input 只有 `set_preedit/commit_preedit` API，C7 人工验证仍未关闭。
 3. 屏幕阅读器 provider（UIA/AppKit/AT-SPI）未实现；只有进程内 A11y 树。
 4. 平台剪贴板适配未实现；只有 `MemoryClipboard` 与注入接口。
-5. GL 后端尚未消费 `DrawCmd` 的 RoundRect/StrokeRoundRect/Line；真实绘制路径未闭合。
+5. GL 后端已补 `Backend#draw_draw_list` 与 `GLBackend#draw_draw_list` 源码实现（Rect/Line/RoundRect/Stroke + per-command scissor），但只在 `examples/app_demo.cr --no-codegen` 做类型检查，未在 Windows 真机运行或像素回读；真实绘制路径仍未闭合。
 6. SVG 预览文本由浏览器字体渲染，不证明 HarfBuzz/FreeType 上屏。
 7. 变量行高 VirtualList 的 Kit 入口、滚动条拖动、菜单/多选等 P1 组件未交付。
 

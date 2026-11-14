@@ -41,7 +41,7 @@
 
 - 完成：核心 `Input::Event` 增加 modifiers、wheel delta、PointerEnter/Leave/Cancel 与常用键码；`Router` 跟踪 enter/leave/cancel；`Node#clip` 与 `HitTest` 裁切；`DrawCmd` 增加 RoundRect/StrokeRect/StrokeRoundRect 与 radius/stroke_width；Kit 增加 `DrawListPainter`、核心 Theme 适配器与运行中换主题。
 - 验证：`crystal spec` 选定核心/Kit 用例 238 examples / 0 failures（不含 Windows 字体依赖文件）；`crystal build src/tessell.cr --no-codegen` 与 `examples/app_demo.cr --no-codegen` 通过。
-- 未验证：GL 后端尚未消费新增 DrawCmd；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。
+- 未验证：K1 时 GL 后端尚未消费新增 DrawCmd；post-K6 已补源码实现但仍未运行；真实窗口裁切/圆角未上屏；核心 Event 的 modifiers 尚未由 Win32 示例填充。
 - 提交：`5c7270e`。
 
 #### K2
@@ -79,3 +79,10 @@
 - 复核证据：`crystal spec spec/kit` 86/0；light 与 dark/DPI 1.5 gallery `verify=pass`；消费者脚本通过；核心入口构建通过；格式检查通过。
 - 结论：逻辑/API 层 Go-with-conditions；平台完整 No-Go。真实 Windows gate、IME、屏幕阅读器、平台剪贴板、GL DrawList 闭环未验证。
 - 提交：`9770d9d`。
+
+#### Post-K6 补丁
+
+- 完成：`Backend#draw_draw_list` 默认契约与 `GLBackend#draw_draw_list` 源码实现（Rect/Line/RoundRect/StrokeRect/StrokeRoundRect、每命令 scissor、premultiplied 颜色）；`DrawCmd` 颜色格式明确为 0xRRGGBBAA；默认 unsupported 返回 0 的协议测试。
+- 验证：`crystal spec spec/render_backend_draw_list_spec.cr spec/kit` 87 examples / 0 failures；`crystal build examples/app_demo.cr --no-codegen` 通过。
+- 未验证：GL 路径未在 Windows 真机运行/像素回读；仍不能据此宣称平台完整。
+- 提交：待回填。

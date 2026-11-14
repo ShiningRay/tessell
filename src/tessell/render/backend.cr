@@ -4,6 +4,7 @@
 # backend resolves them via resolved_texture(page).
 
 require "../geometry"
+require "./draw_list"
 require "./theme"
 require "./text_renderer"
 require "../text/glyph_atlas"
@@ -36,6 +37,14 @@ module Tessell
       # Backends without RGBA pages fall back to the R8 resolution (gray semantics).
       def resolved_texture(page : Int32, color : Bool) : Int32
         resolved_texture(page)
+      end
+
+      # Draw a command list. Backends that support 2D primitives implement this;
+      # base returns 0 = unsupported rather than silently claiming success.
+      # Text commands are rendered separately via draw_text; implementations may
+      # skip them. Returns number of non-text commands actually submitted.
+      def draw_draw_list(list : Tessell::Render::DrawList) : Int32
+        0
       end
 
       # Fill a polygon using stencil/cover when supported (e.g. GLBackend). `points`

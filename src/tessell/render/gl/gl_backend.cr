@@ -26,8 +26,10 @@ lib TessellGL
 
   GL_COLOR_BUFFER_BIT   = 0x00004000_u32
   GL_STENCIL_BUFFER_BIT = 0x00000400_u32
-  GL_TRIANGLES          = 0x0004_u32
-  GL_QUADS              = 0x0007_u32
+  GL_LINES              =     0x0001_u32
+  GL_LINE_LOOP          =     0x0002_u32
+  GL_TRIANGLES          =     0x0004_u32
+  GL_QUADS              =     0x0007_u32
 
   GL_TEXTURE_2D   = 0x0DE1_u32
   GL_BLEND        = 0x0BE2_u32
@@ -55,13 +57,13 @@ lib TessellGL
 
   GL_SRC_ALPHA           = 0x0302_u32
   GL_ONE_MINUS_SRC_ALPHA = 0x0303_u32
-  GL_ONE                 = 1_u32
-  GL_ZERO                = 0_u32
+  GL_ONE                 =      1_u32
+  GL_ZERO                =      0_u32
 
-  GL_ALWAYS   = 0x0207_u32
-  GL_NOTEQUAL = 0x0205_u32
-  GL_KEEP     = 0x1E00_u32
-  GL_INVERT   = 0x150A_u32
+  GL_ALWAYS       = 0x0207_u32
+  GL_NOTEQUAL     = 0x0205_u32
+  GL_KEEP         = 0x1E00_u32
+  GL_INVERT       = 0x150A_u32
   GL_TRIANGLE_FAN = 0x0006_u32
 
   GL_PROJECTION = 0x1701_u32
@@ -81,6 +83,7 @@ lib TessellGL
   fun glDisable(cap : GLenum) : Void
   fun glBlendFunc(sfactor : GLenum, dfactor : GLenum) : Void
   fun glColor4f(red : GLfloat, green : GLfloat, blue : GLfloat, alpha : GLfloat) : Void
+  fun glLineWidth(width : GLfloat) : Void
   fun glColorMask(red : GLboolean, green : GLboolean, blue : GLboolean, alpha : GLboolean) : Void
   fun glStencilFunc(func : GLenum, ref : GLint, mask : GLuint) : Void
   fun glStencilOp(fail : GLenum, zfail : GLenum, zpass : GLenum) : Void
@@ -241,9 +244,9 @@ module Tessell
             # Upload R8 coverage as GL_INTENSITY so vertex color (rgba) tints text:
             # texel (I,I,I,I), modulate with vertex (R,G,B,A) -> (R*I,G*I,B*I,A*I).
             TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_INTENSITY.to_i32,
-                                   size, size, 0,
-                                   TessellGL::GL_LUMINANCE, TessellGL::GL_UNSIGNED_BYTE,
-                                   data.to_unsafe.as(Void*))
+              size, size, 0,
+              TessellGL::GL_LUMINANCE, TessellGL::GL_UNSIGNED_BYTE,
+              data.to_unsafe.as(Void*))
             i += 1
           end
           # RGBA pages (color glyphs, premultiplied 4B/px): uploaded as-is. Color batches
@@ -266,9 +269,9 @@ module Tessell
             TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_S, TessellGL::GL_CLAMP.to_i32)
             TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_T, TessellGL::GL_CLAMP.to_i32)
             TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_RGBA.to_i32,
-                                   size, size, 0,
-                                   TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
-                                   data.to_unsafe.as(Void*))
+              size, size, 0,
+              TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
+              data.to_unsafe.as(Void*))
             i += 1
           end
         end
@@ -302,6 +305,150 @@ module Tessell
             end
           end
           @submitted_quads
+        end
+
+        # Draw Kit/core primitive commands. Colors are 0xRRGGBBAA, alpha-premultiplied
+        # before submit because begin_frame uses (GL_ONE, GL_ONE_MINUS_SRC_ALPHA).
+        # Text commands are skipped: text is submitted by draw_text with atlas batches.
+        # Returns non-text commands submitted; clip is applied per command.
+        def draw_draw_list(list : Tessell::Render::DrawList) : Int32
+          submitted = 0
+          TessellGL.glEnable(TessellGL::GL_BLEND)
+          TessellGL.glBlendFunc(TessellGL::GL_ONE, TessellGL::GL_ONE_MINUS_SRC_ALPHA)
+          TessellGL.glDisable(TessellGL::GL_TEXTURE_2D)
+          i = 0
+          while i < list.size
+            cmd = list[i]
+            apply_clip(cmd.clip)
+            case cmd.kind
+            when Tessell::Render::CmdKind::Rect
+              fill_rect_cmd(cmd)
+              submitted += 1
+            when Tessell::Render::CmdKind::RoundRect
+              fill_round_rect_cmd(cmd)
+              submitted += 1
+            when Tessell::Render::CmdKind::StrokeRect
+              stroke_rect_cmd(cmd)
+              submitted += 1
+            when Tessell::Render::CmdKind::StrokeRoundRect
+              stroke_round_rect_cmd(cmd)
+              submitted += 1
+            when Tessell::Render::CmdKind::Line
+              stroke_line_cmd(cmd)
+              submitted += 1
+            when Tessell::Render::CmdKind::Text
+              # Rendered via draw_text; keep the command list backend-agnostic.
+            else
+            end
+            i += 1
+          end
+          TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST)
+          TessellGL.glLineWidth(1.0_f32)
+          TessellGL.glEnable(TessellGL::GL_TEXTURE_2D)
+          submitted
+        end
+
+        private def apply_clip(clip : Tessell::Rect?) : Nil
+          if clip
+            sx, sy, sw, sh = scissor_params(clip)
+            TessellGL.glEnable(TessellGL::GL_SCISSOR_TEST)
+            TessellGL.glScissor(sx, sy, sw, sh)
+            @scissor_calls += 1
+          else
+            TessellGL.glDisable(TessellGL::GL_SCISSOR_TEST)
+          end
+        end
+
+        private def fill_rect_cmd(cmd : Tessell::Render::DrawCmd) : Nil
+          r = cmd.bounds
+          TessellGL.glBegin(TessellGL::GL_QUADS)
+          emit_cmd_color(cmd.color)
+          TessellGL.glVertex2f(r.origin.x, r.origin.y)
+          TessellGL.glVertex2f(r.max_x, r.origin.y)
+          TessellGL.glVertex2f(r.max_x, r.max_y)
+          TessellGL.glVertex2f(r.origin.x, r.max_y)
+          TessellGL.glEnd
+          @submitted_quads += 1
+        end
+
+        private def stroke_rect_cmd(cmd : Tessell::Render::DrawCmd) : Nil
+          r = cmd.bounds
+          TessellGL.glLineWidth(cmd.stroke_width > 0.0_f32 ? cmd.stroke_width : 1.0_f32)
+          TessellGL.glBegin(TessellGL::GL_LINE_LOOP)
+          emit_cmd_color(cmd.color)
+          TessellGL.glVertex2f(r.origin.x, r.origin.y)
+          TessellGL.glVertex2f(r.max_x, r.origin.y)
+          TessellGL.glVertex2f(r.max_x, r.max_y)
+          TessellGL.glVertex2f(r.origin.x, r.max_y)
+          TessellGL.glEnd
+        end
+
+        private def fill_round_rect_cmd(cmd : Tessell::Render::DrawCmd) : Nil
+          points = round_rect_points(cmd.bounds, cmd.radius)
+          TessellGL.glBegin(TessellGL::GL_TRIANGLE_FAN)
+          emit_cmd_color(cmd.color)
+          center = cmd.bounds.origin.x + cmd.bounds.size.width / 2.0_f32
+          center_y = cmd.bounds.origin.y + cmd.bounds.size.height / 2.0_f32
+          TessellGL.glVertex2f(center, center_y)
+          points.each { |p| TessellGL.glVertex2f(p.x, p.y) }
+          first = points[0]
+          TessellGL.glVertex2f(first.x, first.y)
+          TessellGL.glEnd
+          @submitted_quads += 1
+        end
+
+        private def stroke_round_rect_cmd(cmd : Tessell::Render::DrawCmd) : Nil
+          points = round_rect_points(cmd.bounds, cmd.radius)
+          TessellGL.glLineWidth(cmd.stroke_width > 0.0_f32 ? cmd.stroke_width : 1.0_f32)
+          TessellGL.glBegin(TessellGL::GL_LINE_LOOP)
+          emit_cmd_color(cmd.color)
+          points.each { |p| TessellGL.glVertex2f(p.x, p.y) }
+          TessellGL.glEnd
+        end
+
+        private def stroke_line_cmd(cmd : Tessell::Render::DrawCmd) : Nil
+          TessellGL.glLineWidth(cmd.stroke_width > 0.0_f32 ? cmd.stroke_width : 1.0_f32)
+          TessellGL.glBegin(TessellGL::GL_LINES)
+          emit_cmd_color(cmd.color)
+          TessellGL.glVertex2f(cmd.p1.x, cmd.p1.y)
+          TessellGL.glVertex2f(cmd.p2.x, cmd.p2.y)
+          TessellGL.glEnd
+        end
+
+        private def emit_cmd_color(color : UInt32) : Nil
+          a = (color & 0xff).to_f32 / 255.0_f32
+          r = ((color >> 24) & 0xff).to_f32 / 255.0_f32 * a
+          g = ((color >> 16) & 0xff).to_f32 / 255.0_f32 * a
+          b = ((color >> 8) & 0xff).to_f32 / 255.0_f32 * a
+          TessellGL.glColor4f(r, g, b, a)
+        end
+
+        private def round_rect_points(rect : Tessell::Rect, radius : Float32) : Array(Tessell::Point)
+          r = Math.min(radius, Math.min(rect.size.width, rect.size.height) / 2.0_f32)
+          return [Tessell::Point.new(rect.origin.x, rect.origin.y),
+                  Tessell::Point.new(rect.max_x, rect.origin.y),
+                  Tessell::Point.new(rect.max_x, rect.max_y),
+                  Tessell::Point.new(rect.origin.x, rect.max_y)] if r <= 0.0_f32
+          points = [] of Tessell::Point
+          segments = 6
+          pi = Math::PI.to_f32
+          add_arc(points, rect.origin.x + r, rect.origin.y + r, r, pi, pi * 1.5_f32, segments)
+          add_arc(points, rect.max_x - r, rect.origin.y + r, r, pi * 1.5_f32, pi * 2.0_f32, segments)
+          add_arc(points, rect.max_x - r, rect.max_y - r, r, 0.0_f32, pi * 0.5_f32, segments)
+          add_arc(points, rect.origin.x + r, rect.max_y - r, r, pi * 0.5_f32, pi, segments)
+          points
+        end
+
+        private def add_arc(points : Array(Tessell::Point), cx : Float32, cy : Float32,
+                            radius : Float32, a0 : Float32, a1 : Float32,
+                            segments : Int32) : Nil
+          i = 0
+          while i <= segments
+            angle = a0 + (a1 - a0) * i.to_f32 / segments.to_f32
+            points << Tessell::Point.new(cx + Math.cos(angle).to_f32 * radius,
+              cy + Math.sin(angle).to_f32 * radius)
+            i += 1
+          end
         end
 
         private def total_quads(batches : Array(Tessell::Render::TextBatch), batch_count : Int32) : Int32
@@ -502,9 +649,9 @@ module Tessell
         private def emit_vertex(v : Tessell::Render::Vertex) : Nil
           rgba = v.rgba
           TessellGL.glColor4f(((rgba >> 24) & 0xff).to_f32 / 255.0_f32,
-                              ((rgba >> 16) & 0xff).to_f32 / 255.0_f32,
-                              ((rgba >> 8) & 0xff).to_f32 / 255.0_f32,
-                              (rgba & 0xff).to_f32 / 255.0_f32)
+            ((rgba >> 16) & 0xff).to_f32 / 255.0_f32,
+            ((rgba >> 8) & 0xff).to_f32 / 255.0_f32,
+            (rgba & 0xff).to_f32 / 255.0_f32)
           TessellGL.glTexCoord2f(v.u, v.v)
           TessellGL.glVertex2f(v.x, v.y)
         end

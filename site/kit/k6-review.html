@@ -96,7 +96,7 @@
 </tbody></table>
 <p>“真实窗口”一列全为否：本机 macOS 不能运行既有 Windows/WGL 路径，且没有可用的 macOS 后端。headless gallery、SVG 预览与 PaintList 断言不能替代真实窗口像素/IME/焦点证据。</p>
 <h2 id="4-未关闭项">4. 未关闭项</h2>
-<p>1. Windows + msys2 真实窗口 gate 未在本次 K6 运行；<code>tools/gate.ps1</code> 已加入 Kit 步骤但未执行。 2. 平台 IME composition 事件未接入 <code>Kit::Event</code>；Input 只有 <code>set_preedit/commit_preedit</code> API，C7 人工验证仍未关闭。 3. 屏幕阅读器 provider（UIA/AppKit/AT-SPI）未实现；只有进程内 A11y 树。 4. 平台剪贴板适配未实现；只有 <code>MemoryClipboard</code> 与注入接口。 5. GL 后端尚未消费 <code>DrawCmd</code> 的 RoundRect/StrokeRoundRect/Line；真实绘制路径未闭合。 6. SVG 预览文本由浏览器字体渲染，不证明 HarfBuzz/FreeType 上屏。 7. 变量行高 VirtualList 的 Kit 入口、滚动条拖动、菜单/多选等 P1 组件未交付。</p>
+<p>1. Windows + msys2 真实窗口 gate 未在本次 K6 运行；<code>tools/gate.ps1</code> 已加入 Kit 步骤但未执行。 2. 平台 IME composition 事件未接入 <code>Kit::Event</code>；Input 只有 <code>set_preedit/commit_preedit</code> API，C7 人工验证仍未关闭。 3. 屏幕阅读器 provider（UIA/AppKit/AT-SPI）未实现；只有进程内 A11y 树。 4. 平台剪贴板适配未实现；只有 <code>MemoryClipboard</code> 与注入接口。 5. GL 后端已补 <code>Backend#draw_draw_list</code> 与 <code>GLBackend#draw_draw_list</code> 源码实现（Rect/Line/RoundRect/Stroke + per-command scissor），但只在 <code>examples/app_demo.cr --no-codegen</code> 做类型检查，未在 Windows 真机运行或像素回读；真实绘制路径仍未闭合。 6. SVG 预览文本由浏览器字体渲染，不证明 HarfBuzz/FreeType 上屏。 7. 变量行高 VirtualList 的 Kit 入口、滚动条拖动、菜单/多选等 P1 组件未交付。</p>
 <h2 id="5-发布判断">5. 发布判断</h2>
 <ul>
 <li><strong>可发布为“同仓可选组件库（logic/API preview）”</strong>：核心入口不加载 Kit，外部消费者可编译，组件契约与测试齐全。</li>

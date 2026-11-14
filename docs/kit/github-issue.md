@@ -28,11 +28,11 @@
 
 ### 2. DrawList 有命令，没有执行者
 
-Kit 已有 `PaintList`、`DrawListPainter`、`SvgPainter`，但 `GLBackend` 仍只消费 Text 顶点与 polygon。`DrawCmd` 新增的 RoundRect/StrokeRect/Line 没有真实后端实现；Kit 的按钮背景、焦点环、滚动条在真实窗口里不会自动出现。
+Kit 已有 `PaintList`、`DrawListPainter`、`SvgPainter`。K6 收尾时补了 `Backend#draw_draw_list` 默认契约与 `GLBackend#draw_draw_list` 源码实现（Rect/Line/RoundRect/Stroke + per-command scissor），并只在 `examples/app_demo.cr --no-codegen` 层面做过类型检查；该 GL 路径**尚未在 Windows 真机运行或像素回读**。此前 `GLBackend` 只消费 Text 顶点与 polygon，Kit 的按钮背景、焦点环、滚动条不会自动出现。
 
-**风险**：组件“逻辑完成”但无法上屏；测试与真实渲染之间缺一层可验证契约。
+**风险**：组件“逻辑完成”但真实上屏未验证；测试与真实渲染之间仍缺可执行的 GL 证据。
 
-**建议**：推进 [#2](https://github.com/ShiningRay/tessell/issues/2)，定义 `Backend#draw_draw_list` 或统一 Canvas，先实现 Rect/Line/RoundRect/Stroke + scissor clip，再让 Kit Painter 直连。SVG/PaintList 只能作为逻辑证据，不能替代 GL 回读。
+**建议**：推进 [#2](https://github.com/ShiningRay/tessell/issues/2)，把 `draw_draw_list` 纳入 Windows gate，补 Rect/Line/RoundRect/Stroke + scissor clip 的像素回读与失败路径；SVG/PaintList 只能作为逻辑证据，不能替代 GL 回读。
 
 ### 3. 事件模型需要平台适配闭环
 

@@ -29,7 +29,8 @@ module Tessell
     struct DrawCmd
       getter kind : CmdKind
       getter bounds : Rect
-      # RGBA8 打包：0xAABBGGRR 风格的 UInt32（打包顺序由后端解释，此处只存值）。
+      # RGBA8 打包：0xRRGGBBAA，与 Render::Theme / Kit Theme 一致。
+      # 后端负责转 premultiplied 或自身混合格式。
       getter color : UInt32
       # -1 表示无 atlas（纯色/矢量命令）。
       getter atlas_id : Int32
