@@ -78,4 +78,4 @@
 - 完成：独立复核 [K6-review.md](K6-review.md)；组件 DoD 矩阵、未关闭项与发布判断；架构复盘与下一步优先级已发 [#13](https://github.com/ShiningRay/tessell/issues/13)。
 - 复核证据：`crystal spec spec/kit` 86/0；light 与 dark/DPI 1.5 gallery `verify=pass`；消费者脚本通过；核心入口构建通过；格式检查通过。
 - 结论：逻辑/API 层 Go-with-conditions；平台完整 No-Go。真实 Windows gate、IME、屏幕阅读器、平台剪贴板、GL DrawList 闭环未验证。
-- 提交：待回填。
+- 提交：`9770d9d`。
