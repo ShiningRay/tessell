@@ -44,6 +44,10 @@ crystal run tools/build_kit_site.cr
 # 输出 site/index.html 与 site/kit/*.html
 ```
 
+## 示例应用
+
+- [计算器与文本编辑器](apps.md)：SDL2 窗口 + OpenGL，真实可交互；含运行命令、截图与限制。
+
 ## 复核与反馈
 
 - [K6 复核（Go-with-conditions）](K6-review.md)

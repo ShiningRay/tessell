@@ -65,6 +65,11 @@ module Tessell
         @clips.size
       end
 
+      def reset : Nil
+        @list.clear
+        @clips.clear
+      end
+
       private def current_clip : Rect?
         @clips.empty? ? nil : @clips.last
       end

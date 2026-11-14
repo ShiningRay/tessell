@@ -6,7 +6,13 @@ require "../text_renderer"
 require "../../geometry"
 require "../../text/glyph_atlas"
 
-@[Link("opengl32")]
+{% if flag?(:windows) %}
+  @[Link("opengl32")]
+{% elsif flag?(:darwin) %}
+  @[Link(framework: "OpenGL")]
+{% else %}
+  @[Link("GL")]
+{% end %}
 lib TessellGL
   alias GLenum = UInt32
   alias GLboolean = UInt8

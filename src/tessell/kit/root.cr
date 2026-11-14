@@ -237,6 +237,17 @@ module Tessell
         @focused_component
       end
 
+      # 程序化聚焦：组件必须已经 build 过（Root#build 建立了 Node 映射）。
+      def focus(component : Component) : Bool
+        if target = @component_nodes[component]?
+          @router.focus_manager.focus(target)
+          sync_focus
+          true
+        else
+          false
+        end
+      end
+
       def hover_component : Component?
         @last_hover
       end

@@ -182,6 +182,12 @@ module Tessell
         ), dark: true)
       end
 
+      # Kit Theme → 核心 Theme：用于清屏/后端 begin_frame 的 6 个基础色。
+      def to_render : Tessell::Render::Theme
+        Tessell::Render::Theme.new(palette.canvas, palette.foreground,
+          palette.accent, palette.muted, palette.border, palette.selection)
+      end
+
       # 核心 Theme → Kit Theme 适配器。核心只有 6 个颜色，其余语义色取
       # 同模式默认主题，保证组件不会出现“半套主题”。
       def self.from_render(render : Tessell::Render::Theme, dark : Bool = false) : Theme

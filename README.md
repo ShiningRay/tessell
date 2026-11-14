@@ -41,13 +41,18 @@ button = Tessell::Kit::Button.new(
 [docs/kit/component-contract.md](docs/kit/component-contract.md)、
 [docs/kit/execution.md](docs/kit/execution.md)。
 
-无窗口组件矩阵、外部消费者与静态文档站：
+无窗口组件矩阵、示例应用、外部消费者与静态文档站：
 
 ```bash
 crystal run examples/kit_gallery.cr -- --verify --frames=30 --theme=dark --dpi=1.5
+./tools/run_kit_demo.sh examples/app_calculator.cr
+./tools/run_kit_demo.sh examples/app_text_editor.cr
 bash tools/kit_consumer_verify.sh
 crystal run tools/build_kit_site.cr   # 输出 site/index.html
 ```
+
+示例应用文档：[docs/kit/apps.md](docs/kit/apps.md)。计算器与文本编辑器使用
+SDL2 窗口 + OpenGL；SDL2 只存在于 `examples/` 宿主，不进入核心依赖。
 
 预览：[light](site/previews/gallery-light.png)、[dark](site/previews/gallery-dark.png)。
 

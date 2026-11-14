@@ -28,6 +28,7 @@ module KitSite
     Page.new("计划", "docs/kit/plan.md", "plan.html"),
     Page.new("执行记录", "docs/kit/execution.md", "execution.html"),
     Page.new("K6 复核", "docs/kit/K6-review.md", "k6-review.html"),
+    Page.new("示例应用", "docs/kit/apps.md", "apps.html"),
   ]
 
   STYLE = <<-CSS
@@ -73,6 +74,7 @@ module KitSite
     th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
     th { background:rgba(127,127,127,.08); }
     .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
+    main img { max-width:100%; height:auto; border:1px solid var(--border); border-radius:8px; margin:12px 0; }
     @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }
   CSS
 
@@ -428,6 +430,12 @@ HTML
     escaped = HTML.escape(text)
     escaped = escaped.gsub(/`([^`]+)`/) { "<code>#{$1}</code>" }
     escaped = escaped.gsub(/\*\*([^*]+)\*\*/) { "<strong>#{$1}</strong>" }
+    escaped = escaped.gsub(/!\[([^\]]*)\]\(([^)]+)\)/) do
+      alt = $1
+      src = $2
+      src = src.sub("../../site/", "../")
+      %(<img src="#{src}" alt="#{alt}">)
+    end
     escaped.gsub(/\[([^\]]+)\]\(([^)]+)\)/) do
       label = $1
       href = $2
