@@ -4,6 +4,9 @@ Tessell 是 **Crystal 的 retained-mode 自绘 GUI 框架**：纯 FFI 绑定
 FreeType / HarfBuzz / OpenGL，**无第三方运行时绑定**，渲染与文本栈全部
 自绘，不依赖原生控件工具包。
 
+文档站：<https://shiningray.github.io/tessell/>（Kit 组件文档 + API reference，
+由 `.github/workflows/pages.yml` 在 main 推送时构建部署）。
+
 ## 当前状态（M0–M4）
 
 | 阶段 | 状态 | 内容 | 证据 |
