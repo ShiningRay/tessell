@@ -86,3 +86,10 @@
 - 验证：`crystal spec spec/render_backend_draw_list_spec.cr spec/kit` 87 examples / 0 failures；`crystal build examples/app_demo.cr --no-codegen` 通过。
 - 未验证：GL 路径未在 Windows 真机运行/像素回读；仍不能据此宣称平台完整。
 - 提交：`25c9a6c`。
+
+#### Post-K6 文档站补丁
+
+- 完成：`tools/build_kit_site.cr` 增加构建期 Crystal 语法高亮：关键字、类型/常量、字符串、注释、数字、符号、注解、运算符；代码块输出 `language-crystal` 与 `tok-*` span；CSS 同时提供 light/dark token 颜色。非 Crystal 代码块保持原样转义。
+- 验证：重新生成 `site/kit/*.html`；`button.html` 等页面出现 `tok-kw/tok-type/tok-str/tok-num/tok-op`；浏览器截图确认颜色区分；`crystal run tools/build_kit_site.cr` 成功。
+- 未验证：未引入第三方高亮库，覆盖范围是常见 Crystal 语法而非完整 parser；复杂字符串插值/heredoc 可能按普通文本处理。
+- 提交：待回填。

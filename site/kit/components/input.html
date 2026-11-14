@@ -23,6 +23,24 @@
   code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
   pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
   pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
   blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
   table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
   th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -61,14 +79,14 @@
 <li>不用于多行文本、富文本、密码输入；这些场景后续单独组件。</li>
 </ul>
 <h2 id="最小示例">最小示例</h2>
-<pre><code>input = Tessell::Kit::Input.new(
-  Tessell::UI::UiKey.root.child(1_u64),
-  &quot;&quot;,
-  &quot;Type here…&quot;,
-  &quot;Name&quot;
+<pre><code class="language-crystal">input <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Input</span>.new(
+  <span class="tok-type">Tessell</span>::<span class="tok-type">UI</span>::<span class="tok-type">UiKey</span>.root.child(<span class="tok-num">1_u64</span>),
+  <span class="tok-str">&quot;&quot;</span>,
+  <span class="tok-str">&quot;Type here…&quot;</span>,
+  <span class="tok-str">&quot;Name&quot;</span>
 )
-input.on_change = -&gt;(value : String) { @name = value; nil }
-input.on_submit = -&gt;(value : String) { submit(value); nil }
+input.on_change <span class="tok-op">=</span> <span class="tok-op">-&gt;</span>(value : <span class="tok-type">String</span>) { @name <span class="tok-op">=</span> value; <span class="tok-kw">nil</span> }
+input.on_submit <span class="tok-op">=</span> <span class="tok-op">-&gt;</span>(value : <span class="tok-type">String</span>) { submit(value); <span class="tok-kw">nil</span> }
 </code></pre>
 <h2 id="状态">状态</h2>
 <ul>
@@ -94,7 +112,7 @@ input.on_submit = -&gt;(value : String) { submit(value); nil }
 </tbody></table>
 <h2 id="剪贴板">剪贴板</h2>
 <p>通过注入的 <code>Kit::Clipboard</code> 实现；默认 <code>MemoryClipboard</code>。平台剪贴板需要应用提供实现：</p>
-<pre><code>input.clipboard = MyPlatformClipboard.new
+<pre><code class="language-crystal">input.clipboard <span class="tok-op">=</span> <span class="tok-type">MyPlatformClipboard</span>.new
 </code></pre>
 <p>组件不直接调用系统剪贴板 API。</p>
 <h2 id="ime-组合输入">IME / 组合输入</h2>

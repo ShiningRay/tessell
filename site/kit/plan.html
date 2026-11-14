@@ -23,6 +23,24 @@
   code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
   pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
   pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
   blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
   table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
   th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -130,7 +148,7 @@
 <p>这些缺口允许修改核心公共契约，但每处修改须先补兼容性测试，不能用 Kit 内部 workaround 固化平台行为。</p>
 <h2 id="5-组件库架构">5. 组件库架构</h2>
 <h3 id="5-1-目录与依赖">5.1 目录与依赖</h3>
-<pre><code>src/
+<pre><code class="language-text">src/
   tessell.cr                    # 核心入口，不 require kit
   tessell/
     kit.cr                      # Kit 聚合入口，供 require &quot;tessell/kit&quot;
@@ -170,7 +188,7 @@ tools/
   kit_visual_matrix.ps1
 </code></pre>
 <p>依赖方向：</p>
-<pre><code>应用 → Tessell::Kit → Tessell 核心公开 API → 平台/渲染后端
+<pre><code class="language-text">应用 → Tessell::Kit → Tessell 核心公开 API → 平台/渲染后端
                 ↘
              Kit 内部状态与主题
 
@@ -202,16 +220,16 @@ tools/
 <li><strong>样式覆盖分层。</strong> 应用优先使用 token、variant 和 slots；首版不开放任意绘制回调。确需完全定制时使用核心原语自建组件。</li>
 </ul>
 <p>示意形状，不是冻结签名：</p>
-<pre><code>require &quot;tessell/kit&quot;
+<pre><code class="language-crystal"><span class="tok-kw">require</span> <span class="tok-str">&quot;tessell/kit&quot;</span>
 
-button = Kit::Button.new(
-  key: root_key.child(1_u64),
-  label: &quot;Save&quot;,
-  variant: Kit::Variant::Primary,
-  disabled: false
+button <span class="tok-op">=</span> <span class="tok-type">Kit</span>::<span class="tok-type">Button</span>.new(
+  key: root_key.child(<span class="tok-num">1_u64</span>),
+  label: <span class="tok-str">&quot;Save&quot;</span>,
+  variant: <span class="tok-type">Kit</span>::<span class="tok-type">Variant</span>::<span class="tok-type">Primary</span>,
+  disabled: <span class="tok-kw">false</span>
 )
 
-# 在既有 UI.build 中声明；实际签名由 K0 原型验证后冻结。
+<span class="tok-com"># 在既有 UI.build 中声明；实际签名由 K0 原型验证后冻结。</span>
 button.build(builder, kit_context)
 button.on_action { save_via_channel }
 </code></pre>

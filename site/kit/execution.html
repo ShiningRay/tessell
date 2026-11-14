@@ -23,6 +23,24 @@
   code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
   pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
   pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
   blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
   table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
   th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -134,6 +152,13 @@
 <li>完成：<code>Backend#draw_draw_list</code> 默认契约与 <code>GLBackend#draw_draw_list</code> 源码实现（Rect/Line/RoundRect/StrokeRect/StrokeRoundRect、每命令 scissor、premultiplied 颜色）；<code>DrawCmd</code> 颜色格式明确为 0xRRGGBBAA；默认 unsupported 返回 0 的协议测试。</li>
 <li>验证：<code>crystal spec spec/render_backend_draw_list_spec.cr spec/kit</code> 87 examples / 0 failures；<code>crystal build examples/app_demo.cr --no-codegen</code> 通过。</li>
 <li>未验证：GL 路径未在 Windows 真机运行/像素回读；仍不能据此宣称平台完整。</li>
+<li>提交：<code>25c9a6c</code>。</li>
+</ul>
+<h4 id="post-k6-文档站补丁">Post-K6 文档站补丁</h4>
+<ul>
+<li>完成：<code>tools/build_kit_site.cr</code> 增加构建期 Crystal 语法高亮：关键字、类型/常量、字符串、注释、数字、符号、注解、运算符；代码块输出 <code>language-crystal</code> 与 <code>tok-*</code> span；CSS 同时提供 light/dark token 颜色。非 Crystal 代码块保持原样转义。</li>
+<li>验证：重新生成 <code>site/kit/*.html</code>；<code>button.html</code> 等页面出现 <code>tok-kw/tok-type/tok-str/tok-num/tok-op</code>；浏览器截图确认颜色区分；<code>crystal run tools/build_kit_site.cr</code> 成功。</li>
+<li>未验证：未引入第三方高亮库，覆盖范围是常见 Crystal 语法而非完整 parser；复杂字符串插值/heredoc 可能按普通文本处理。</li>
 <li>提交：待回填。</li>
 </ul>
 

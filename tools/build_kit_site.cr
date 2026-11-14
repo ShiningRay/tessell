@@ -6,6 +6,7 @@
 
 require "html"
 require "file_utils"
+require "set"
 
 module KitSite
   record Page, title : String, source : String, output : String
@@ -49,6 +50,24 @@ module KitSite
     code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
     pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
     pre code { background:none; padding:0; }
+    .tok-kw { color:#cf222e; font-weight:600; }
+    .tok-type { color:#0550ae; }
+    .tok-str { color:#0a3069; }
+    .tok-com { color:#6e7781; font-style:italic; }
+    .tok-num { color:#953800; }
+    .tok-sym { color:#8250df; }
+    .tok-anno { color:#116329; }
+    .tok-op { color:#cf222e; }
+    @media (prefers-color-scheme: dark) {
+      .tok-kw { color:#ff7b72; }
+      .tok-type { color:#79c0ff; }
+      .tok-str { color:#a5d6ff; }
+      .tok-com { color:#8b949e; }
+      .tok-num { color:#ffa657; }
+      .tok-sym { color:#d2a8ff; }
+      .tok-anno { color:#7ee787; }
+      .tok-op { color:#ff7b72; }
+    }
     blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
     table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
     th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -142,6 +161,7 @@ HTML
     list_open = false
     table_lines = [] of String
     code_open = false
+    code_lang = ""
     code = String::Builder.new
 
     flush_paragraph = -> do
@@ -166,14 +186,16 @@ HTML
     source.lines.each do |line|
       if line.starts_with?("```")
         if code_open
-          out << "<pre><code>" << HTML.escape(code.to_s) << "</code></pre>\n"
+          out << render_code_block(code.to_s, code_lang)
           code = String::Builder.new
           code_open = false
+          code_lang = ""
         else
           flush_paragraph.call
           close_list.call
           flush_table.call
           code_open = true
+          code_lang = line[3, line.size - 3].strip.downcase
         end
         next
       end
@@ -230,9 +252,151 @@ HTML
     close_list.call
     flush_table.call
     if code_open
-      out << "<pre><code>" << HTML.escape(code.to_s) << "</code></pre>\n"
+      out << render_code_block(code.to_s, code_lang)
     end
     out.to_s
+  end
+
+  private def self.render_code_block(source : String, lang : String) : String
+    class_attr = lang.empty? ? "" : %( class="language-#{HTML.escape(lang)}")
+    if lang == "crystal" || lang == "cr"
+      "<pre><code#{class_attr}>#{highlight_crystal(source)}</code></pre>\n"
+    else
+      "<pre><code#{class_attr}>#{HTML.escape(source)}</code></pre>\n"
+    end
+  end
+
+  CRYSTAL_KEYWORDS = %w[
+    abstract alias and as begin break case class def do else elsif end ensure
+    enum extend for fun getter if in include is_a? lib macro module next nil
+    not of or out private property protected public require rescue respond_to?
+    return select self setter spawn struct super then true false type union
+    unless until when while with yield
+  ].to_set
+
+  # 轻量 Crystal 高亮：注释、字符串、关键字、类型/常量、数字、符号、注解、
+  # 运算符。不是完整 parser；只要求不破坏代码文本并给出可读的着色。
+  private def self.highlight_crystal(source : String) : String
+    out = String::Builder.new
+    i = 0
+    while i < source.size
+      ch = source[i]
+      if ch == '#'
+        j = source.index('\n', i) || source.size
+        out << span("com", source[i, j - i])
+        i = j
+      elsif ch == '"'
+        j = scan_quoted(source, i, '"')
+        out << span("str", source[i, j - i])
+        i = j
+      elsif ch == '\''
+        j = scan_quoted(source, i, '\'')
+        out << span("str", source[i, j - i])
+        i = j
+      elsif ch == '@' && i + 1 < source.size && source[i + 1] == '['
+        j = scan_annotation(source, i)
+        out << span("anno", source[i, j - i])
+        i = j
+      elsif ch == ':' && i + 1 < source.size && source[i + 1] == ':'
+        out << "::"
+        i += 2
+      elsif ch == ':' && i + 1 < source.size && identifier_start?(source[i + 1])
+        j = scan_identifier(source, i + 1)
+        out << span("sym", source[i, j - i])
+        i = j
+      elsif identifier_start?(ch)
+        j = scan_identifier(source, i)
+        word = source[i, j - i]
+        if CRYSTAL_KEYWORDS.includes?(word)
+          out << span("kw", word)
+        elsif word[0].uppercase?
+          out << span("type", word)
+        else
+          out << HTML.escape(word)
+        end
+        i = j
+      elsif ch.ascii_number?
+        j = scan_number(source, i)
+        out << span("num", source[i, j - i])
+        i = j
+      elsif operator_char?(ch)
+        j = i + 1
+        while j < source.size && operator_char?(source[j])
+          j += 1
+        end
+        out << span("op", source[i, j - i])
+        i = j
+      else
+        out << HTML.escape(ch.to_s)
+        i += 1
+      end
+    end
+    out.to_s
+  end
+
+  private def self.span(kind : String, text : String) : String
+    %(<span class="tok-#{kind}">#{HTML.escape(text)}</span>)
+  end
+
+  private def self.identifier_start?(ch : Char) : Bool
+    ch.ascii_letter? || ch == '_'
+  end
+
+  private def self.identifier_char?(ch : Char) : Bool
+    ch.ascii_letter? || ch.ascii_number? || ch == '_' || ch == '?' || ch == '!'
+  end
+
+  private def self.scan_identifier(source : String, start : Int32) : Int32
+    i = start + 1
+    while i < source.size && identifier_char?(source[i])
+      i += 1
+    end
+    i
+  end
+
+  private def self.scan_number(source : String, start : Int32) : Int32
+    i = start + 1
+    while i < source.size
+      ch = source[i]
+      break unless ch.ascii_number? || ch == '_' || ch == '.' || ch.ascii_letter?
+      i += 1
+    end
+    i
+  end
+
+  private def self.scan_quoted(source : String, start : Int32, quote : Char) : Int32
+    i = start + 1
+    while i < source.size
+      ch = source[i]
+      if ch == '\\'
+        i += 2
+        next
+      end
+      if ch == quote
+        return i + 1
+      end
+      i += 1
+    end
+    source.size
+  end
+
+  private def self.scan_annotation(source : String, start : Int32) : Int32
+    depth = 0
+    i = start
+    while i < source.size
+      ch = source[i]
+      depth += 1 if ch == '['
+      if ch == ']'
+        depth -= 1
+        return i + 1 if depth == 0
+      end
+      i += 1
+    end
+    source.size
+  end
+
+  private def self.operator_char?(ch : Char) : Bool
+    "=+-*/%<>!&|^~".includes?(ch)
   end
 
   private def self.render_table(lines : Array(String)) : String

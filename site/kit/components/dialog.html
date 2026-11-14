@@ -23,6 +23,24 @@
   code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
   pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
   pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
   blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
   table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
   th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -61,13 +79,13 @@
 <li>不用于非阻塞通知；Toast/Alert 后续提供。</li>
 </ul>
 <h2 id="最小示例">最小示例</h2>
-<pre><code>content = Tessell::Kit::Text.new(Tessell::UI::UiKey.root.child(2_u64), &quot;This cannot be undone.&quot;)
-cancel = Tessell::Kit::Button.new(Tessell::UI::UiKey.root.child(3_u64), &quot;Cancel&quot;)
-confirm = Tessell::Kit::Button.new(Tessell::UI::UiKey.root.child(4_u64), &quot;Delete&quot;,
-  Tessell::Kit::Variant::Danger)
-dialog = Tessell::Kit::Dialog.new(Tessell::UI::UiKey.root.child(5_u64),
-  &quot;Delete item?&quot;, content, [cancel, confirm])
-dialog.on_close = -&gt; { @dialog = nil; nil }
+<pre><code class="language-crystal">content <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Text</span>.new(<span class="tok-type">Tessell</span>::<span class="tok-type">UI</span>::<span class="tok-type">UiKey</span>.root.child(<span class="tok-num">2_u64</span>), <span class="tok-str">&quot;This cannot be undone.&quot;</span>)
+cancel <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Button</span>.new(<span class="tok-type">Tessell</span>::<span class="tok-type">UI</span>::<span class="tok-type">UiKey</span>.root.child(<span class="tok-num">3_u64</span>), <span class="tok-str">&quot;Cancel&quot;</span>)
+confirm <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Button</span>.new(<span class="tok-type">Tessell</span>::<span class="tok-type">UI</span>::<span class="tok-type">UiKey</span>.root.child(<span class="tok-num">4_u64</span>), <span class="tok-str">&quot;Delete&quot;</span>,
+  <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Variant</span>::<span class="tok-type">Danger</span>)
+dialog <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Dialog</span>.new(<span class="tok-type">Tessell</span>::<span class="tok-type">UI</span>::<span class="tok-type">UiKey</span>.root.child(<span class="tok-num">5_u64</span>),
+  <span class="tok-str">&quot;Delete item?&quot;</span>, content, [cancel, confirm])
+dialog.on_close <span class="tok-op">=</span> <span class="tok-op">-&gt;</span> { @dialog <span class="tok-op">=</span> <span class="tok-kw">nil</span>; <span class="tok-kw">nil</span> }
 
 root.open_dialog(dialog)
 </code></pre>

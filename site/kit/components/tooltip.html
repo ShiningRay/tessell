@@ -23,6 +23,24 @@
   code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
   pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
   pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
   blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
   table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
   th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -61,11 +79,11 @@
 <li>不抢焦点，不替代可见标签。</li>
 </ul>
 <h2 id="最小示例">最小示例</h2>
-<pre><code>button.tooltip_text = &quot;Save changes&quot;
-button.tooltip_delay_ms = 600
+<pre><code class="language-crystal">button.tooltip_text <span class="tok-op">=</span> <span class="tok-str">&quot;Save changes&quot;</span>
+button.tooltip_delay_ms <span class="tok-op">=</span> <span class="tok-num">600</span>
 </code></pre>
 <p>Tooltip 由 Root 在 hover 延迟到期后打开；应用需要每帧调用：</p>
-<pre><code>root.advance_time(now_ms)
+<pre><code class="language-crystal">root.advance_time(now_ms)
 </code></pre>
 <h2 id="行为">行为</h2>
 <ul>

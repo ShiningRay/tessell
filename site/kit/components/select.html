@@ -23,6 +23,24 @@
   code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
   pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
   pre code { background:none; padding:0; }
+  .tok-kw { color:#cf222e; font-weight:600; }
+  .tok-type { color:#0550ae; }
+  .tok-str { color:#0a3069; }
+  .tok-com { color:#6e7781; font-style:italic; }
+  .tok-num { color:#953800; }
+  .tok-sym { color:#8250df; }
+  .tok-anno { color:#116329; }
+  .tok-op { color:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    .tok-kw { color:#ff7b72; }
+    .tok-type { color:#79c0ff; }
+    .tok-str { color:#a5d6ff; }
+    .tok-com { color:#8b949e; }
+    .tok-num { color:#ffa657; }
+    .tok-sym { color:#d2a8ff; }
+    .tok-anno { color:#7ee787; }
+    .tok-op { color:#ff7b72; }
+  }
   blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
   table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
   th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -61,13 +79,13 @@
 <li>不用于多选、搜索或自由输入；这些场景后续单独组件。</li>
 </ul>
 <h2 id="最小示例">最小示例</h2>
-<pre><code>sel = Tessell::Kit::Select.new(
-  Tessell::UI::UiKey.root.child(1_u64),
-  [&quot;Alpha&quot;, &quot;Beta&quot;, &quot;Gamma&quot;],
-  selected_index: 0,
-  label: &quot;Choice&quot;
+<pre><code class="language-crystal">sel <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Select</span>.new(
+  <span class="tok-type">Tessell</span>::<span class="tok-type">UI</span>::<span class="tok-type">UiKey</span>.root.child(<span class="tok-num">1_u64</span>),
+  [<span class="tok-str">&quot;Alpha&quot;</span>, <span class="tok-str">&quot;Beta&quot;</span>, <span class="tok-str">&quot;Gamma&quot;</span>],
+  selected_index: <span class="tok-num">0</span>,
+  label: <span class="tok-str">&quot;Choice&quot;</span>
 )
-sel.on_change = -&gt;(index : Int32, value : String) { @choice = value; nil }
+sel.on_change <span class="tok-op">=</span> <span class="tok-op">-&gt;</span>(index : <span class="tok-type">Int32</span>, value : <span class="tok-type">String</span>) { @choice <span class="tok-op">=</span> value; <span class="tok-kw">nil</span> }
 </code></pre>
 <h2 id="行为">行为</h2>
 <ul>
