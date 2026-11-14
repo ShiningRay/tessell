@@ -432,7 +432,8 @@ module TessellKitSdl
       @mouse_x = 0
       @mouse_y = 0
 
-      frames = 0
+      runner = Tessell::App::Runner.new
+      runner.frames_limit = frames_limit
       quit = false
       last_ticks = LibSDL.SDL_GetTicks.to_i64
       until quit
@@ -464,7 +465,7 @@ module TessellKitSdl
         backend.end_frame
 
         if path = screenshot_path
-          if frames_limit == 0 || frames + 1 >= frames_limit
+          if frames_limit == 0 || runner.frame_count + 1 >= frames_limit
             if path.ends_with?(".png")
               capture_png(path, drawable_w, drawable_h)
             else
@@ -476,8 +477,8 @@ module TessellKitSdl
 
         LibSDL.SDL_GL_SwapWindow(window)
 
-        frames += 1
-        break if frames_limit > 0 && frames >= frames_limit
+        # Runner 驱动退出（issue #3）：自动化帧数/stop() 统一在此判定
+        break if runner.advance(LibSDL.SDL_GetTicks.to_i64)
         LibSDL.SDL_Delay(8)
       end
 

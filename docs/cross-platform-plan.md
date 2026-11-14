@@ -349,3 +349,25 @@ CI 只证明“可构建/可跑”；L1 的“真实窗口”必须有人工或 
 - 已实证：macOS SDL2/OpenGL 真实窗口与文本上屏；FreeType LP64 修复；选定 Kit/apps 套件 100/0；三平台链接分支存在于源码。
 - 未实测：Windows SDL2 构建/窗口；Linux 编译/GUI/GL；三平台 CI；SDL2/系统字体版本矩阵；SDL3 IME；macOS/Linux 打包；UIA/NSAccessibility/AT-SPI。
 - 本文只修订方案与计划，未改代码、未新增依赖、未提交实现。
+
+## 11. issue #3 处置状态（2026-11-14 回填）
+
+issue #3「抽出 Win32 平台层与 App Runner」研判后的执行口径：
+
+**已交付（本机可验证）**
+- `Tessell::App::Runner` 平台无关帧循环契约（src/tessell/app/runner.cr）：
+  on_frame、自动化帧数 frames_limit、虚拟时钟 clock_ms、帧预算
+  frame_budget_ms/slow_frames、干净退出 stop()；SDL 宿主已由 Runner 驱动
+  退出（examples/lib/kit_sdl_host.cr），计算器/编辑器/app 三处回归通过。
+- spec/app_runner_spec.cr 6 用例。
+
+**立项待办（需 Windows/Linux 真机 gate，X1–X3 依赖）**
+- `Tessell::Platform::Win32`：Window（注册类/AdjustWindowRectEx/DPI/
+  WM_DPICHANGED）、GLContext（像素格式/WGL/swap interval）、
+  MessagePump（Peek/Dispatch/WM_CLOSE）、InputMapper（WM_*→Input::Event，
+  含 #4 已就绪的 modifiers/wheel/timestamp/repeat 字段回填）、
+  Screenshot（前缓冲→PNG，复用 tools/lib/png.cr）。
+- 验收口径（沿用原 issue）：最小窗口应用 ≤50 行业务代码；交互/resize/
+  高 DPI/自动截图一套代码支持。
+- 不在本机假装实现 WGL/消息路径：无 Windows 环境，真机 gate 未跑前
+  不落地、不承诺。
