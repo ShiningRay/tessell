@@ -405,3 +405,112 @@ module TessellGolden
     sum / count
   end
 end
+
+module TessellGolden
+  # ---- 跨后端 conformance（issue #40，对照 asuka conformance skip）----
+  #
+  # 已知差异显式登记，绝不静默 skip：每条 {feature, 差异, 处置}。
+  # 处置为 skip 的项必须写明理由；可断言的项（如 premultiplied 语义）
+  # 登记为 assert 并由探针覆盖。
+
+  struct Difference
+    getter feature : String
+    getter note : String
+    getter disposition : String # "skip" | "assert"
+
+    def initialize(@feature : String, @note : String, @disposition : String)
+    end
+  end
+
+  KNOWN_DIFFERENCES = [
+    Difference.new("text.antialiasing",
+      "SoftwareBackend 无 AA 与亚像素定位；GL 线性采样字形边缘。文本像素逐位比较不适用",
+      "skip"),
+    Difference.new("polygon.antialiasing",
+      "GL stencil/cover 多边形有 AA；软件路径硬边",
+      "skip"),
+    Difference.new("rect.premultiplied",
+      "两后端 premultiplied 语义对齐（software_backend.cr 文件头；blend_pixel = src_over premul）",
+      "assert"),
+    Difference.new("roundrect.rasterization",
+      "软件圆角为逐像素 in_round_rect? 判定；GL 走 SDF/模板——边缘 1 设备像素内等价",
+      "assert"),
+  ]
+
+  def self.difference_for(feature : String) : Difference?
+    KNOWN_DIFFERENCES.find { |d| d.feature == feature }
+  end
+
+  # conformance skip 查询：登记为 skip 的特性返回理由（断言方据此跳过并
+  # 打印理由），未登记/assert 的返回 nil。
+  def self.skip_reason(feature : String) : String?
+    d = difference_for(feature)
+    d && d.disposition == "skip" ? d.note : nil
+  end
+
+  struct DualResult
+    getter diff_pixels : Int32
+    getter tolerance : Int32
+    getter skipped : String?
+    getter width : Int32
+    getter height : Int32
+
+    def initialize(@diff_pixels : Int32, @tolerance : Int32,
+                   @skipped : String?, @width : Int32, @height : Int32)
+    end
+
+    def pass? : Bool
+      @skipped ? true : @diff_pixels == 0
+    end
+  end
+
+  # 双后端像素等价（内存版）：同一像素缓冲对逐像素比对，容差按差异清单。
+  # a/b 为 RGBA bytes（软件后端像素直采或 PNG 读取）。
+  def self.compare_buffers(a : Bytes, b : Bytes, w : Int32, h : Int32,
+                           tolerance : Int32 = 0) : DualResult
+    raise ArgumentError.new("size mismatch") unless a.size == b.size
+    n = w * h * 4
+    diff = 0
+    i = 0
+    while i < n
+      j = 0
+      while j < 4
+        d = (a[i + j].to_i - b[i + j].to_i).abs
+        if d > tolerance
+          diff += 1
+          j = 4
+        end
+        j += 1
+      end
+      i += 4
+    end
+    DualResult.new(diff, tolerance, nil, w, h)
+  end
+
+  # 同一帧命令 → 软件后端渲染 → 像素直采（探针/等价断言的输入）。
+  # GL 腿需要 GL 上下文（窗口），headless CI 不可用——由调用方按
+  # skip_reason 登记；软件侧自一致 + 探针断言在此可验证。
+  def self.render_software(list : Tessell::Render::DrawList, w : Int32, h : Int32) : Bytes
+    backend = Tessell::Render::SoftwareBackend.new
+    backend.init(w, h)
+    backend.begin_frame(nil, Tessell::Render::Theme.light)
+    backend.draw_draw_list(list)
+    backend.end_frame
+    rgba = Bytes.new(w * h * 4)
+    y = 0
+    while y < h
+      x = 0
+      while x < w
+        px = backend.pixel(x, y)
+        i = (y * w + x) * 4
+        rgba[i] = ((px >> 24) & 0xff).to_u8
+        rgba[i + 1] = ((px >> 16) & 0xff).to_u8
+        rgba[i + 2] = ((px >> 8) & 0xff).to_u8
+        rgba[i + 3] = (px & 0xff).to_u8
+        x += 1
+      end
+      y += 1
+    end
+    rgba
+  end
+end
