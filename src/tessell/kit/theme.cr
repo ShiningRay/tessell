@@ -4,6 +4,8 @@
 # 颜色统一为 0xRRGGBBAA，与核心 Render::Theme 一致。
 # 本文件不依赖窗口/GL/FFI，可纯逻辑测试。
 
+require "../render/theme"
+
 module Tessell
   module Kit
     enum Variant
@@ -178,6 +180,33 @@ module Tessell
           0x2b4a7dff_u32,
           0x00000099_u32
         ), dark: true)
+      end
+
+      # 核心 Theme → Kit Theme 适配器。核心只有 6 个颜色，其余语义色取
+      # 同模式默认主题，保证组件不会出现“半套主题”。
+      def self.from_render(render : Tessell::Render::Theme, dark : Bool = false) : Theme
+        base = dark ? Theme.dark : Theme.light
+        palette = Palette.new(
+          render.bg,
+          render.bg,
+          base.palette.surface_raised,
+          render.fg,
+          render.muted,
+          render.border,
+          render.accent,
+          dark ? 0x78a2ffff_u32 : 0x275fd4ff_u32,
+          dark ? 0x4878e0ff_u32 : 0x1f4fb5ff_u32,
+          base.palette.accent_foreground,
+          base.palette.danger,
+          base.palette.danger_hover,
+          base.palette.danger_pressed,
+          base.palette.danger_foreground,
+          base.palette.success,
+          render.accent,
+          render.selection,
+          base.palette.scrim
+        )
+        new(palette, base.metrics, dark)
       end
 
       def control_height(size : ControlSize) : Float32

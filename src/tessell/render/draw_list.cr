@@ -14,11 +14,16 @@ require "../geometry"
 
 module Tessell
   module Render
-    # 最小绘制命令集合（plan.md:100-103）。
+    # 最小绘制命令集合（plan.md:100-103，K1 增加圆角/描边）。
+    # Rect/Text/Line 保持原语义；RoundRect/StrokeRect/StrokeRoundRect 由后端
+    # 按自身能力实现，不支持时必须显式跳过或报错，不得静默画成直角/填充。
     enum CmdKind
       Rect
       Text
       Line
+      RoundRect
+      StrokeRect
+      StrokeRoundRect
     end
 
     struct DrawCmd
@@ -29,9 +34,13 @@ module Tessell
       # -1 表示无 atlas（纯色/矢量命令）。
       getter atlas_id : Int32
       getter clip : Rect?
+      getter radius : Float32
+      getter stroke_width : Float32
 
       def initialize(@kind : CmdKind, @bounds : Rect, @color : UInt32,
-                     @atlas_id : Int32 = -1, @clip : Rect? = nil)
+                     @atlas_id : Int32 = -1, @clip : Rect? = nil,
+                     @radius : Float32 = 0.0_f32,
+                     @stroke_width : Float32 = 0.0_f32)
       end
     end
 

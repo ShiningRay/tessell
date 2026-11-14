@@ -35,7 +35,7 @@ module Tessell
     end
 
     class Context
-      getter theme : Theme
+      property theme : Theme
       getter metrics : TextMetrics
       getter scale : Float32
       getter now_ms : Int64

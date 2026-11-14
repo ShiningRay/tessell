@@ -30,6 +30,16 @@ describe "Tessell::Kit theme" do
     danger.background.should eq(theme.palette.danger)
   end
 
+  it "adapts a core Render::Theme without leaving half a theme" do
+    core = Tessell::Render::Theme.dark
+    theme = Tessell::Kit::Theme.from_render(core, dark: true)
+    theme.dark.should be_true
+    theme.palette.canvas.should eq(core.bg)
+    theme.palette.foreground.should eq(core.fg)
+    theme.palette.accent.should eq(core.accent)
+    theme.palette.border.should eq(core.border)
+  end
+
   it "disabled button colors are muted and do not follow variant accent" do
     theme = Tessell::Kit::Theme.light
     disabled = Tessell::Kit::InteractionState.new(disabled: true)

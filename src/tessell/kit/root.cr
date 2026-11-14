@@ -65,15 +65,21 @@ module Tessell
         UI.a11y_emit(@node, @a11y, sink)
       end
 
+      def theme=(theme : Theme) : Nil
+        @theme = theme
+        @context.theme = theme
+      end
+
       def advance_time(now_ms : Int64) : Nil
         @context.advance_time(now_ms)
         @content.tick(now_ms, @context)
       end
 
-      # 核心事件入口。modifiers 暂由调用方显式传入，等核心 Event 扩展后可直接读取。
-      def handle(event : Input::Event, modifiers : Modifiers = Modifiers.none) : Bool
+      # 核心事件入口。优先使用 Event 自带的 modifiers；显式参数用于旧调用点。
+      def handle(event : Input::Event, modifiers : Modifiers? = nil) : Bool
+        mods = modifiers || event.modifiers
         if event.kind == Input::Event::Kind::KeyDown && event.key == Input::KeyCode::Tab
-          if modifiers.shift
+          if mods.shift
             @router.focus_manager.prev(@node)
           else
             @router.focus_manager.next(@node)
@@ -83,37 +89,50 @@ module Tessell
         end
 
         case event.kind
+        when Input::Event::Kind::PointerEnter
+          target = @router.handle(event, @node)
+          component = target ? component_for_node(target) : nil
+          sync_hover(component)
+          true
         when Input::Event::Kind::PointerMove
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           sync_hover(component)
-          return true if component
+          return true if deliver(component, to_kit(event, Event::Kind::PointerMove, mods))
+        when Input::Event::Kind::PointerLeave
+          @router.handle(event, @node)
+          sync_hover(nil)
+          true
         when Input::Event::Kind::PointerDown
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           sync_focus
-          return true if deliver(component, to_kit(event, Event::Kind::PointerDown, modifiers))
+          return true if deliver(component, to_kit(event, Event::Kind::PointerDown, mods))
         when Input::Event::Kind::PointerUp
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
           sync_focus
-          return true if deliver(component, to_kit(event, Event::Kind::PointerUp, modifiers))
+          return true if deliver(component, to_kit(event, Event::Kind::PointerUp, mods))
+        when Input::Event::Kind::PointerCancel
+          target = @router.handle(event, @node)
+          component = target ? component_for_node(target) : nil
+          return true if deliver(component, to_kit(event, Event::Kind::PointerCancel, mods))
         when Input::Event::Kind::Wheel
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
-          return true if deliver(component, to_kit(event, Event::Kind::Wheel, modifiers))
+          return true if deliver(component, to_kit(event, Event::Kind::Wheel, mods))
         when Input::Event::Kind::KeyDown
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
-          return true if deliver(component, to_kit(event, Event::Kind::KeyDown, modifiers))
+          return true if deliver(component, to_kit(event, Event::Kind::KeyDown, mods))
         when Input::Event::Kind::KeyUp
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
-          return true if deliver(component, to_kit(event, Event::Kind::KeyUp, modifiers))
+          return true if deliver(component, to_kit(event, Event::Kind::KeyUp, mods))
         when Input::Event::Kind::TextInput
           target = @router.handle(event, @node)
           component = target ? component_for_node(target) : nil
-          return true if deliver(component, to_kit(event, Event::Kind::TextInput, modifiers))
+          return true if deliver(component, to_kit(event, Event::Kind::TextInput, mods))
         when Input::Event::Kind::Blur
           old = @router.focus_manager.focused
           @router.handle(event, @node)
@@ -149,6 +168,7 @@ module Tessell
         @node_components.clear
         @content.each_component do |component|
           if target = @pool.map[component.key]?
+            target.clip = component.clip_bounds
             @node_components[target] = component
           end
         end
@@ -181,7 +201,8 @@ module Tessell
       private def to_kit(event : Input::Event, kind : Event::Kind,
                          modifiers : Modifiers) : Event
         Event.new(kind, event.x, event.y, event.button,
-          map_key(event.key), event.text, modifiers)
+          map_key(event.key), event.text, modifiers,
+          event.wheel_dx, event.wheel_dy)
       end
 
       private def map_key(key : Input::KeyCode?) : Key?
@@ -190,14 +211,22 @@ module Tessell
         when Input::KeyCode::Tab       then Key::Tab
         when Input::KeyCode::Enter     then Key::Enter
         when Input::KeyCode::Escape    then Key::Escape
+        when Input::KeyCode::Space     then Key::Space
         when Input::KeyCode::Left      then Key::Left
         when Input::KeyCode::Right     then Key::Right
         when Input::KeyCode::Up        then Key::Up
         when Input::KeyCode::Down      then Key::Down
+        when Input::KeyCode::Home      then Key::Home
+        when Input::KeyCode::End       then Key::End
+        when Input::KeyCode::PageUp    then Key::PageUp
+        when Input::KeyCode::PageDown  then Key::PageDown
         when Input::KeyCode::Backspace then Key::Backspace
         when Input::KeyCode::Delete    then Key::Delete
         when Input::KeyCode::KeyA      then Key::KeyA
         when Input::KeyCode::KeyB      then Key::KeyB
+        when Input::KeyCode::KeyC      then Key::KeyC
+        when Input::KeyCode::KeyV      then Key::KeyV
+        when Input::KeyCode::KeyX      then Key::KeyX
         when Input::KeyCode::KeyZ      then Key::KeyZ
         else
           Key::Unknown

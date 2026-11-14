@@ -26,10 +26,14 @@ module Tessell
   class Node
     getter id : String
     property bounds : Rect
+    # 可选的命中/绘制裁切矩形（绝对坐标）。nil 表示不裁切。
+    # 命中测试会拒绝裁切区外的点；绘制方由调用方按同一矩形 push_clip。
+    property clip : Rect?
     property parent : Node?
     getter children : Array(Node)
 
     def initialize(@id : String, @bounds : Rect = Rect.new)
+      @clip = nil
       @parent = nil
       @children = [] of Node
       @layout_dirty = false
@@ -98,6 +102,7 @@ module Tessell
       sink.clear
       collect_dirty_impl(root, sink)
     end
+
     # 挂载子节点：重挂载时先从旧父移除（保证双向一致）；同父重复 add 幂等（不重复追加）。
     # 只改父子引用，不传播/清除脏标记（与 detach 一致：脏失效由调用方负责）。
     def add_child(child : Node) : Node

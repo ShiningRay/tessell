@@ -50,6 +50,16 @@ describe "Tessell::Kit::Root" do
     root.focused_component.should be_nil
   end
 
+  it "switches theme through the root context" do
+    button = Tessell::Kit::Button.new(KitSpecHelpers.key, "Save")
+    root = Tessell::Kit::Root.new(button)
+    root.layout(200.0_f32, 100.0_f32)
+    root.build
+    root.theme = Tessell::Kit::Theme.dark
+    root.theme.dark.should be_true
+    root.context.theme.dark.should be_true
+  end
+
   it "paints the content through a Painter" do
     button = Tessell::Kit::Button.new(KitSpecHelpers.key, "Save")
     root = Tessell::Kit::Root.new(button)

@@ -3,6 +3,8 @@
 # Kit 不直接读平台消息。Root 把核心 Input::Event 适配成 Kit::Event，
 # 这样组件测试不需要窗口、Win32 或 GL。
 
+require "../input/event"
+
 module Tessell
   module Kit
     enum Key
@@ -29,20 +31,8 @@ module Tessell
       Unknown
     end
 
-    struct Modifiers
-      getter shift : Bool
-      getter ctrl : Bool
-      getter alt : Bool
-      getter meta : Bool
-
-      def initialize(@shift : Bool = false, @ctrl : Bool = false,
-                     @alt : Bool = false, @meta : Bool = false)
-      end
-
-      def self.none : Modifiers
-        new
-      end
-    end
+    # 复用核心 Input::Modifiers，避免两套修饰键类型漂移。
+    alias Modifiers = Tessell::Input::Modifiers
 
     struct Event
       enum Kind

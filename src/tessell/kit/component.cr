@@ -55,7 +55,15 @@ module Tessell
       end
 
       def hit?(point : Point) : Bool
-        @visible && @bounds.contains?(point)
+        return false unless @visible
+        return false unless @bounds.contains?(point)
+        clip = clip_bounds
+        clip.nil? || clip.contains?(point)
+      end
+
+      # 子组件可返回绝对坐标的裁切矩形；Root 会同步到 Node#clip。
+      def clip_bounds : Rect?
+        nil
       end
 
       # Root 用它遍历整棵树建立 Node ↔ Component 映射。
