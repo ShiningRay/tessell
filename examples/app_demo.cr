@@ -326,7 +326,6 @@ class M4DApp
     @rasterizer.shape_run_into(@input_text, @text_size, @placement_sink)
     @rasterizer.shape_run_into(@status, @text_size, @placement_sink)
     @backend.sync_atlas(@atlas)
-    @synced_pages = @atlas.page_count
 
     fetch_cb = ->(_i : Int32) { nil }
     @vl = Widgets::VirtualList.new(@rows, @row_h, @list_h, fetch_cb, @width)
@@ -408,10 +407,10 @@ class M4DApp
   end
 
   private def sync_atlas_if_needed : Nil
-    pc = @atlas.page_count
-    return if pc == @synced_pages
-    @backend.sync_atlas(@atlas)
-    @synced_pages = pc
+    # Dynamic text inserts glyphs into EXISTING pages, so page_count is not a
+    # change signal. Drive uploads from the atlas revision contract (issue #1):
+    # sync_atlas_dirty only re-uploads pages whose content revision changed.
+    @backend.sync_atlas_dirty(@atlas)
   end
 
   # ---- DSL chain: declarations are rebuilt every frame from external state. ----

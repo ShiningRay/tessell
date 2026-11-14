@@ -208,7 +208,6 @@ module TessellKitSdl
     @scale : Float32
     @text_clips : Array(Tessell::Rect)
     @sink : Array(Tessell::Text::GlyphPlacement)
-    @synced_pages : Int32
 
     def initialize(@renderer : Tessell::Render::TextRenderer,
                    @atlas : Tessell::Text::GlyphAtlas,
@@ -216,7 +215,6 @@ module TessellKitSdl
       @draw = Tessell::Kit::DrawListPainter.new
       @text_clips = [] of Tessell::Rect
       @sink = [] of Tessell::Text::GlyphPlacement
-      @synced_pages = -1
     end
 
     def resize(width : Int32, height : Int32, scale : Float32) : Nil
@@ -271,10 +269,10 @@ module TessellKitSdl
     end
 
     def flush(backend : Tessell::Render::GL::GLBackend) : Nil
-      if @atlas.page_count != @synced_pages
-        backend.sync_atlas(@atlas)
-        @synced_pages = @atlas.page_count
-      end
+      # Dynamic text inserts glyphs into existing pages; page_count is not a
+      # change signal (issue #1). sync_atlas_dirty re-uploads only pages whose
+      # content revision changed.
+      backend.sync_atlas_dirty(@atlas)
       backend.draw_draw_list(@draw.list)
       backend.draw_text(@renderer.vertices, @renderer.batch_runs, @renderer.batch_count)
       @draw.reset

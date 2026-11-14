@@ -2,6 +2,14 @@
 # R8 single-channel glyph atlas with shelf packing, FNV-1a keyed cache, LRU eviction.
 # Constraints: no FFI (pure Crystal + Bytes); steady path must not rearrange existing glyphs (UV stable).
 # Frame contract: no LRU eviction inside begin_frame/end_frame (raises).
+#
+# GPU sync contract (issue #1): page_count/used_pixels/evicted_total are observability
+# counters, NOT change detectors — glyphs are inserted into existing pages, so a
+# stable page_count does not mean stable pixel content. Consumers must drive uploads
+# from `revision` (any pixel mutation anywhere) or per-page `page_revision(page)` /
+# `rgba_page_revision(page)`. GLBackend#sync_atlas_dirty consumes exactly that; a
+# consumer that only compares page_count will miss in-frame glyph insertions and the
+# GPU texture goes stale (missing characters at runtime).
 
 module Tessell
   module Text
@@ -103,6 +111,10 @@ module Tessell
         getter shelves : Array(Shelf)
         property used_pixels : Int32
         property live_count : Int32
+        # Monotonic per-page content version. Bumped on every pixel mutation
+        # (glyph placement, page reset). GPU sync compares this against the
+        # last-uploaded version to skip unchanged pages.
+        getter revision : UInt64
         # bytes per pixel: 1 = R8 coverage page, 4 = premultiplied RGBA page.
         getter bpp : Int32
 
@@ -111,6 +123,7 @@ module Tessell
           @shelves = [] of Shelf
           @used_pixels = 0
           @live_count = 0
+          @revision = 0_u64
         end
 
         def reset! : Nil
@@ -118,6 +131,11 @@ module Tessell
           @shelves.clear
           @used_pixels = 0
           @live_count = 0
+          @revision += 1_u64
+        end
+
+        def bump_revision : Nil
+          @revision += 1_u64
         end
       end
 
@@ -132,6 +150,10 @@ module Tessell
 
       getter page_size : Int32
       getter capacity : Int32
+      # Monotonic atlas-wide content version. Bumped whenever any page's pixels
+      # change (glyph inserted into an existing page included). This is the only
+      # reliable "did the atlas content change" signal for GPU sync.
+      getter revision : UInt64
 
       def initialize(@page_size : Int32 = 1024, @capacity : Int32 = 4096)
         @pages = [] of Page
@@ -140,6 +162,7 @@ module Tessell
         @tick = 0_u64
         @in_frame = 0
         @evicted_total = 0
+        @revision = 0_u64
         # RGBA pages (color glyphs) are counted and packed independently of R8 pages:
         # page_count/used_pixels/waste_ratio keep R8-only semantics.
         @rgba_pages = [] of Page
@@ -153,6 +176,14 @@ module Tessell
 
       def rgba_page_count : Int32
         @rgba_pages.size
+      end
+
+      def page_revision(page : Int32) : UInt64
+        @pages[page].revision
+      end
+
+      def rgba_page_revision(page : Int32) : UInt64
+        @rgba_pages[page].revision
       end
 
       def used_pixels : Int32
@@ -299,6 +330,7 @@ module Tessell
         end
         @tick = 0_u64
         @evicted_total = 0
+        @revision += 1_u64
       end
 
       private def ensure_capacity_for_insert : Nil
@@ -442,6 +474,8 @@ module Tessell
             page.shelves[si] = sh
             page.used_pixels += w * h
             page.live_count += 1
+            page.bump_revision
+            @revision += 1_u64
             return GlyphSlot.new(page_index, x, y, w, h, bearing_x, bearing_y, advance, color)
           end
           si += 1
@@ -457,6 +491,8 @@ module Tessell
           page.shelves << sh
           page.used_pixels += w * h
           page.live_count += 1
+          page.bump_revision
+          @revision += 1_u64
           return GlyphSlot.new(page_index, 0, y_start, w, h, bearing_x, bearing_y, advance, color)
         end
         nil

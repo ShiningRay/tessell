@@ -298,4 +298,61 @@ describe GlyphAtlas do
     atlas.used_pixels.should eq used1
     atlas.page_count.should eq 1
   end
+
+  # Issue #1: GPU sync contract. page_count/used_pixels are not change signals —
+  # glyphs are inserted into EXISTING pages, so a stable page_count hides new
+  # pixel content. revision / page_revision are the only reliable sync inputs.
+  it "revision bumps when a glyph lands in an existing page (page_count unchanged)" do
+    atlas = GlyphAtlas.new(64)
+    atlas.insert(GlyphKey.new(1, 1_u32, 16, 0_u8, 0_u8), 8, 8)
+    rev1 = atlas.revision
+    pre_count = atlas.page_count
+    pre_page_rev = atlas.page_revision(0)
+    # a new glyph that still fits in page 0 must flip revision even though
+    # page_count is stable — this is the dynamic-text missing-glyph scenario.
+    atlas.insert(GlyphKey.new(1, 2_u32, 16, 0_u8, 0_u8), 8, 8)
+    atlas.page_count.should eq pre_count
+    atlas.revision.should be > rev1
+    atlas.page_revision(0).should be > pre_page_rev
+  end
+
+  it "revision is stable across lookup-only frames" do
+    atlas = GlyphAtlas.new(64)
+    atlas.insert(GlyphKey.new(1, 1_u32, 16, 0_u8, 0_u8), 8, 8)
+    rev1 = atlas.revision
+    atlas.begin_frame
+    atlas.lookup(GlyphKey.new(1, 1_u32, 16, 0_u8, 0_u8))
+    atlas.lookup(GlyphKey.new(1, 1_u32, 16, 0_u8, 0_u8))
+    atlas.end_frame
+    atlas.revision.should eq rev1
+  end
+
+  it "duplicate insert does not bump revision (no pixel change)" do
+    atlas = GlyphAtlas.new(64)
+    k = GlyphKey.new(1, 7_u32, 16, 0_u8, 0_u8)
+    atlas.insert(k, 6, 6)
+    rev1 = atlas.revision
+    atlas.insert(k, 6, 6)
+    atlas.revision.should eq rev1
+  end
+
+  it "rgba insert bumps revision and rgba_page_revision tracks its own page" do
+    atlas = GlyphAtlas.new(64)
+    atlas.insert(GlyphKey.new(1, 1_u32, 16, 0_u8, 0_u8), 8, 8)
+    rev1 = atlas.revision
+    atlas.insert_rgba(GlyphKey.new(2, 1_u32, 16, 0_u8, 0_u8), 8, 8)
+    atlas.rgba_page_count.should eq 1
+    atlas.rgba_page_revision(0).should be > 0_u64
+    atlas.revision.should be > rev1
+  end
+
+  it "evicting the last glyph of a page (reset!) and reusing it keep page_revision monotonic" do
+    atlas = GlyphAtlas.new(64)
+    atlas.insert(GlyphKey.new(1, 1_u32, 16, 0_u8, 0_u8), 8, 8)
+    synced = atlas.page_revision(0)
+    atlas.evict_lru(1)
+    # reuse the freed page: revision must move past `synced` again
+    atlas.insert(GlyphKey.new(1, 2_u32, 16, 0_u8, 0_u8), 8, 8)
+    atlas.page_revision(0).should be > synced
+  end
 end

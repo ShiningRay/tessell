@@ -125,6 +125,8 @@ module Tessell
       class GLBackend < Tessell::Render::Backend
         @page_texture_ids_arr : Array(UInt32)
         @rgba_page_texture_ids_arr : Array(UInt32)
+        @page_synced_revisions : Array(UInt64)
+        @rgba_page_synced_revisions : Array(UInt64)
         @viewport_w : Int32
         @viewport_h : Int32
         @dirty : Array(Tessell::Rect)?
@@ -142,6 +144,8 @@ module Tessell
         def initialize
           @page_texture_ids_arr = [] of UInt32
           @rgba_page_texture_ids_arr = [] of UInt32
+          @page_synced_revisions = [] of UInt64
+          @rgba_page_synced_revisions = [] of UInt64
           @viewport_w = 0
           @viewport_h = 0
           @dirty = nil
@@ -279,6 +283,111 @@ module Tessell
               TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
               data.to_unsafe.as(Void*))
             i += 1
+          end
+          # Record what is now on the GPU so a following sync_atlas_dirty skips
+          # unchanged pages.
+          @page_synced_revisions.clear
+          @rgba_page_synced_revisions.clear
+          i = 0
+          while i < pc
+            @page_synced_revisions << atlas.page_revision(i)
+            i += 1
+          end
+          i = 0
+          while i < rpc
+            @rgba_page_synced_revisions << atlas.rgba_page_revision(i)
+            i += 1
+          end
+        end
+
+        # Incremental atlas upload (issue #1): uploads only pages whose content
+        # revision changed since the last sync (new pages get their first upload;
+        # updated pages use glTexSubImage2D over the whole page). Cheap to call
+        # every frame — no-op when the atlas has not changed.
+        def sync_atlas_dirty(atlas : Tessell::Text::GlyphAtlas) : Nil
+          pc = atlas.page_count
+          while @page_texture_ids_arr.size < pc
+            id = 0_u32
+            TessellGL.glGenTextures(1, pointerof(id))
+            @page_texture_ids_arr << id
+          end
+          rpc = atlas.rgba_page_count
+          while @rgba_page_texture_ids_arr.size < rpc
+            id = 0_u32
+            TessellGL.glGenTextures(1, pointerof(id))
+            @rgba_page_texture_ids_arr << id
+          end
+
+          size = atlas.page_size
+          i = 0
+          while i < pc
+            rev = atlas.page_revision(i)
+            if i >= @page_synced_revisions.size || @page_synced_revisions[i] != rev
+              upload_r8_page(atlas, i, first: i >= @page_synced_revisions.size)
+              while @page_synced_revisions.size <= i
+                @page_synced_revisions << 0_u64
+              end
+              @page_synced_revisions[i] = rev
+            end
+            i += 1
+          end
+          i = 0
+          while i < rpc
+            rev = atlas.rgba_page_revision(i)
+            if i >= @rgba_page_synced_revisions.size || @rgba_page_synced_revisions[i] != rev
+              upload_rgba_page(atlas, i, first: i >= @rgba_page_synced_revisions.size)
+              while @rgba_page_synced_revisions.size <= i
+                @rgba_page_synced_revisions << 0_u64
+              end
+              @rgba_page_synced_revisions[i] = rev
+            end
+            i += 1
+          end
+        end
+
+        private def upload_r8_page(atlas : Tessell::Text::GlyphAtlas, page : Int32, first : Bool) : Nil
+          data = atlas.page_data(page)
+          tex = @page_texture_ids_arr[page]
+          size = atlas.page_size
+          TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex)
+          TessellGL.glPixelStorei(TessellGL::GL_UNPACK_ALIGNMENT, 1)
+          if first
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MIN_FILTER, TessellGL::GL_LINEAR.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MAG_FILTER, TessellGL::GL_LINEAR.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_S, TessellGL::GL_CLAMP.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_T, TessellGL::GL_CLAMP.to_i32)
+            TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_INTENSITY.to_i32,
+              size, size, 0,
+              TessellGL::GL_LUMINANCE, TessellGL::GL_UNSIGNED_BYTE,
+              data.to_unsafe.as(Void*))
+          else
+            TessellGL.glTexSubImage2D(TessellGL::GL_TEXTURE_2D, 0, 0, 0,
+              size, size,
+              TessellGL::GL_LUMINANCE, TessellGL::GL_UNSIGNED_BYTE,
+              data.to_unsafe.as(Void*))
+          end
+        end
+
+        private def upload_rgba_page(atlas : Tessell::Text::GlyphAtlas, page : Int32, first : Bool) : Nil
+          data = atlas.rgba_page_data(page)
+          tex = @rgba_page_texture_ids_arr[page]
+          size = atlas.page_size
+          TessellGL.glBindTexture(TessellGL::GL_TEXTURE_2D, tex)
+          TessellGL.glPixelStorei(TessellGL::GL_UNPACK_ALIGNMENT, 1)
+          if first
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MIN_FILTER, TessellGL::GL_LINEAR.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_MAG_FILTER, TessellGL::GL_LINEAR.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_S, TessellGL::GL_CLAMP.to_i32)
+            TessellGL.glTexParameteri(TessellGL::GL_TEXTURE_2D, TessellGL::GL_TEXTURE_WRAP_T, TessellGL::GL_CLAMP.to_i32)
+            TessellGL.glTexImage2D(TessellGL::GL_TEXTURE_2D, 0, TessellGL::GL_RGBA.to_i32,
+              size, size, 0,
+              TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
+              data.to_unsafe.as(Void*))
+          else
+            TessellGL.glTexSubImage2D(TessellGL::GL_TEXTURE_2D, 0, 0, 0,
+              size, size,
+              TessellGL::GL_RGBA, TessellGL::GL_UNSIGNED_BYTE,
+              data.to_unsafe.as(Void*))
           end
         end
 

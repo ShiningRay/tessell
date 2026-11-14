@@ -69,6 +69,23 @@ bin/app_demo.exe --frames=120 --verify
 陷阱：探针前预热 shaped run 并 sync atlas；热路径避免新建 `String`/`Array`/
 proc 捕获；复用缓冲与 sink；避免热循环内字符串插值。
 
+## 动态文本与 atlas 同步契约
+`GlyphAtlas` 会把新字形插进**既有页**，所以 `page_count` / `used_pixels` /
+`evicted_total` 只是观测计数，**不是**内容变化信号；只比较 `page_count` 的
+同步在动态文本（改字号、改内容、主题切换换字）下必然运行期缺字。
+正确写法（issue #1）：
+
+- 用 `atlas.revision`（任何像素变化都递增）判断「是否需要同步」；
+- `GLBackend#sync_atlas_dirty(atlas)` 每帧调用是廉价的：按
+  `page_revision` / `rgba_page_revision` 只重传内容变化的页（新页
+  `glTexImage2D` 首传，已有页 `glTexSubImage2D`）；
+- `GLBackend#sync_atlas(atlas)` 保留为全量上传，仅用于首帧或显式重建。
+
+```crystal
+# 每帧：无变化时是纯整数比较，有变化时只上传脏页
+backend.sync_atlas_dirty(atlas)
+```
+
 ## verify 检查（app_demo --verify）
 token 行包含：`frames/visible_avg/quads_dirty/quads_full/culled/diff_pixels/
 diff_A_vs_C/alloc_windows/retried/attempt/verify`（及主题/DPI 字段）。
