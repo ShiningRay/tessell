@@ -84,7 +84,11 @@ module Tessell
     end
 
     class Context
-      property theme : Theme
+      getter theme : Theme
+      # 核心 Render::Theme 镜像（issue #8）：Kit Palette 覆盖组件语义，
+      # 行情/网格/涨跌等扩展 token（panel/grid/up/down 等）从这里读，
+      # 应用不再自建平行 Palette。
+      getter render_theme : Tessell::Render::Theme
       getter metrics : TextMetrics
       getter scale : Float32
       getter now_ms : Int64
@@ -92,12 +96,19 @@ module Tessell
 
       @measure_cache : Hash({String, Float32, Float32}, Size)
 
-      def initialize(@theme : Theme = Theme.light,
+      def initialize(theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
                      @scale : Float32 = 1.0_f32,
                      @now_ms : Int64 = 0_i64)
+        @theme = theme
+        @render_theme = theme.to_render
         @overlay_host = nil
         @measure_cache = {} of {String, Float32, Float32} => Size
+      end
+
+      def theme=(theme : Theme) : Nil
+        @theme = theme
+        @render_theme = theme.to_render
       end
 
       # 逻辑单位契约（issue #14）：以设备字号测量（与 Painter 提交的实际

@@ -85,3 +85,58 @@ describe Tessell::Render::Theme do
     Tessell::Render::Theme.a(Tessell::Render::Theme.dark.fg).should be_close(1.0_f32, 0.001_f32)
   end
 end
+
+# issue #8：扩展语义 token。
+describe "Render::Theme extended tokens" do
+  it "light/dark presets define panel/grid/up/down family" do
+    light = Tessell::Render::Theme.light
+    dark = Tessell::Render::Theme.dark
+    light.panel.should_not eq(0_u32)
+    dark.panel_alt.should_not eq(0_u32)
+    light.grid.should_not eq(0_u32)
+    dark.divider.should_not eq(0_u32)
+    light.up.should_not eq(0_u32)
+    dark.down.should_not eq(0_u32)
+    light.hover.should_not eq(0_u32)
+    dark.focus_ring.should_not eq(0_u32)
+    light.warning.should_not eq(0_u32)
+    dark.danger.should_not eq(0_u32)
+    light.success.should_not eq(0_u32)
+    dark.faint.should_not eq(0_u32)
+    light.panel.should_not eq(light.bg)
+    dark.panel.should_not eq(dark.bg)
+  end
+
+  it "up/down differ and soft variants carry lower alpha" do
+    t = Tessell::Render::Theme.light
+    t.up.should_not eq(t.down)
+    Tessell::Render::Theme.ab(t.up_soft).should be < Tessell::Render::Theme.ab(t.up)
+    Tessell::Render::Theme.ab(t.down_soft).should be < Tessell::Render::Theme.ab(t.down)
+  end
+
+  it "fg > muted > faint ordering (same hue family, decreasing prominence)" do
+    t = Tessell::Render::Theme.dark
+    t.fg.should_not eq(t.muted)
+    t.muted.should_not eq(t.faint)
+  end
+
+  it "six-arg constructor derives extended tokens deterministically" do
+    a = Tessell::Render::Theme.new(0xffffffff_u32, 0x000000ff_u32, 0x2f6fedff_u32,
+      0x8a8a8aff_u32, 0xd0d0d0ff_u32, 0xbcd4ffff_u32)
+    b = Tessell::Render::Theme.new(0xffffffff_u32, 0x000000ff_u32, 0x2f6fedff_u32,
+      0x8a8a8aff_u32, 0xd0d0d0ff_u32, 0xbcd4ffff_u32)
+    a.panel.should eq(b.panel)
+    a.grid.should eq(b.grid)
+    a.up.should_not eq(a.down)
+    a.focus_ring.should eq(a.accent)
+  end
+
+  it "mix/with_alpha helpers behave" do
+    c = Tessell::Render::Theme.mix(0x000000ff_u32, 0xffffffff_u32, 0.5_f32)
+    Tessell::Render::Theme.rb(c).should eq(128_u8)
+    Tessell::Render::Theme.ab(c).should eq(255_u8)
+    half = Tessell::Render::Theme.with_alpha(0x112233ff_u32, 0x80_u8)
+    Tessell::Render::Theme.ab(half).should eq(0x80_u8)
+    Tessell::Render::Theme.rb(half).should eq(0x11_u8)
+  end
+end

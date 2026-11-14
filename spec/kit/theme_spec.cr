@@ -48,3 +48,17 @@ describe "Tessell::Kit theme" do
     colors.foreground.should eq(theme.palette.muted)
   end
 end
+
+# issue #8：Context#render_theme 镜像核心扩展 token，切换主题时同步。
+describe "Kit::Context render_theme mirror" do
+  it "mirrors the initial theme and follows theme=" do
+    ctx = Tessell::Kit::Context.new(Tessell::Kit::Theme.light,
+      Tessell::Kit::StubTextMetrics.new, 1.0_f32)
+    ctx.render_theme.bg.should eq(ctx.theme.to_render.bg)
+    ctx.render_theme.up.should_not eq(ctx.render_theme.down)
+
+    ctx.theme = Tessell::Kit::Theme.dark
+    ctx.render_theme.bg.should eq(ctx.theme.to_render.bg)
+    ctx.render_theme.panel.should_not eq(ctx.render_theme.bg)
+  end
+end

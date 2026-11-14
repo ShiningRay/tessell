@@ -58,6 +58,13 @@ bin/app_demo.exe --frames=120 --verify
 - 运行中按 `T` 切换主题（强制整窗重绘并重新组合）。
 - `--dpi=1.0|1.25|1.5|2.0`：`Render::Dpi.scale_for(dpi*96)` 得 scale；
   `Dpi.size_px(16.0, scale)` 计算字号并参与布局尺寸。
+- 语义 token（issue #8）：基础六元 bg/fg/accent/muted/border/selection 之外，
+  扩展 panel/panel_alt/card/grid/divider、up/down/up_soft/down_soft（预设
+  A 股口径：涨红跌绿，可整体替换）、hover/focus_ring、warning/danger/
+  success、faint。行情/面板类应用直接用这些 token，不再自建平行 Palette；
+  Kit 侧经 `ctx.render_theme` 读取（组件语义仍走 Kit Palette）。
+  6 参 `Theme.new` 会从基础六元推导扩展 token（既有调用点兼容），质量
+  要求高时用 light/dark 预设或全参构造。
 
 ## 零分配口径与陷阱
 稳态探针：3 个窗口，每窗 N=1000 帧，`GC.enable` 置于 ensure，最多 1 次重试；
