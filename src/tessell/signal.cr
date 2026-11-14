@@ -330,6 +330,12 @@ module Tessell
       property run_id = 0
       property batch_depth = 0
       property flushing = false
+      # 建树期未追踪读检查（issue #41 第一期）：debug 构建默认开启。
+      # 宁漏勿误——peek 与 untrack 永不报；只在 Root#build 窗口内生效。
+      property build_check = false
+      property build_depth = 0
+      property untrack_depth = 0
+      property build_read_hook : Proc(Node, Nil)? = nil
       # memo 拉取重算进行中（pull 路径）；push_dirty 用于抑制正在运行的
       # effect 自身的重复入队。
       property pulling = false
@@ -379,6 +385,26 @@ module Tessell
 
     GRAPH = Graph.new
 
+    # 建树期检查开关：debug 构建默认开；运行时可显式启停（spec/测试用）。
+    def self.build_read_check : Bool
+      GRAPH.build_check
+    end
+
+    def self.build_read_check=(value : Bool) : Nil
+      GRAPH.build_check = value
+    end
+
+    # Root#build 窗口：期间的未追踪 signal 读触发 hook（可视化告警）。
+    def self.enter_build(hook : Proc(Node, Nil)) : Nil
+      GRAPH.build_depth += 1
+      GRAPH.build_read_hook = hook
+    end
+
+    def self.exit_build : Nil
+      GRAPH.build_depth -= 1
+      GRAPH.build_read_hook = nil if GRAPH.build_depth <= 0
+    end
+
     def self.current_tracker : Node?
       GRAPH.tracking
     end
@@ -412,6 +438,11 @@ module Tessell
     # 稳态零分配的关键路径。
     def self.track_read(node : Node) : Nil
       tracker = GRAPH.tracking
+      if tracker.nil? && GRAPH.build_check && GRAPH.build_depth > 0 &&
+         GRAPH.untrack_depth == 0
+        # 建树期直读：函数只跑一次，值永不更新（issue #41 第一期告警）
+        GRAPH.build_read_hook.try(&.call(node))
+      end
       return unless tracker
       link = tracker.first_dep
       while link
@@ -597,9 +628,11 @@ module Tessell
     def self.untrack(&) : Nil
       prev = GRAPH.tracking
       GRAPH.tracking = nil
+      GRAPH.untrack_depth += 1
       begin
         yield
       ensure
+        GRAPH.untrack_depth -= 1
         GRAPH.tracking = prev
       end
     end

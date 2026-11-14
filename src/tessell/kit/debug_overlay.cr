@@ -20,6 +20,8 @@ module Tessell
       getter dirty_rects : Array(Tessell::Rect)
       getter hover_name : String
       getter focus_name : String
+      # 建树期未追踪 signal 读告警（issue #41 第一期）
+      getter build_warnings : Array(String)
 
       def initialize(@frame_ms : Float32 = 0.0_f32,
                      @quads : Int32 = 0, @scissor_calls : Int32 = 0,
@@ -27,7 +29,8 @@ module Tessell
                      @atlas_pages : Int32 = 0, @rgba_pages : Int32 = 0,
                      @used_pixels : Int32 = 0, @evicted_total : Int32 = 0,
                      @dirty_rects : Array(Tessell::Rect) = [] of Tessell::Rect,
-                     @hover_name : String = "", @focus_name : String = "")
+                     @hover_name : String = "", @focus_name : String = "",
+                     @build_warnings : Array(String) = [] of String)
       end
 
       def fps : Float32
@@ -50,7 +53,8 @@ module Tessell
           atlas ? atlas.used_pixels : 0,
           atlas ? atlas.evicted_total : 0,
           dirty || [] of Tessell::Rect,
-          hover_name, focus_name)
+          hover_name, focus_name,
+          root ? root.build_warnings : [] of String)
       end
     end
 
@@ -88,6 +92,11 @@ module Tessell
         end
         lines << "hover=#{i.hover_name.empty? ? "-" : i.hover_name}"
         lines << "focus=#{i.focus_name.empty? ? "-" : i.focus_name}"
+        # 建树期 signal 读告警（issue #41）：可视化计数 + 首条
+        unless i.build_warnings.empty?
+          first = i.build_warnings.first
+          lines << "⚠ signal 建树期读 ×#{i.build_warnings.size}: #{first.size > 46 ? first[0, 46] : first}"
+        end
 
         m = ctx.text_metrics(@font_size)
         line_h = Math.max(LINE_HEIGHT, m.line_height)

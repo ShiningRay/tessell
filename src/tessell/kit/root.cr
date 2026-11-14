@@ -34,6 +34,8 @@ module Tessell
       @tooltip_entry : OverlayEntry?
       @debug_overlay : DebugOverlay
       @debug_info : DebugInfo?
+      # 建树期未追踪 signal 读的告警（issue #41 第一期，debug 检查开启时采集）
+      @build_warnings : Array(String)
 
       def initialize(@content : Component, @theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
@@ -58,6 +60,7 @@ module Tessell
         @tooltip_entry = nil
         @debug_overlay = DebugOverlay.new
         @debug_info = nil
+        @build_warnings = [] of String
         @router = Tessell::Input::Router.new do |target|
           component = @component_roots[target]?
           component ? component.focusable? : false
@@ -81,12 +84,24 @@ module Tessell
         layout(Rect.new(0.0_f32, 0.0_f32, width, height))
       end
 
+      getter build_warnings : Array(String)
+
       def build : Nil
         @builder.reset(UI::UiKey.root)
-        @content.emit(@builder, @context)
-        @overlay_host.entries.each do |entry|
-          entry.barrier.try(&.emit(@builder, @context))
-          entry.component.emit(@builder, @context)
+        # 建树期未追踪 signal 读检查（issue #41）：采集窗口只覆盖 emit 段
+        # ——UI.apply 是宿主侧提交，不属于建树。
+        Tessell::Signal.enter_build(->(node : Tessell::Signal::Node) do
+          name = node.label.empty? ? node.class.to_s : node.label
+          @build_warnings << "建树期读未追踪 signal '#{name}'——建树函数只跑一次，读到的值永不更新。修法：把读移进 effect/render_effect（依赖追踪重跑），或改用 peek 显式声明一次性读（永不报）。"
+        end)
+        begin
+          @content.emit(@builder, @context)
+          @overlay_host.entries.each do |entry|
+            entry.barrier.try(&.emit(@builder, @context))
+            entry.component.emit(@builder, @context)
+          end
+        ensure
+          Tessell::Signal.exit_build
         end
         UI.apply(@builder.buf, @node, @pool, @a11y)
         rebuild_node_map
