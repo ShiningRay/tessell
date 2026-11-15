@@ -13,6 +13,12 @@
   修复前第二段文本区域像素数为 0）。
 
 
+- **#53 `Kit::Text#truncate` 输出 Builder 对象**：`"#{builder}#{ellipsis}"` 插值的是
+  `String::Builder` 本身，截断文本渲染为 `#<String::Builder:0x…>…`；改为
+  `builder.to_s + ellipsis`。附带修正截断/换行的测量口径——此前用默认 face
+  测宽，与 `measure` 的 `font_id_for(@content, @weight)` 不一致，字重回退时
+  「measure 放得下、paint 却截断」，现在两者同 face。
+
 ## 0.4.1 (2026-11-15)
 
 三个真机回归缺陷修复（#45–#47），GitHub issue 保持清零。

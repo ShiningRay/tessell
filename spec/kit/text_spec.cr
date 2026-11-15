@@ -27,6 +27,20 @@ describe "Tessell::Kit::Text" do
     painter.list[0].text.should end_with("…")
   end
 
+  it "truncation returns content, not the String::Builder inspect (issue #53)" do
+    text = Tessell::Kit::Text.new(KitSpecHelpers.key, "abcdefghij")
+    ctx = KitSpecHelpers.context
+    # 足够宽放下若干字符 + 省略号（StubTextMetrics：ASCII 0.6*size，省略号 1.0*size）
+    text.arrange(ctx, Tessell::Rect.new(0.0_f32, 0.0_f32, 40.0_f32, 20.0_f32))
+    painter = Tessell::Kit::PaintListPainter.new
+    text.paint(painter, ctx)
+    rendered = painter.list[0].text
+    rendered.should_not contain("String::Builder")
+    rendered.should start_with("a")            # 内容前缀，而不是对象表示
+    rendered.should end_with("…")
+    "abcdefghij".should start_with(rendered.rchop("…"))
+  end
+
   it "wraps into multiple lines when wrap is enabled" do
     text = Tessell::Kit::Text.new(KitSpecHelpers.key, "abcdefgh", wrap: true,
       size: Tessell::Kit::ControlSize::Medium)
