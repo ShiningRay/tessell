@@ -57,7 +57,13 @@ crystal run examples/kit_gallery.cr -- --verify --frames=30 --theme=dark --dpi=1
 ./tools/run_kit_demo.sh examples/app_text_editor.cr
 bash tools/kit_consumer_verify.sh
 crystal run tools/build_kit_site.cr   # 输出 site/index.html
+bash tools/gen_api_docs.sh            # 输出 site/api（已 gitignore）
+crystal run tools/fix_api_docs.cr     # 修 API 文档相对链接并挂共享样式
 ```
+
+站点样式集中在 `site/assets/site.css`（共享 token、排版、落地页）与
+`site/assets/api.css`（crystal docs 结构适配）；两个生成脚本只引用不内联，
+改样式不必重跑 `crystal docs`。
 
 示例应用文档：[docs/kit/apps.md](docs/kit/apps.md)。计算器与文本编辑器使用
 SDL2 窗口 + OpenGL；SDL2 目前只存在于 `examples/` 宿主，计划提升为可选
