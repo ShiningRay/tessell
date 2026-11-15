@@ -2,6 +2,8 @@
 
 ## 未发布
 
+四个 bug 修复（#50–#53），对应外部消费者 troupe-chat / tessell-todo 的真机报告。
+
 ### Bug 修复
 - **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
   `batch_count` 是「本次提交的批数量」，实现却当排他结束索引用
@@ -18,6 +20,11 @@
   `builder.to_s + ellipsis`。附带修正截断/换行的测量口径——此前用默认 face
   测宽，与 `measure` 的 `font_id_for(@content, @weight)` 不一致，字重回退时
   「measure 放得下、paint 却截断」，现在两者同 face。
+
+- **#51 运行期增删子组件不重排**：retained-mode 下 `add/remove` 只改命中树不
+  arrange，新组件停在零 bounds（不可见、不可命中）。`Component#mark_structure_dirty`
+  沿父链打标记，`Root#build` 消费后补一次 `layout`；结构未变化时不付重排成本。
+  宿主不再需要 `on_frame` 里手动 `root.layout`。
 
 ## 0.4.1 (2026-11-15)
 

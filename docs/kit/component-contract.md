@@ -17,6 +17,11 @@
 - 尺寸档位只有 `Small / Medium / Large`；间距、圆角、边框、焦点环、控件高度来自 `Theme::Metrics`，组件不得另造一套尺寸。
 - `measure` 只依赖 `Context`（主题、文本度量、DPI scale）与组件自身状态；不得读窗口或 GPU 状态。
 - `arrange` 接收绝对 bounds，递归给子组件分配绝对 bounds。热路径可以复用组件对象，但不得复用上一帧的错误几何。
+- 运行期增删子组件（issue #51）：`Container#add/remove`（以及任何改 `children` 的
+  自定义组件）必须调用 `mark_structure_dirty`，它沿父链把脏标记打到树根；
+  `Root#build` 消费标记并补一次 `layout(@viewport)`。宿主因此**不需要**在动态
+  树变化后手动 `root.layout`——新组件不会再停在零 bounds 上（结构未变化时
+  不重排，稳态零成本，spec/kit/structure_relayout_spec.cr 锁住两个方向）。
 - 文本尺寸统一经 `Context#measure_text`；组件不得自行按字符数猜宽度。
 
 ## 失效最小化

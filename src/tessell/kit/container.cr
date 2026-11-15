@@ -33,6 +33,8 @@ module Tessell
       def add(child : Component) : Component
         attach(child)
         @children << child
+        # issue #51：结构变更向上打脏标记，Root#build 自动补 arrange
+        mark_structure_dirty
         child
       end
 
@@ -46,6 +48,8 @@ module Tessell
         return false unless @children.includes?(child)
         @children.delete(child)
         child.parent = nil
+        # issue #51：移除同样是结构变更，剩余子项需要重排
+        mark_structure_dirty
         true
       end
 

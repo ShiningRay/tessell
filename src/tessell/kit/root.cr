@@ -114,6 +114,18 @@ module Tessell
           return
         end
         @builder.reset(UI::UiKey.root)
+        # 运行期增删子组件（issue #51）：Container#add/remove 沿父链打了结构脏标记，
+        # 这里消费一次并补 arrange——新组件不再停在零 bounds，宿主也不必手动
+        # root.layout。overlay 组件各自持标记，单独消费。
+        structural = @content.take_structure_dirty
+        # 用索引循环而不是 each+block：build 每帧跑，闭包会引入稳态分配
+        entries = @overlay_host.entries
+        ei = 0
+        while ei < entries.size
+          structural = true if entries[ei].component.take_structure_dirty
+          ei += 1
+        end
+        layout(@viewport) if structural
         # 建树期未追踪 signal 读检查（issue #41）：采集窗口只覆盖 emit 段
         # ——UI.apply 是宿主侧提交，不属于建树。
         Tessell::Signal.enter_build(->(node : Tessell::Signal::Node) do
