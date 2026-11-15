@@ -1,5 +1,18 @@
 # Changelog
 
+## 未发布
+
+### Bug 修复
+- **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
+  `batch_count` 是「本次提交的批数量」，实现却当排他结束索引用
+  （`while i < batch_count`）。交错提交（issue #15 口径，`delta` + `before`）时
+  第 2 条起的文本整段不提交——只有第一个文本命令可见。区间语义收敛到
+  `Backend.text_batch_end(size, count, from)`：`[from_batch, min(from_batch+count, size))`，
+  GLBackend 三处循环 + `total_quads`、SoftwareBackend `draw_quads` 全部改用它。
+  回归判据：spec/render_text_batch_window_spec.cr（SoftwareBackend 像素级，
+  修复前第二段文本区域像素数为 0）。
+
+
 ## 0.4.1 (2026-11-15)
 
 三个真机回归缺陷修复（#45–#47），GitHub issue 保持清零。

@@ -489,7 +489,8 @@ module Tessell
         atlas = @atlas
         bx0, by0, bx1, by1 = clip_bounds(clip)
         i = from_batch
-        while i < batch_count
+        last = Tessell::Render::Backend.text_batch_end(batches.size, batch_count, from_batch)
+        while i < last
           b = batches[i]
           page_size = atlas ? atlas.page_size : 0
           vi = b.start
