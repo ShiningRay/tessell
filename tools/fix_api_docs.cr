@@ -53,12 +53,37 @@ module ApiDocsFix
     changed = 0
     files.each do |file|
       original = File.read(file)
-      updated = rewrite(original)
+      updated = theme(rewrite(original), file)
       next if updated == original
       File.write(file, updated)
       changed += 1
     end
-    puts "fix_api_docs: #{changed}/#{files.size} files rewritten"
+    puts "fix_api_docs: #{changed}/#{files.size} files processed (#{files.size} pages)"
+  end
+
+  # 挂上共享样式：site.css 提供 token 与排版，api.css 把 crystal docs 的
+  # 默认紫色主题映射到同一套 token。两者都必须排在自带样式表之后。
+  private def self.theme(html : String, file : String) : String
+    return html if html.includes?("assets/api.css")
+    depth = file.sub("#{API_DIR}/", "").count('/') + 1
+    prefix = "../" * depth
+    tags = %(<link rel="stylesheet" href="#{prefix}assets/site.css">\n) +
+           %(<link rel="stylesheet" href="#{prefix}assets/api.css">\n)
+    html = html.sub(/(<link[^>]*css\/style\.css[^>]*>\n)/) { |m| m + tags }
+    nav_links(html, prefix)
+  end
+
+  # 在侧栏项目摘要下加一条回到 Kit 文档的入口，两站互链。
+  private def self.nav_links(html : String, prefix : String) : String
+    return html if html.includes?("sidebar-links")
+    entry = <<-HTML
+      <div class="sidebar-links">
+      <a href="#{prefix}index.html">Kit 文档</a>
+      <a href="#{prefix}kit/index.html">组件文档</a>
+      <a href="https://github.com/ShiningRay/tessell" rel="noopener">GitHub 仓库</a>
+      </div>
+      HTML
+    html.sub(/(<span class="project-version">[\s\S]*?<\/span>\s*<\/div>)/) { "#{$1}\n#{entry}" }
   end
 end
 

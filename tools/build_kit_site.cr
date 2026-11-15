@@ -33,52 +33,19 @@ module KitSite
     Page.new("自定义大控件", "docs/kit/cookbook-custom-widget.md", "cookbook-custom-widget.html"),
   ]
 
-  STYLE = <<-CSS
-    :root { color-scheme: light dark; --fg:#1f2328; --muted:#6b7280; --bg:#f6f7f9; --card:#fff; --border:#d5d9e0; --accent:#2f6fed; }
-    @media (prefers-color-scheme: dark) { :root { --fg:#e7eaf0; --muted:#9aa4b2; --bg:#171a1f; --card:#1e2228; --border:#3a414c; --accent:#78a2ff; } }
-    * { box-sizing: border-box; }
-    body { margin:0; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; color:var(--fg); background:var(--bg); }
-    a { color:var(--accent); text-decoration:none; }
-    a:hover { text-decoration:underline; }
-    .layout { display:grid; grid-template-columns: 240px minmax(0, 1fr); min-height:100vh; }
-    nav { padding:24px 18px; border-right:1px solid var(--border); background:var(--card); position:sticky; top:0; height:100vh; overflow:auto; }
-    nav h1 { font-size:16px; margin:0 0 16px; }
-    nav a { display:block; padding:4px 8px; border-radius:6px; color:var(--fg); }
-    nav a:hover { background:var(--bg); }
-    main { padding:32px clamp(20px, 5vw, 64px); max-width:920px; }
-    h1, h2, h3 { line-height:1.25; margin:1.4em 0 .5em; }
-    h1 { font-size:30px; margin-top:0; }
-    h2 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
-    p, li { color:var(--fg); }
-    code { background:rgba(127,127,127,.12); padding:1px 5px; border-radius:4px; font-size:.92em; }
-    pre { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; overflow:auto; }
-    pre code { background:none; padding:0; }
-    .tok-kw { color:#cf222e; font-weight:600; }
-    .tok-type { color:#0550ae; }
-    .tok-str { color:#0a3069; }
-    .tok-com { color:#6e7781; font-style:italic; }
-    .tok-num { color:#953800; }
-    .tok-sym { color:#8250df; }
-    .tok-anno { color:#116329; }
-    .tok-op { color:#cf222e; }
-    @media (prefers-color-scheme: dark) {
-      .tok-kw { color:#ff7b72; }
-      .tok-type { color:#79c0ff; }
-      .tok-str { color:#a5d6ff; }
-      .tok-com { color:#8b949e; }
-      .tok-num { color:#ffa657; }
-      .tok-sym { color:#d2a8ff; }
-      .tok-anno { color:#7ee787; }
-      .tok-op { color:#ff7b72; }
-    }
-    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid var(--accent); color:var(--muted); background:var(--card); }
-    table { border-collapse:collapse; width:100%; margin:16px 0; background:var(--card); }
-    th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
-    th { background:rgba(127,127,127,.08); }
-    .meta { color:var(--muted); font-size:13px; margin-bottom:24px; }
-    main img { max-width:100%; height:auto; border:1px solid var(--border); border-radius:8px; margin:12px 0; }
-    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } nav { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); } }
-  CSS
+  # 导航分组：与 PAGES 的输出路径对应，渲染时据此高亮当前页。
+  NAV_GROUPS = {
+    "开始"   => ["index.html"],
+    "组件"   => PAGES.select { |p| p.output.starts_with?("components/") }.map(&.output),
+    "指南"   => ["design-tokens.html", "component-contract.html", "cookbook-custom-widget.html", "apps.html"],
+    "仓库"   => ["plan.html", "cross-platform.html", "execution.html", "repository-strategy.html", "k6-review.html"],
+  }
+
+  # 站点根相对路径：Kit 页位于 site/kit/ 下，组件页再深一层。
+  private def self.root_for(output : String) : String
+    depth = output.split("/").reject(&.empty?).size - 1
+    "../" * (depth + 1)
+  end
 
   def self.build : Nil
     FileUtils.rm_rf("site/kit")
@@ -98,9 +65,6 @@ module KitSite
     source = File.read(page.source)
     title = source.lines.find(&.starts_with?("# ")).try(&.lchop("# ").strip) || page.title
     body = markdown_to_html(source)
-    nav = PAGES.map do |p|
-      %(<a href="#{relative(page.output, p.output)}">#{HTML.escape(p.title)}</a>)
-    end.join("\n")
     <<-HTML
 <!doctype html>
 <html lang="zh-CN">
@@ -108,19 +72,58 @@ module KitSite
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>#{HTML.escape(title)} — Tessell Kit</title>
-<style>#{STYLE}</style>
+<link rel="stylesheet" href="#{root_for(page.output)}assets/site.css">
 </head>
 <body>
 <div class="layout">
-<nav>
-<h1>Tessell Kit</h1>
-#{nav}
-</nav>
+#{sidebar(page.output, root_for(page.output))}
 <main>
-<div class="meta">来源：#{HTML.escape(page.source)}</div>
+<div class="meta">来源：#{HTML.escape(page.source)} · <a href="#{root_for(page.output)}api/index.html">API 参考</a></div>
 #{body}
 </main>
 </div>
+#{layout_tail}
+HTML
+  end
+
+  # 分组侧栏；当前页用 aria-current 高亮（样式见 site/assets/site.css）。
+  private def self.sidebar(current : String, root : String, prefix : String = "") : String
+    groups = NAV_GROUPS.map do |heading, outputs|
+      links = outputs.map do |output|
+        page = PAGES.find { |p| p.output == output }
+        next if page.nil?
+        href = "#{prefix}#{relative(current, output)}"
+        marker = output == current ? %( aria-current="page") : ""
+        %(<a class="nav-link" href="#{href}"#{marker}>#{HTML.escape(page.title)}</a>)
+      end.compact.join("\n")
+      %(<div class="nav-group">\n<div class="nav-group-title">#{HTML.escape(heading)}</div>\n#{links}\n</div>)
+    end.join("\n")
+    <<-HTML
+<nav class="site-nav">
+<details class="nav-details" open>
+<summary>Tessell Kit</summary>
+<div class="nav-body">
+<a class="brand" href="#{root}index.html"><strong>Tessell Kit</strong><span>自绘组件库文档</span></a>
+#{groups}
+<div class="nav-foot">
+<a class="nav-link" href="#{root}api/index.html">API 参考</a>
+<a class="nav-link" href="https://github.com/ShiningRay/tessell" rel="noopener">GitHub 仓库</a>
+</div>
+</div>
+</details>
+</nav>
+HTML
+  end
+
+  private def self.layout_tail : String
+    <<-HTML
+<script>
+  // 窄屏默认折叠整站导航（桌面保持展开）；纯渐进增强，无脚本时导航仍可见。
+  (function () {
+    var d = document.querySelector(".nav-details");
+    if (d && window.matchMedia("(max-width: 820px)").matches) d.open = false;
+  })();
+</script>
 </body>
 </html>
 HTML
@@ -133,22 +136,53 @@ HTML
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tessell Kit 文档</title>
-<style>#{STYLE}</style>
+<title>Tessell Kit — 自绘组件库文档</title>
+<meta name="description" content="Tessell 的 retained-mode 自绘组件库文档：组件 API、设计 token、组件契约与跨平台方案。">
+<link rel="stylesheet" href="assets/site.css">
 </head>
-<body>
+<body class="landing">
 <div class="layout">
-<nav><h1>Tessell Kit</h1><a href="kit/index.html">组件文档</a><a href="api/index.html">API 参考</a></nav>
+#{sidebar("", "", "kit/")}
 <main>
+<section class="hero">
+<p class="hero-eyebrow">Crystal · retained-mode · 自绘</p>
 <h1>Tessell Kit</h1>
-<p>Tessell 的 retained-mode 自绘组件库，同仓可选入口 <code>require "tessell/kit"</code>。</p>
-<p><a href="kit/index.html">进入组件文档 →</a> · <a href="kit/cross-platform.html">跨平台方案 →</a> · <a href="api/index.html">API 参考 →</a></p>
-<p><img src="previews/gallery-light.png" alt="Tessell Kit gallery light" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></p>
-<p class="meta">本页由 <code>tools/build_kit_site.cr</code> 生成；组件运行时与文档站解耦。</p>
+<p class="hero-lead">Tessell 的组件库：Button、Checkbox、Text、Input、Select、Tooltip、Dialog、ScrollView、VirtualList，共用一套设计 token 与键盘/a11y 契约。</p>
+<div class="hero-actions">
+<a class="btn primary" href="kit/index.html">阅读组件文档</a>
+<a class="btn" href="api/index.html">API 参考</a>
+<a class="btn" href="https://github.com/ShiningRay/tessell" rel="noopener">GitHub</a>
+</div>
+</section>
+
+<div class="card-grid">
+<a class="card" href="kit/components/button.html">
+<h3>组件</h3>
+<p>9 个组件的状态、variant、键盘路径与主题 token，逐页写清限制。</p>
+</a>
+<a class="card" href="kit/design-tokens.html">
+<h3>设计 token</h3>
+<p>颜色、间距、圆角、尺寸档位来自 Theme::Metrics，组件不得另造一套。</p>
+</a>
+<a class="card" href="kit/component-contract.html">
+<h3>组件契约</h3>
+<p>身份与状态、尺寸与布局、失效最小化、输入与无障碍的公共约定。</p>
+</a>
+<a class="card" href="kit/cross-platform.html">
+<h3>跨平台方案</h3>
+<p>Windows / macOS / Linux 按 L0–L3 分级收口，未验证项显式标注。</p>
+</a>
+</div>
+
+<div class="preview-frame">
+<img src="previews/gallery-light.png" alt="Tessell Kit 组件矩阵预览（浅色主题）">
+<p class="preview-caption">Kit gallery 无窗口渲染产物：由 PaintList 生成，证明绘制命令与主题组合，不等于真实窗口上屏证据。</p>
+</div>
+
+<p class="meta">本页由 <code>tools/build_kit_site.cr</code> 生成 · 站点样式见 <code>site/assets/site.css</code></p>
 </main>
 </div>
-</body>
-</html>
+#{layout_tail}
 HTML
   end
 
