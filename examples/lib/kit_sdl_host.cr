@@ -571,16 +571,30 @@ module TessellKitSdl
       {% if flag?(:darwin) %}
         candidates << "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
         candidates << "/System/Library/Fonts/Supplemental/Arial.ttf"
+        candidates << "/System/Library/Fonts/Helvetica.ttc"
       {% elsif flag?(:windows) %}
         candidates << "C:/Windows/Fonts/msyh.ttc"
         candidates << "C:/Windows/Fonts/arial.ttf"
       {% else %}
+        # issue #48：Linux 发行版的字体布局差异很大（Arch 只有 TTF/ 与
+        # noto-cjk/，Debian 在 truetype/，Fedora 在 liberation/），只探
+        # DejaVu 一条路径会让示例在多数机器上直接起不来。
         candidates << "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        candidates << "/usr/share/fonts/TTF/DejaVuSans.ttf"
+        candidates << "/usr/share/fonts/dejavu/DejaVuSans.ttf"
+        candidates << "/usr/share/fonts/liberation/LiberationSans-Regular.ttf"
+        candidates << "/usr/share/fonts/TTF/LiberationSans-Regular.ttf"
+        candidates << "/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf"
+        candidates << "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+        candidates << "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"
+        candidates << "/usr/share/fonts/google-noto/NotoSans-Regular.ttf"
+        candidates << "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf"
       {% end %}
       candidates.each do |path|
         return Tessell::Text::FtMeasurer.open(path, 0) if File.exists?(path)
       end
-      raise "no usable font found; set TESSELL_FONT to a TTF/TTC path"
+      raise "no usable font found; set TESSELL_FONT to a TTF/TTC path " \
+            "(tried: #{candidates.join(", ")})"
     end
 
     private def pump_events(root : Tessell::Kit::Root) : Bool
