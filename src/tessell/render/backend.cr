@@ -27,12 +27,14 @@ module Tessell
       # 批数量"，不是排他结束索引——实际绘制区间是
       # `[from_batch, min(from_batch + batch_count, size))`。from_batch=0 时与旧实现
       # 相同，交错提交（issue #15）时才算得对。负的 count 夹成空区间。
+      # 加法先加宽到 Int64：Int32 溢出检查（Crystal 1.22）会让
+      # from_batch=1 + batch_count=Int32::MAX 在钳制前抛 OverflowError。
       def self.text_batch_end(size : Int32, batch_count : Int32, from_batch : Int32) : Int32
         return 0 if size <= 0
-        last = from_batch + batch_count
-        last = size if last > size
-        last = 0 if last < 0
-        last < from_batch ? from_batch : last
+        last = from_batch.to_i64 + batch_count.to_i64
+        last = size.to_i64 if last > size
+        last = 0_i64 if last < 0
+        last < from_batch ? from_batch : last.to_i32
       end
 
       abstract def init(width : Int32, height : Int32) : Nil

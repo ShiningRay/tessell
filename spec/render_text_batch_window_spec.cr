@@ -58,6 +58,14 @@ describe "Render::Backend.text_batch_end（issue #50/#52）" do
     Tessell::Render::Backend.text_batch_end(0, 1, 0).should eq(0)
     Tessell::Render::Backend.text_batch_end(3, -1, 1).should eq(1)
   end
+
+  it "端点加法不溢出 Int32（PR #54 review：先加宽再钳制）" do
+    # 修复前 1 + Int32::MAX 在钳制前就触发 OverflowError
+    Tessell::Render::Backend.text_batch_end(3, Int32::MAX, 1).should eq(3)
+    Tessell::Render::Backend.text_batch_end(3, Int32::MAX, 0).should eq(3)
+    # 负极值边界：钳到空区间 [from_batch, from_batch)
+    Tessell::Render::Backend.text_batch_end(3, Int32::MIN, 2).should eq(2)
+  end
 end
 
 describe "SoftwareBackend#draw_text 交错提交（issue #50/#52）" do
@@ -85,16 +93,22 @@ describe "SoftwareBackend#draw_text 交错提交（issue #50/#52）" do
     renderer.append_text_cached(sink, "FIRST", 20.0_f32, 30.0_f32, 20, w, h, 0x000000ff_u32)
     before = renderer.batch_count - 1
     delta1 = renderer.batch_count - before
-    backend.draw_text(renderer.vertices, renderer.batch_runs, delta1, before)
+    submitted1 = backend.draw_text(renderer.vertices, renderer.batch_runs, delta1, before)
 
     # 第 2 段：from_batch=1, delta=1 —— 修复前这里循环条件恒假，一个 quad 都不画
     renderer.append_text_cached(sink, "SECOND", 140.0_f32, 30.0_f32, 20, w, h, 0x000000ff_u32)
     before2 = renderer.batch_count - 1
     delta2 = renderer.batch_count - before2
-    submitted = backend.draw_text(renderer.vertices, renderer.batch_runs, delta2, before2)
+    submitted2 = backend.draw_text(renderer.vertices, renderer.batch_runs, delta2, before2)
+    # 空提交：返回 0 而不是上一帧累计（Backend#draw_text 契约，issue #46）
+    submitted3 = backend.draw_text(renderer.vertices, renderer.batch_runs, 0, renderer.batch_count)
     backend.end_frame
 
-    submitted.should be > 0
+    submitted1.should be > 0
+    submitted2.should be > 0
+    submitted3.should eq(0)
+    # 每次返回值 = 本次增量，帧累计 = 两次之和（stats 口径不变）
+    backend.stats.submitted_quads.should eq(submitted1 + submitted2)
     painted_pixels(backend, 18, 10, 118, 40).should be > 10
     # 第二段文本区域必须有像素（旧实现恒为 0）
     painted_pixels(backend, 138, 10, 250, 40).should be > 10
