@@ -70,11 +70,11 @@ module Tessell
         return unless @visible
         fs = ctx.theme.font_size(@size)
         color = resolve_color(ctx)
-        lines = layout_lines(ctx, fs)
-        m = ctx.text_metrics(fs)
-        line_h = ctx.line_height(fs)
         # 与 measure 同一 face（issue #29）：宽度和字形一致
         font_id = ctx.font_id_for(@content, @weight)
+        lines = layout_lines(ctx, fs, font_id)
+        m = ctx.text_metrics(fs)
+        line_h = ctx.line_height(fs)
         # 行距与测量同源（issue #19）：基线 = top + ascent，行距 = line_height；
         # 不再用 top + fs 的第三种口径。
         baseline = @bounds.origin.y + m.ascent
@@ -109,30 +109,33 @@ module Tessell
         end
       end
 
-      private def layout_lines(ctx : Context, fs : Float32) : Array(String)
+      private def layout_lines(ctx : Context, fs : Float32, font_id : Int32) : Array(String)
+        # issue #53：截断/换行的宽度口径必须与 measure 同一 face（font_id），
+        # 否则字重/回退 face 不同时 measure 认为放得下、paint 却触发截断。
         if @wrap
-          lines = break_lines(ctx, @content, fs, @bounds.size.width)
+          lines = break_lines(ctx, @content, fs, @bounds.size.width, font_id)
         else
-          lines = [truncate(ctx, @content, fs, @bounds.size.width)]
+          lines = [truncate(ctx, @content, fs, @bounds.size.width, font_id)]
         end
         if max = @max_lines
           if lines.size > max
             lines = lines[0, max]
             if lines.size > 0
-              lines[lines.size - 1] = truncate(ctx, lines[lines.size - 1] + "…", fs, @bounds.size.width)
+              lines[lines.size - 1] = truncate(ctx, lines[lines.size - 1] + "…", fs, @bounds.size.width, font_id)
             end
           end
         end
         lines
       end
 
-      private def break_lines(ctx : Context, text : String, fs : Float32, max_width : Float32) : Array(String)
+      private def break_lines(ctx : Context, text : String, fs : Float32, max_width : Float32,
+                              font_id : Int32) : Array(String)
         return [text] if max_width.infinite? || max_width <= 0.0_f32
         lines = [] of String
         builder = String::Builder.new
         current_w = 0.0_f32
         text.each_char do |ch|
-          w = ctx.measure_text(ch.to_s, fs).width
+          w = ctx.measure_text(ch.to_s, fs, font_id).width
           if current_w > 0.0_f32 && current_w + w > max_width
             lines << builder.to_s
             builder = String::Builder.new
@@ -145,20 +148,23 @@ module Tessell
         lines.empty? ? [""] : lines
       end
 
-      private def truncate(ctx : Context, text : String, fs : Float32, max_width : Float32) : String
+      private def truncate(ctx : Context, text : String, fs : Float32, max_width : Float32,
+                           font_id : Int32) : String
         return text if max_width.infinite? || max_width <= 0.0_f32
-        return text if ctx.measure_text(text, fs).width <= max_width
+        return text if ctx.measure_text(text, fs, font_id).width <= max_width
         ellipsis = "…"
-        ellipsis_w = ctx.measure_text(ellipsis, fs).width
+        ellipsis_w = ctx.measure_text(ellipsis, fs, font_id).width
         builder = String::Builder.new
         width = 0.0_f32
         text.each_char do |ch|
-          w = ctx.measure_text(ch.to_s, fs).width
+          w = ctx.measure_text(ch.to_s, fs, font_id).width
           break if width + w + ellipsis_w > max_width
           builder << ch
           width += w
         end
-        "#{builder}#{ellipsis}"
+        # issue #53：Builder 没有输出内容的 to_s(io) 覆盖，插值会写入对象 inspect；
+        # 取内容再拼省略号。
+        builder.to_s + ellipsis
       end
     end
   end

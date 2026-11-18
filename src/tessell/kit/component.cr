@@ -28,6 +28,26 @@ module Tessell
         @parent = value
       end
 
+      # 结构变更标记（issue #51）：`Container#add/remove` 等结构修改后沿父链打到
+      # 树根，`Root#build` 消费一次并补一次 arrange——运行期增删子组件的宿主不必
+      # 再手动 `root.layout`。只向上标记，不扩散到兄弟子树。
+      property structure_dirty : Bool = false
+
+      def mark_structure_dirty : Nil
+        node : Component? = self
+        while node
+          node.structure_dirty = true
+          node = node.parent
+        end
+      end
+
+      # 取走并清空本节点的结构脏标记（Root 消费；只取根节点，子节点残留标记无害）。
+      def take_structure_dirty : Bool
+        dirty = @structure_dirty
+        @structure_dirty = false
+        dirty
+      end
+
       def attach(child : Component) : Component
         child.parent = self
         child

@@ -96,7 +96,12 @@ module Tessell
           end
         end
 
+        # 键序变化（增/删/重排）= 结构变更（issue #51 同口径）：沿父链打脏标记，
+        # Root#build 消费后补 arrange——否则新增行停在零 bounds、命中不可达。
+        # 只 Set item/index 的值更新（键序不变）不打标记，稳态不重排。
+        structural = new_keys != @order
         @children = children_buf
+        mark_structure_dirty if structural
         @order.clear
         @order.concat(new_keys)
       end

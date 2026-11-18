@@ -1,5 +1,37 @@
 # Changelog
 
+## 未发布
+
+四个 bug 修复（#50–#53），对应外部消费者 troupe-chat / tessell-todo 的真机报告。
+
+### Bug 修复
+- **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
+  `batch_count` 是「本次提交的批数量」，实现却当排他结束索引用
+  （`while i < batch_count`）。交错提交（issue #15 口径，`delta` + `before`）时
+  第 2 条起的文本整段不提交——只有第一个文本命令可见。区间语义收敛到
+  `Backend.text_batch_end(size, count, from)`：`[from_batch, min(from_batch+count, size))`，
+  GLBackend 三处循环 + `total_quads`、SoftwareBackend `draw_quads` 全部改用它。
+  端点加法先加宽到 Int64 再钳制（`from_batch + batch_count` 在极值下触发
+  Int32 OverflowError）；SoftwareBackend `draw_text` 返回值改为本次调用增量
+  （与 GLBackend 及 `Backend#draw_text` 契约一致，此前返回帧累计）。
+  回归判据：spec/render_text_batch_window_spec.cr（SoftwareBackend 像素级，
+  修复前第二段文本区域像素数为 0；含溢出边界与每次调用增量断言）。
+
+
+- **#53 `Kit::Text#truncate` 输出 Builder 对象**：`"#{builder}#{ellipsis}"` 插值的是
+  `String::Builder` 本身，截断文本渲染为 `#<String::Builder:0x…>…`；改为
+  `builder.to_s + ellipsis`。附带修正截断/换行的测量口径——此前用默认 face
+  测宽，与 `measure` 的 `font_id_for(@content, @weight)` 不一致，字重回退时
+  「measure 放得下、paint 却截断」，现在两者同 face。spec 用 face 感知桩
+  （非 0 font_id 宽度不同）锁住截断/换行走同一 face 的口径。
+
+- **#51 运行期增删子组件不重排**：retained-mode 下 `add/remove` 只改命中树不
+  arrange，新组件停在零 bounds（不可见、不可命中）。`Component#mark_structure_dirty`
+  沿父链打标记，`Root#build` 消费后补一次 `layout`；结构未变化时不付重排成本。
+  宿主不再需要 `on_frame` 里手动 `root.layout`。`For#items=` 直接替换 `@children`
+  （不经 add/remove），键序变化（增/删/重排）同样打标；键序不变的值更新不打
+  ——动态列表稳态不重排。
+
 ## 0.4.1 (2026-11-15)
 
 三个真机回归缺陷修复（#45–#47），GitHub issue 保持清零。

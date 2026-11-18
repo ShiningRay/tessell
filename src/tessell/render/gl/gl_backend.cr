@@ -476,7 +476,7 @@ module Tessell
           else
             rects = @dirty.not_nil!
             if rects.empty?
-              @culled_quads += total_quads(batches, batch_count)
+              @culled_quads += total_quads(batches, batch_count, from_batch)
             else
               draw_batches_with_dirty(vertices, batches, batch_count, rects, from_batch, clip)
             end
@@ -681,10 +681,12 @@ module Tessell
           end
         end
 
-        private def total_quads(batches : Array(Tessell::Render::TextBatch), batch_count : Int32) : Int32
+        private def total_quads(batches : Array(Tessell::Render::TextBatch), batch_count : Int32,
+                                from_batch : Int32 = 0) : Int32
           sum = 0
-          i = 0
-          while i < batch_count
+          i = from_batch
+          last = Tessell::Render::Backend.text_batch_end(batches.size, batch_count, from_batch)
+          while i < last
             b = batches[i]
             sum += b.count // 4 if b.count > 0
             i += 1
@@ -697,7 +699,8 @@ module Tessell
                                      clip : Tessell::Rect? = nil) : Nil
           apply_clip(clip)
           i = from_batch
-          while i < batch_count
+          last = Tessell::Render::Backend.text_batch_end(batches.size, batch_count, from_batch)
+          while i < last
             b = batches[i]
             if b.count > 0
               if b.color
@@ -748,6 +751,7 @@ module Tessell
           # rect; quads spanning multiple dirty rects are redrawn per intersecting rect
           # so their pixels inside every cleared dirty region are restored.
           ri = 0
+          last_batch = Tessell::Render::Backend.text_batch_end(batches.size, batch_count, from_batch)
           while ri < rcount
             r = clip ? intersect_rect(clip, rects[ri]) : rects[ri]
             unless empty_rect?(r)
@@ -755,7 +759,7 @@ module Tessell
               TessellGL.glScissor(sx, sy, sw, sh_i)
 
               bi = from_batch
-              while bi < batch_count
+              while bi < last_batch
                 b = batches[bi]
                 if b.count > 0
                   if b.color
@@ -819,7 +823,7 @@ module Tessell
 
           # culled = quads intersecting no dirty rect
           bi = from_batch
-          while bi < batch_count
+          while bi < last_batch
             b = batches[bi]
             if b.count > 0
               vi = b.start

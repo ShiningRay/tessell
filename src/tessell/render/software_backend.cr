@@ -120,6 +120,9 @@ module Tessell
       def draw_text(vertices : Array(Vertex), batches : Array(TextBatch),
                     batch_count : Int32 = batches.size, from_batch : Int32 = 0,
                     clip : Tessell::Rect? = nil) : Int32
+        # 返回值 = 本次调用增量（Backend#draw_text 契约，issue #46）；
+        # stats.submitted_quads 仍是帧累计。与 GLBackend 同款 before/delta。
+        before = @submitted_quads
         if rects = @dirty
           rects.each do |r|
             effective = clip ? intersect(clip, r) : r
@@ -129,7 +132,7 @@ module Tessell
         else
           draw_quads(vertices, batches, batch_count, from_batch, clip)
         end
-        @submitted_quads
+        @submitted_quads - before
       end
 
       def draw_draw_list(list : Tessell::Render::DrawList, from : Int32 = 0,
@@ -489,7 +492,8 @@ module Tessell
         atlas = @atlas
         bx0, by0, bx1, by1 = clip_bounds(clip)
         i = from_batch
-        while i < batch_count
+        last = Tessell::Render::Backend.text_batch_end(batches.size, batch_count, from_batch)
+        while i < last
           b = batches[i]
           page_size = atlas ? atlas.page_size : 0
           vi = b.start
