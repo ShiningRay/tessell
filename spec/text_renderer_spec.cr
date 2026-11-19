@@ -7,7 +7,7 @@ TEXT_RENDERER_FONT_PATH = TestFonts.latin
 describe Tessell::Render::TextRenderer do
   it "\"Hello\" 24px produces quads == drawable glyph count" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)
@@ -27,7 +27,7 @@ describe Tessell::Render::TextRenderer do
 
   it "space produces no quad but pen advances" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)
@@ -46,7 +46,7 @@ describe Tessell::Render::TextRenderer do
 
   it "UVs are within [0,1] for all vertices" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)
@@ -70,7 +70,7 @@ describe Tessell::Render::TextRenderer do
 
   it "same page produces a single batch run" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)
@@ -95,7 +95,7 @@ describe Tessell::Render::TextRenderer do
     # Force 2 pages: 64x64 atlas. 48px CJK glyphs (~48x48) fill a page quickly;
     # pre-place "你" on page 0, then "好" (miss, cached "你" stays on page 0) won't fit -> page 1.
     unless TestFonts.cjk
-      pending "SKIP: no platform CJK test font (TESSELL_TEST_CJK override available)"
+      pending_skip "SKIP: no platform CJK test font (TESSELL_TEST_CJK override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TestFonts.cjk.not_nil!, 0)
@@ -129,7 +129,7 @@ describe Tessell::Render::TextRenderer do
 
   it "quad rectangle sizes equal glyph slot w/h" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)
@@ -164,7 +164,7 @@ describe Tessell::Render::TextRenderer do
 
   it "viewport 800x600 baseline/edge positions produce no NaN/Inf" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)
@@ -190,7 +190,7 @@ describe Tessell::Render::TextRenderer do
 
   it "steady-state zero-alloc: 1000 build_text reuses sink/buffer (criterion A/B)" do
     unless TEXT_RENDERER_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(TEXT_RENDERER_FONT_PATH.not_nil!, 0)

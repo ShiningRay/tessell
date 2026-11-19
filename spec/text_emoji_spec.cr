@@ -7,7 +7,7 @@ EMOJI_FONT = TestFonts.emoji_colr
 describe "Tessell::Text emoji (seguiemj.ttf)" do
   it "measures single emoji 😀 with glyphs>=1, advance>0, |measure-sum(adv)|<=0.5" do
     unless EMOJI_FONT
-      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      pending_skip "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
       next
     end
     m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
@@ -31,7 +31,7 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
 
   it "measures 😀👍 with glyphs>=1, advance>0, |measure-sum(adv)|<=0.5" do
     unless EMOJI_FONT
-      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      pending_skip "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
       next
     end
     m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
@@ -55,7 +55,7 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
 
   it "rasterizes 😀👍 with at least one placement w>0,h>0 and non-zero coverage (records ratio)" do
     unless EMOJI_FONT
-      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      pending_skip "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
       next
     end
     m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
@@ -82,7 +82,7 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
 
   it "placements have UV in [0,1] and page>=0 for drawable glyphs" do
     unless EMOJI_FONT
-      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      pending_skip "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
       next
     end
     m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
@@ -110,7 +110,7 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
 
   it "asserts seguiemj glyph pixel_mode (2=gray/7=BGRA) and records nonzero bitmap evidence" do
     unless EMOJI_FONT
-      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      pending_skip "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
       next
     end
     m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)

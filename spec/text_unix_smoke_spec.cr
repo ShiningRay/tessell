@@ -16,7 +16,7 @@ describe "Text stack on LP64 (macOS/Linux smoke)" do
   it "measures and rasterizes with the platform font" do
     path = unix_font_path
     if path.nil?
-      pending "no Unix test font found"
+      pending_skip "no Unix test font found"
     else
       measurer = Tessell::Text::FtMeasurer.open(path, 0)
       size = measurer.measure("Hello", 0, 16.0_f32, 1000.0_f32)

@@ -88,7 +88,7 @@ describe "Render::SoftwareBackend" do
   it "renders text glyphs from the atlas (headless, no window)" do
     path = unix_font_path
     unless path
-      pending "no Unix test font found"
+      pending_skip "no Unix test font found"
       next
     end
     w = 120
@@ -120,7 +120,7 @@ describe "Render::SoftwareBackend" do
   it "dirty redraw equals full redraw (pure spec oracle)" do
     path = unix_font_path
     unless path
-      pending "no Unix test font found"
+      pending_skip "no Unix test font found"
       next
     end
     w = 160

@@ -31,7 +31,7 @@ end
 describe "Shaped-run cache (M2-WP4 task-73)" do
   it "cache hit equals uncached rasterize_into field-by-field" do
     unless SHAPED_RUN_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
@@ -61,7 +61,7 @@ describe "Shaped-run cache (M2-WP4 task-73)" do
 
   it "LRU upper bound: evicts least-recently-used when capacity exceeded" do
     unless SHAPED_RUN_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
@@ -95,7 +95,7 @@ describe "Shaped-run cache (M2-WP4 task-73)" do
 
   it "frame eviction forbidden during begin_frame/end_frame" do
     unless SHAPED_RUN_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
@@ -121,7 +121,7 @@ describe "Shaped-run cache (M2-WP4 task-73)" do
 
   it "evict_run_lru raises inside frame and works outside" do
     unless SHAPED_RUN_FONT_PATH
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)

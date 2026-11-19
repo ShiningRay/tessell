@@ -53,10 +53,10 @@ describe "Text::FontStack/SystemFonts ttc face enumeration (issue #55)" do
       m.num_faces.should eq(3)
       m.close
     else
-      pending "no Windows msgothic.ttc on this platform"
+      pending_skip "no Windows msgothic.ttc on this platform"
     end
     unless GENERIC
-      pending "no multi-face .ttc candidate discovered on this platform"
+      pending_skip "no multi-face .ttc candidate discovered on this platform"
     end
     path, _fams = GENERIC.not_nil!
     n = Tessell::Text::FtMeasurer.num_faces_of(path)
@@ -83,10 +83,10 @@ describe "Text::FontStack/SystemFonts ttc face enumeration (issue #55)" do
       m2.face_family(99).should be_nil
       m2.close
     else
-      pending "no Windows msgothic.ttc on this platform"
+      pending_skip "no Windows msgothic.ttc on this platform"
     end
     unless GENERIC
-      pending "no multi-face .ttc candidate discovered on this platform"
+      pending_skip "no multi-face .ttc candidate discovered on this platform"
     end
     path, fams = GENERIC.not_nil!
     Tessell::Text::FtMeasurer.face_family(path, 0).should eq(fams[0])
@@ -108,10 +108,10 @@ describe "Text::FontStack/SystemFonts ttc face enumeration (issue #55)" do
       hit3 = Tessell::Text::SystemFonts.find_face(["msgothic"])
       hit3.not_nil![:ttc_index].should eq(0)
     else
-      pending "no Windows msgothic.ttc on this platform"
+      pending_skip "no Windows msgothic.ttc on this platform"
     end
     unless GENERIC
-      pending "no multi-face .ttc candidate discovered on this platform"
+      pending_skip "no multi-face .ttc candidate discovered on this platform"
     end
     path, fams = GENERIC.not_nil!
     pattern = File.basename(path, File.extname(path)).downcase
@@ -132,7 +132,7 @@ describe "Text::FontStack/SystemFonts ttc face enumeration (issue #55)" do
 
   it "find_face falls back to index 0 (with warning) when family misses" do
     unless p = GOTHIC
-      pending "no Windows msgothic.ttc on this platform"
+      pending_skip "no Windows msgothic.ttc on this platform"
       next
     end
     hit = Tessell::Text::SystemFonts.find_face(["msgothic"], family: "No Such Family")
@@ -143,7 +143,7 @@ describe "Text::FontStack/SystemFonts ttc face enumeration (issue #55)" do
 
   it "same collection, different indices measure different advances" do
     unless p = GOTHIC
-      pending "no Windows msgothic.ttc on this platform"
+      pending_skip "no Windows msgothic.ttc on this platform"
       next
     end
     m0 = Tessell::Text::FtMeasurer.open(p, 0)
@@ -158,7 +158,7 @@ describe "Text::FontStack/SystemFonts ttc face enumeration (issue #55)" do
 
   it "FontStack.open family channel resolves index; unknown family keeps explicit ttc_index" do
     unless p = GOTHIC
-      pending "no Windows msgothic.ttc on this platform"
+      pending_skip "no Windows msgothic.ttc on this platform"
       next
     end
     stack = Tessell::Text::FontStack.open([

@@ -9,7 +9,7 @@ RASTER_FONT = TestFonts.latin
 describe Tessell::Text::Rasterizer do
   it "rasterizes 'A' size 16 with valid placement, uv, used_pixels and coverage" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -38,7 +38,7 @@ describe Tessell::Text::Rasterizer do
 
   it "reuses cached glyph on second rasterize: hits increase, rasters/used_pixels unchanged" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -63,7 +63,7 @@ describe Tessell::Text::Rasterizer do
 
   it "rasterizes \"Hello\" and advance sum approximates FtMeasurer.measure within 0.5px" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -82,7 +82,7 @@ describe Tessell::Text::Rasterizer do
 
   it "rasterizes CJK '你' size 24 with coverage > 0" do
     unless TestFonts.cjk
-      pending "SKIP: no platform CJK test font (TESSELL_TEST_CJK override available)"
+      pending_skip "SKIP: no platform CJK test font (TESSELL_TEST_CJK override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(TestFonts.cjk.not_nil!, 0)
@@ -102,7 +102,7 @@ describe Tessell::Text::Rasterizer do
 
   it "returns empty for empty string without crashing" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -118,7 +118,7 @@ describe Tessell::Text::Rasterizer do
     # Evidence: read FT bitmap pitch for 'g' at 24px and verify copied atlas rows match
     # FT source rows in top-to-bottom image order (handles pitch >= 0 and pitch < 0).
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -171,7 +171,7 @@ describe Tessell::Text::Rasterizer do
 
   it "rasterize_into reuses sink array (same object_id) and produces same placements" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -193,7 +193,7 @@ describe Tessell::Text::Rasterizer do
 
   it "glyph_id 0 behavior: unmapped codepoint emits zero-bitmap placement preserving HB count/advance" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -218,7 +218,7 @@ describe Tessell::Text::Rasterizer do
 
   it "D1: whitespace glyphs with empty bitmap do not raise and keep correct advance" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -240,7 +240,7 @@ describe Tessell::Text::Rasterizer do
 
   it "D2: Arabic \"لا\" msyh placements count == HB glyph count and advance matches measure" do
     unless RASTER_FONT
-      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
       next
     end
     meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
@@ -260,6 +260,10 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "D2: Arabic \"لا\" in tahoma/arial/times has at least one font with count==1 and advance consistent" do
+    {% unless flag?(:windows) %}
+      pending_skip "SKIP: Windows 字体专属用例（tahoma/arial/times）；其他平台无该字体集"
+      next
+    {% end %}
     fonts = ["C:/Windows/Fonts/tahoma.ttf", "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/times.ttf"]
     text = "لا"
     any_single = false

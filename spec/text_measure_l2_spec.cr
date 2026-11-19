@@ -143,7 +143,7 @@ describe "CachingMeasurer L2 shaping cache + segmented LRU (issue #56)" do
 
   it "FtMeasurer: cached reflow equals raw measure across widths; second pass L1-only" do
     unless p = MSYH
-      pending "no Windows msyh.ttc on this platform"
+      pending_skip "no Windows msyh.ttc on this platform"
       next
     end
     raw = FtMeasurer.open(p, 0)

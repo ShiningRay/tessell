@@ -19,7 +19,7 @@ end
 describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
   it "color path: emoji placement carries color=true with drawable bitmap" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup
@@ -38,7 +38,7 @@ describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
 
   it "gray path stays default-off: color_enabled=false keeps color=false" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup
@@ -57,7 +57,7 @@ describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
 
   it "atlas stores emoji in RGBA pages: rgba_page_count grows, page data 4B/px with nonzero alpha" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup
@@ -86,7 +86,7 @@ describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
 
   it "gray+color mix flushes separate batches in string order (no cross-tint merge)" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup
@@ -116,7 +116,7 @@ describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
 
   it "shape_run_into color hit path returns identical placements (cross-frame cache)" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup
@@ -140,7 +140,7 @@ describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
 
   it "repeated color rasterize is stable: 200 calls add no new RGBA pages" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup
@@ -156,7 +156,7 @@ describe "text emoji color (COLR/CPAL -> RGBA atlas pages)" do
 
   it "steady color hit loop allocates ~0 per frame (A<1000, B<=256, 3 windows)" do
     unless TestFonts.emoji_colr
-      pending "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
+      pending_skip "SKIP: 本平台无 COLR 彩色 emoji 字体（Windows seguiemj；TESSELL_TEST_EMOJI 可覆盖）"
       next
     end
     s = emoji_setup

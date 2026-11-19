@@ -11,7 +11,7 @@ describe "Text::FontStack / SystemFonts" do
   it "FtMeasurer#covers? reports cmap coverage" do
     path = unix_font_path
     unless path
-      pending "no Unix test font found"
+      pending_skip "no Unix test font found"
       next
     end
     m = Tessell::Text::FtMeasurer.open(path)
@@ -23,7 +23,7 @@ describe "Text::FontStack / SystemFonts" do
   it "pick returns first covering face and measure falls back in priority order" do
     path = unix_font_path
     unless path
-      pending "no Unix test font found"
+      pending_skip "no Unix test font found"
       next
     end
     stack = Tessell::Text::FontStack.open([
@@ -42,7 +42,7 @@ describe "Text::FontStack / SystemFonts" do
   it "pick prefers earlier face and returns nil when nothing covers" do
     path = unix_font_path
     unless path
-      pending "no Unix test font found"
+      pending_skip "no Unix test font found"
       next
     end
     stack = Tessell::Text::FontStack.open([
