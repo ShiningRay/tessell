@@ -46,6 +46,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install sdl2 freetype harfbuzz
+          echo "LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
 
       - name: Setup MSYS2 + Crystal (Windows)
         if: runner.os == 'Windows'
