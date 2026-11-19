@@ -7,6 +7,9 @@
   字体不再依赖应用硬编码 ttc_index。
 - 测量缓存两层化（#56）：L2 宽度无关 shaping 缓存 + 分段 LRU + 
   shapes/reflows 计数，resize 期间不再整段重 shape。
+- 弹性布局（#49）：Row/Column 子项 grow 权重（紧约束分享剩余主轴空间，
+  Flutter Expanded 语义）与 Spacer 占位组件，「输入框占满剩余宽度 +
+  固定宽度按钮」不再溢出。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

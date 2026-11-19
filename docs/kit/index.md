@@ -25,6 +25,7 @@ require "tessell/kit"
 | Dialog | 模态屏障；焦点圈定/恢复；Escape/外部点击 | [dialog.md](components/dialog.md) |
 | Select | 单选；键盘导航；Popover 列表 | [select.md](components/select.md) |
 | Input | 单行文本；grapheme 光标/选区；剪贴板接口；IME 预览 | [input.md](components/input.md) |
+| Row / Column | 线性布局；padding/spacing/alignment；grow 弹性权重 + Spacer | [row-column.md](components/row-column.md) |
 
 ## 尚未交付
 
