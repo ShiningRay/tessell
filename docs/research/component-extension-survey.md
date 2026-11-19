@@ -4,6 +4,7 @@
 - 目的：回答"我们的参考对象如何允许应用开发者写自定义组件、扩展已有组件"，并对照 Tessell Kit 现状给出取舍建议。
 - 证据口径：本仓事实标 `path:line`；外部事实只取官方文档/源码，URL 见 §8；**未编译运行任何参考框架示例**，涉及运行时行为的结论标 `[未验证]`；§6 全部是**建议（未采纳）**，不是决策。
 - 关联文档：`docs/architecture.md:65-70`（六路线对照）、`docs/research/asuka-comparison.md`（asuka 方法论对照）、`docs/kit/plan.md`（Kit 边界与非目标）。
+- 关联 issue：[#57](https://github.com/ShiningRay/tessell/issues/57)（本调研的结论、问题与建议已汇总到该 issue）。
 
 ## 0. 结论
 
