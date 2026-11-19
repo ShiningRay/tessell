@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "./support/fonts"
 require "spec"
 require "../src/tessell/geometry"
 require "../src/tessell/text/measurer"
@@ -7,14 +8,15 @@ require "../src/tessell/text/ft_measurer"
 include Tessell
 include Tessell::Text
 
-FT_ZERO_ALLOC_FONT_PATH = "C:\\Windows\\Fonts\\msyh.ttc"
+FT_ZERO_ALLOC_FONT_PATH = TestFonts.latin
 
 describe "Tessell::Text::FtMeasurer zero-alloc via CachingMeasurer" do
   it "CachingMeasurer(FtMeasurer) cache-hit measures satisfy zero-alloc criterion (GC probe)" do
     unless FtMeasurer.available?
       fail "FtMeasurer not available: #{FtMeasurer.unavailable_reason.inspect}"
     end
-    ft = FtMeasurer.open(FT_ZERO_ALLOC_FONT_PATH, 0)
+    pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT)" unless FT_ZERO_ALLOC_FONT_PATH
+    ft = FtMeasurer.open(FT_ZERO_ALLOC_FONT_PATH.not_nil!, 0)
     begin
       c = CachingMeasurer.new(ft)
       n = 1000

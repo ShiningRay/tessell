@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "./support/fonts"
 require "spec"
 require "../src/tessell/geometry"
 require "../src/tessell/text/measurer"
@@ -7,7 +8,7 @@ require "../src/tessell/text/ft_measurer"
 include Tessell
 include Tessell::Text
 
-FONT_PATH = "C:\\Windows\\Fonts\\msyh.ttc"
+FONT_PATH = TestFonts.latin
 
 describe "Tessell::Text::FtMeasurer" do
   it "⑥1 FtMeasurer.available? true (or fail with reason)" do
@@ -19,7 +20,8 @@ describe "Tessell::Text::FtMeasurer" do
   end
 
   it "⑥2 Hello size 16 width > 0 and matches HB positions sum (±0.5)" do
-    measurer = FtMeasurer.open(FONT_PATH, 0)
+    pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT)" unless FONT_PATH
+    measurer = FtMeasurer.open(FONT_PATH.not_nil!, 0)
     begin
       sz = measurer.measure("Hello", 0, 16.0_f32, 0.0_f32)
       sz.width.should be > 0.0_f32
@@ -34,7 +36,8 @@ describe "Tessell::Text::FtMeasurer" do
   end
 
   it "⑥3 你好世界 4 chars width ≈ single char advance × 4 (±5%)" do
-    measurer = FtMeasurer.open(FONT_PATH, 0)
+    pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT)" unless FONT_PATH
+    measurer = FtMeasurer.open(FONT_PATH.not_nil!, 0)
     begin
       sz4 = measurer.measure("你好世界", 0, 16.0_f32, 0.0_f32)
       sz1 = measurer.measure("你", 0, 16.0_f32, 0.0_f32)
@@ -46,7 +49,8 @@ describe "Tessell::Text::FtMeasurer" do
   end
 
   it "⑥4 max_width forces wrapping height >= 2 lines" do
-    measurer = FtMeasurer.open(FONT_PATH, 0)
+    pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT)" unless FONT_PATH
+    measurer = FtMeasurer.open(FONT_PATH.not_nil!, 0)
     begin
       sz = measurer.measure("Hello World Hello World", 0, 16.0_f32, 50.0_f32)
       single = measurer.measure("Hello", 0, 16.0_f32, 0.0_f32)
@@ -57,7 +61,8 @@ describe "Tessell::Text::FtMeasurer" do
   end
 
   it "⑥5 FT char index for 'A' non-zero and matches HB glyph id" do
-    measurer = FtMeasurer.open(FONT_PATH, 0)
+    pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT)" unless FONT_PATH
+    measurer = FtMeasurer.open(FONT_PATH.not_nil!, 0)
     begin
       info = measurer.shape_info("A", 16.0_f32)
       ft_idx = info[:ft_char_index][65_u32] # 'A'.ord
@@ -71,7 +76,8 @@ describe "Tessell::Text::FtMeasurer" do
   end
 
   it "⑥6 CachingMeasurer wrapping shows hit on second call, inner not called again" do
-    inner = FtMeasurer.open(FONT_PATH, 0)
+    pending_skip "SKIP: no platform test font (TESSELL_TEST_FONT)" unless FONT_PATH
+    inner = FtMeasurer.open(FONT_PATH.not_nil!, 0)
     begin
       inner_calls = 0
       counting = CountingFtMeasurer.new(inner)
