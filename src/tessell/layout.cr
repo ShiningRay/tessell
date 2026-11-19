@@ -275,7 +275,10 @@ module Tessell
     def update(source : LayoutNode) : Bool
       same_children = @source.children.size == source.children.size &&
                       @source.children.each_with_index.all? { |c, i| c.id == source.children[i].id }
-      text_changed = @source.text != source.text
+      # issue #58：任何影响布局语义的字段变化（text/尺寸/padding/margin/
+      # 方向/gap）都必须标脏——只盯 text 会漏掉 Fixed 尺寸与 padding/gap
+      # 变化，增量树复用旧测量缓存（replay oracle 抓到的真实漏标）。
+      semantic_changed = !Layout.semantically_same?(@source, source)
       @source = source
       unless same_children
         @children = source.children.map { |c| CachedNode.build(c, self) }
@@ -284,10 +287,10 @@ module Tessell
       end
       # 原位同步子节点的 source（文本/尺寸可能变化）
       @children.each_with_index { |ch, i| ch.update(source.children[i]) }
-      if text_changed
+      if semantic_changed
         mark_dirty
       end
-      text_changed
+      semantic_changed
     end
 
     def mark! : Nil
@@ -497,6 +500,17 @@ module Tessell
   # 从纯函数 LayoutNode 树构建增量树。
   def self.build_cached(node : LayoutNode) : CachedNode
     CachedNode.build(node)
+  end
+
+  # 布局语义相等（issue #58 单一真相，CachedNode#update 与 replay oracle
+  # 共用）：id/尺寸/padding/margin/方向/gap/text/子树递归；measured 等缓存
+  # 槽不属于语义。
+  def self.semantically_same?(a : LayoutNode, b : LayoutNode) : Bool
+    a.id == b.id && a.width == b.width && a.height == b.height &&
+      a.padding == b.padding && a.margin == b.margin &&
+      a.direction == b.direction && a.gap == b.gap &&
+      a.text == b.text && a.children.size == b.children.size &&
+      a.children.each_with_index.all? { |c, i| semantically_same?(c, b.children[i]) }
   end
   end
 end

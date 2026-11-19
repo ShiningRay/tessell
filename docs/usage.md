@@ -245,6 +245,26 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
   调用顺序即绘制顺序，同 clip 内自动合批）。
 
+## 增量提交的全量重放 oracle（issue #58）
+
+机制来源：NSGo `core/commit.go` 的 debug 全量重放校验——增量 commit 后
+从干净状态强制全量重算，比较所有节点，漏发变更即失败。
+
+- 位置：`spec/support/replay.cr`（`ReplayOracle`）+
+  `spec/replay_oracle_spec.cr`。**仅限 test/debug**：纯 spec 工具，
+  不进 release 热路径，不改变计数门禁语义（无 wall-clock 条件，AGENTS #10）。
+- 开启方式：新增增量路径/缓存语义时，在 spec 里调
+  `ReplayOracle.verify_layout(seed, steps)`——固定 seed 生成确定性更新
+  序列（text/尺寸/padding/gap），每步对「增量树（update + solve_cached，
+  缓存沿用）」与「从零重建的全量树」逐节点比较 rect；不一致即失败并输出
+  `seed/步号/mutation/节点 id/两侧几何`，用该 seed 可精确重放。
+- 性能成本：O(steps × 全量求解)，只存在于 spec 进程；CI 全量 spec 内
+  已含 8 seed × 200 步（<0.2s），不需要另行开启。
+- 实战成果：落地首轮即抓到 `CachedNode#update` 只比较 text 的真实漏标
+  （Fixed 尺寸/padding/gap 变化不标脏 → 增量复用旧测量缓存），
+  `update` 已改为按完整布局语义（`Layout.semantically_same?`，单一真相）
+  决定标脏。
+
 ## 组合动画（issue #63）
 
 `Tessell::Anim` 覆盖**合成态**动画：opacity / translate / scale，走三级失效

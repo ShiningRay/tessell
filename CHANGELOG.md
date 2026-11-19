@@ -24,6 +24,11 @@
   （X1）；三平台 CI + Linux Xvfb 真实窗口 L1（X2）；Windows 真机
   SDL2 计算器/编辑器截图证据（X3）。支持矩阵按 L0–L3 更新，
   macOS L1 待真机、L2/L3 未开始，不宣称 IME/屏幕阅读器/打包完成。
+- 增量重放 oracle（#58，NSGo 机制）：固定 seed 更新序列下增量树与
+  从零重建的全量树逐节点比较——落地首轮抓到 CachedNode#update 只比较
+  text 的真实漏标（尺寸/padding/gap 变化不标脏复用旧缓存），update
+  改按完整布局语义标脏（Layout.semantically_same? 单一真相）；
+  oracle 仅 spec 工具不改热路径与门禁语义。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`
