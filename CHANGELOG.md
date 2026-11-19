@@ -2,9 +2,25 @@
 
 ## 未发布
 
-四个 bug 修复（#50–#53），对应外部消费者 troupe-chat / tessell-todo 的真机报告。
+- bug 修复（#50–#53），对应外部消费者 troupe-chat / tessell-todo 的真机报告。
+- 字体集合能力（#55）：.ttc 集合内按 sfnt family 选 face，多字面 CJK
+  字体不再依赖应用硬编码 ttc_index。
 
 ### Bug 修复
+- **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`
+  需要应用手工指定 `ttc_index`——NotoSansCJK/MS Gothic 类多字面集合默认
+  index 0 很可能拿错字面（中文界面拿到日文 face）。现在把字体集合当容器：
+  `FtMeasurer` 暴露 `num_faces` 与 `face_family(index)`（读 sfnt name 表，
+  nameID 16 优先退 1；平台 0/3 按 UTF-16BE、平台 1 按 Latin-1 解码）；
+  `SystemFonts.find_face(patterns, family:)` 文件名筛候选后集合内按 family
+  匹配返回 `{path, ttc_index}`，未命中退回 index 0 并一次性 warning；
+  `FontStack.open` entry 增加可选 `family: String?` 字段在文件集合内解析
+  index（显式 ttc_index 通道不变）。spec/font_ttc_face_spec.cr：Windows
+  msgothic.ttc 三字面（MS Gothic/MS UI Gothic/MS PGothic）验证 family 读取、
+  find_face 解析、未命中回退与「同集合两 index advance 不同」；其他平台发现
+  任意多字面 .ttc 断言同机制。
+
+- **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
 - **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
   `batch_count` 是「本次提交的批数量」，实现却当排他结束索引用
   （`while i < batch_count`）。交错提交（issue #15 口径，`delta` + `before`）时

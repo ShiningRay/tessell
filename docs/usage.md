@@ -214,8 +214,16 @@ root.handle(Tessell::Input::Event.text_input("hi"))
   （font_id 区分）；批按页合批，绘制按 #15 契约按序提交。
 - `Tessell::Text::SystemFonts.find(["msyh", "pingfang", ...])`：标准目录
   扫描 + 文件名模式匹配，替代硬编码绝对路径；候选仍需 `covers?` 验证。
+- 集合内按 family 选 face（issue #55）：`.ttc/.otc` 是多 face 容器，
+  默认 index 0 在 NotoSansCJK/MS Gothic 类集合里可能拿错字面。
+  `SystemFonts.find_face(["msgothic"], family: "MS PGothic")` 先按文件名
+  筛候选、再读 sfnt name 表（nameID 16 优先）匹配 face，返回
+  `{path, ttc_index}`；未命中退回 index 0 并一次性 warning。
+  `FtMeasurer#num_faces`/`#face_family(index)` 暴露集合数与各字面 family；
+  `FontStack.open` 的 entry 可带 `family: String?` 字段在文件集合内解析
+  index（显式 ttc_index 通道不变）。
 - Fallback 边界：选脸粒度是整段文本而非逐字形；逐字形混排（emoji+中文）
-  需应用按段拆分分别 pick。语义化 family 匹配（sfnt name 表）留待后续。
+  需应用按段拆分分别 pick。
 
 ## 文本 API（issue #6）
 - 测量：`ctx.measure_text(text, size[, max_width])` 返回**逻辑**尺寸并内建

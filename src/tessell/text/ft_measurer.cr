@@ -22,6 +22,25 @@ module Tessell
         @upem
       end
 
+      # face 集合数（issue #55）：.ttc/.otc 是容器不是单 face；单 face 文件为 1。
+      def num_faces : Int32
+        return 0 if @closed
+        @ft_face.value.num_faces.to_i32
+      end
+
+      # 集合内第 index 张 face 的 family（issue #55）：读 sfnt name 表，
+      # nameID 16（typographic family）优先、退 nameID 1；无 name 表或
+      # 打开失败返回 nil（调用方退回 index 0 并 warning）。
+      def face_family(index : Int32 = @ttc_index) : String?
+        return nil if @closed
+        face = uninitialized FT::Lib::Face
+        err = FT::Lib.new_face(@ft_library, @path.to_unsafe, index.to_i64, pointerof(face))
+        return nil unless err == 0
+        family = FtMeasurer.sfnt_family_of(face)
+        FT::Lib.done_face(face)
+        family
+      end
+
       @ft_library : FT::Lib::Library
       @ft_face : FT::Lib::Face
       @hb_blob : HB::Lib::Blob
@@ -60,6 +79,101 @@ module Tessell
           raise "FtMeasurer.open: font file not found: #{path}"
         end
         new(path, ttc_index)
+      end
+
+      # path[index] 的 family（issue #55）：临时 FT face 读 sfnt name 表，
+      # 用完即释放（done_face → done_free_type），不产生持有资源的构造。
+      def self.face_family(path : String, index : Int32) : String?
+        result = nil
+        with_temp_face(path, index) do |face|
+          result = sfnt_family_of(face)
+        end
+        result
+      end
+
+      # path 的 face 集合数（issue #55）；文件不存在或打开失败返回 0。
+      def self.num_faces_of(path : String) : Int32
+        result = 0
+        with_temp_face(path, 0) do |face|
+          result = face.value.num_faces.to_i32
+        end
+        result
+      end
+
+      # 临时打开 path[index] 读元数据；按 done_face → done_free_type 释放。
+      private def self.with_temp_face(path : String, index : Int32, &) : Nil
+        return unless File.exists?(path)
+        ft_lib = uninitialized FT::Lib::Library
+        err = FT::Lib.init_free_type(pointerof(ft_lib))
+        return unless err == 0
+        face = uninitialized FT::Lib::Face
+        err = FT::Lib.new_face(ft_lib, path.to_unsafe, index.to_i64, pointerof(face))
+        if err == 0
+          yield face
+          FT::Lib.done_face(face)
+        end
+        FT::Lib.done_free_type(ft_lib)
+      end
+
+      # sfnt name 表读 family：nameID 16 优先、退 nameID 1；记录按
+      # (3,1,0x409) > (0,*) > (3,*) > (1,0) 打分取最高，未命中返回 nil。
+      def self.sfnt_family_of(face : FT::Lib::Face) : String?
+        count = FT::Lib.get_sfnt_name_count(face)
+        return nil if count == 0
+        best_score = 0
+        best : String? = nil
+        i = 0_u32
+        while i < count
+          name = uninitialized FT::Lib::SfntName
+          err = FT::Lib.get_sfnt_name(face, i, pointerof(name))
+          i += 1
+          next unless err == 0
+          next unless name.name_id == 1_u16 || name.name_id == 16_u16
+          s = decode_sfnt_string(name)
+          next if s.nil? || s.empty?
+          score = name.name_id == 16_u16 ? 10 : 0
+          score += if name.platform_id == 3_u16 && name.encoding_id == 1_u16 &&
+                       name.language_id == 0x409_u16
+                     100
+                   elsif name.platform_id == 0_u16
+                     60
+                   elsif name.platform_id == 3_u16
+                     40
+                   elsif name.platform_id == 1_u16 && name.encoding_id == 0_u16
+                     20
+                   else
+                     5
+                   end
+          if score > best_score
+            best_score = score
+            best = s
+          end
+        end
+        best
+      end
+
+      # name 表字符串解码：平台 0/3（Unicode/Windows）为 UTF-16BE，
+      # 其余（Macintosh Roman 等）按 Latin-1；失败返回 nil。
+      private def self.decode_sfnt_string(name : FT::Lib::SfntName) : String?
+        len = name.string_len.to_i
+        return nil if len <= 0 || name.string.null?
+        if name.platform_id == 0_u16 || name.platform_id == 3_u16
+          return nil if len.odd?
+          n = len // 2
+          units = Slice(UInt16).new(n)
+          k = 0
+          while k < n
+            hi = name.string[2 * k].to_u16
+            lo = name.string[2 * k + 1].to_u16
+            units[k] = (hi << 8) | lo
+            k += 1
+          end
+          String.from_utf16(units)
+        else
+          String.build(len) { |sb| len.times { |k| sb << name.string[k].chr } }
+        end
+      rescue
+        nil
       end
 
       private def initialize(@path : String, @ttc_index : Int32)

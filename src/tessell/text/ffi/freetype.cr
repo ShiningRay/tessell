@@ -189,6 +189,17 @@ module Tessell
           p : UInt8*
         end
 
+        # FT_SfntName（ftsnames.h）：sfnt 'name' 表的单条记录。
+        # id 字段在前、string 在后；string 不保证 NUL 结尾，长度看 string_len。
+        struct SfntName
+          platform_id : UShort
+          encoding_id : UShort
+          language_id : UShort
+          name_id : UShort
+          string : UInt8*
+          string_len : UInt
+        end
+
         LOAD_DEFAULT    = 0_i32
         LOAD_NO_SCALE   = 1_i32 << 0
         LOAD_NO_HINTING = 1_i32 << 1
@@ -208,6 +219,9 @@ module Tessell
         fun get_color_glyph_layer = FT_Get_Color_Glyph_Layer(face : Face, base_glyph : UInt, aglyph_index : UInt*, acolor_index : UInt*, iterator : LayerIterator*) : Int32
         fun palette_data_get = FT_Palette_Data_Get(face : Face, apalette_data : PaletteData*) : Error
         fun palette_select = FT_Palette_Select(face : Face, palette_index : UInt, apalette : Color**) : Error
+        # sfnt name 表（issue #55：.ttc 集合内按 family 选 face）
+        fun get_sfnt_name_count = FT_Get_Sfnt_Name_Count(face : Face) : UInt
+        fun get_sfnt_name = FT_Get_Sfnt_Name(face : Face, idx : UInt, aname : SfntName*) : Error
       end
 
       FT_FACE_FLAG_COLOR  = 1_u32 << 14
@@ -336,6 +350,23 @@ module Tessell
         raise "FT: SizeMetrics.descender offset invalid" unless sm.descender == -222_i64
         (smp + (lp64 ? 40 : 20)).as(Lib::Pos*).value = Lib::Pos.new(333)
         raise "FT: SizeMetrics.height offset invalid" unless sm.height == 333_i64
+
+        # SfntName（LP64 与 LLP64 同布局：4×ushort @0-6、pointer @8、uint @16）
+        sn = uninitialized Lib::SfntName
+        raise "FT: sizeof(SfntName) expected 24 got #{sizeof(Lib::SfntName)}" unless sizeof(Lib::SfntName) == 24
+        snp = pointerof(sn).as(UInt8*)
+        (snp + 0).as(UInt16*).value = 3_u16
+        raise "FT: SfntName.platform_id offset!=0" unless sn.platform_id == 3_u16
+        (snp + 2).as(UInt16*).value = 1_u16
+        raise "FT: SfntName.encoding_id offset!=2" unless sn.encoding_id == 1_u16
+        (snp + 4).as(UInt16*).value = 0x409_u16
+        raise "FT: SfntName.language_id offset!=4" unless sn.language_id == 0x409_u16
+        (snp + 6).as(UInt16*).value = 16_u16
+        raise "FT: SfntName.name_id offset!=6" unless sn.name_id == 16_u16
+        (snp + 8).as(Pointer(UInt8)*).value = Pointer(UInt8).new(0x5555_u64)
+        raise "FT: SfntName.string offset!=8" unless sn.string.address == 0x5555_u64
+        (snp + 16).as(UInt32*).value = 42_u32
+        raise "FT: SfntName.string_len offset!=16" unless sn.string_len == 42_u32
       end
     end
   end

@@ -19,8 +19,9 @@
 #
 # Fallback 边界（诚实口径）：选脸粒度是**整段文本**，不是逐字形——
 # 混排（如 emoji + 中文）需要应用按段拆分后分别 pick；逐字形混合
-# shaping 不在本 API 范围。CJK/emoji 的自动发现只做文件名模式匹配，
-# 语义化 family 匹配（sfnt name 表）留待后续。
+# shaping 不在本 API 范围。CJK/emoji 的自动发现先做文件名模式匹配；
+# 集合内按 sfnt family 选 face 由 SystemFonts.find_face / FontStack.open
+# 的 family 通道提供（issue #55）。
 
 require "./ft_measurer"
 
@@ -63,6 +64,25 @@ module Tessell
         FontStack.new(faces)
       end
 
+      # family 通道（issue #55）：entry 带 family 时在该文件的 face 集合内
+      # 按 sfnt family 解析 ttc_index（nameID 16 优先）；解析失败保留显式
+      # ttc_index 并一次性 warning。显式 ttc_index 通道不变。
+      def self.open(entries : Array({path: String, ttc_index: Int32,
+                                     weight: Weight, label: String,
+                                     family: String?})) : FontStack
+        faces = entries.map_with_index do |e, i|
+          idx = e[:ttc_index]
+          if fam = e[:family]
+            idx = SystemFonts.match_family_index(e[:path], fam) || begin
+              SystemFonts.warn_family_fallback(e[:path], fam)
+              idx
+            end
+          end
+          Face.new(FtMeasurer.open(e[:path], idx), e[:weight], e[:label], i)
+        end
+        FontStack.new(faces)
+      end
+
       getter faces : Array(Face)
 
       def face_count : Int32
@@ -96,10 +116,35 @@ module Tessell
     end
 
     # 系统字体发现（issue #7）：标准目录扫描 + 文件名模式匹配。
-    # 只匹配文件名（不含 sfnt family 查询）；找到的候选仍需应用/FontStack
+    # 文件名筛选之后，集合内按 sfnt family 选 face 由 find_face /
+    # match_family_index 提供（issue #55）；候选仍需应用/FontStack
     # 用 covers? 做真实覆盖验证。
     module SystemFonts
       EXTENSIONS = [".ttf", ".otf", ".ttc"]
+
+      # family 未命中退回 index 0 的一次性告警（不静默；进程内只提示一次）。
+      @@family_fallback_warned = false
+
+      def self.warn_family_fallback(path : String, family : String) : Nil
+        return if @@family_fallback_warned
+        @@family_fallback_warned = true
+        STDERR.puts "SystemFonts: family \"#{family}\" 未命中任何 face，退回 ttc_index 0（#{path}）"
+      end
+
+      # 单文件 face 集合内按 family 匹配 index（大小写不敏感精确匹配）；
+      # 未命中返回 nil。读 sfnt name 表（nameID 16 优先）。
+      def self.match_family_index(path : String, family : String) : Int32?
+        fam = family.downcase
+        n = FtMeasurer.num_faces_of(path)
+        i = 0
+        while i < n
+          if (f = FtMeasurer.face_family(path, i)) && f.downcase == fam
+            return i
+          end
+          i += 1
+        end
+        nil
+      end
 
       # 各平台标准字体目录（存在才返回）。
       def self.search_dirs : Array(String)
@@ -138,6 +183,30 @@ module Tessell
           EXTENSIONS.any? { |ext| name.ends_with?(ext) } &&
             lowered.any? { |p| name.includes?(p) }
         end
+      end
+
+      # 文件名筛候选 + 集合内按 family 选 face（issue #55）。
+      # 返回 {path, ttc_index}；family 为 nil 时等价 find(...) 的 index 0。
+      # family 未命中任何 face 时退回第一个候选 index 0 并一次性 warning。
+      def self.find_face(patterns : Array(String),
+                         family : String? = nil) : {path: String, ttc_index: Int32}?
+        lowered = patterns.map(&.downcase)
+        hits = candidates.select do |path|
+          name = File.basename(path).downcase
+          EXTENSIONS.any? { |ext| name.ends_with?(ext) } &&
+            lowered.any? { |p| name.includes?(p) }
+        end
+        return nil if hits.empty?
+        first = hits.first
+        return {path: first, ttc_index: 0} if family.nil?
+
+        hits.each do |path|
+          if idx = match_family_index(path, family)
+            return {path: path, ttc_index: idx}
+          end
+        end
+        warn_family_fallback(first, family)
+        {path: first, ttc_index: 0}
       end
 
       private def self.walk(dir : String, sink : Array(String)) : Nil
