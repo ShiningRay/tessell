@@ -53,6 +53,7 @@ Crystal 在 Windows 上位于 `C:\msys64\ucrt64\bin`（先 `PATH` 加入或用 `
 | 帧时间 bench（人工，不进门禁） | `crystal run tools/bench_frame_time.cr -- --frames=300 --warmup=30 [--steady] [--json]` | 分布输出；禁止用平均 FPS 下结论 |
 | 滚动 bench | `crystal run tools/bench_scroll.cr` | 分布输出 |
 | atlas 光栅契约验证 | `crystal run tools/atlas_raster_verify.cr` | 退出码 0，key=value 输出 |
+| 布局 oracle fixture 重转换 | `crystal run tools/layout_fixture_convert.cr` | 转换报告 converted=N skipped=M（原因逐条），见 fixtures/layout/README.md |
 | Kit 文档站 | `crystal run tools/build_kit_site.cr` | 生成 `site/kit/*.html` 与 `site/index.html` |
 | API reference | `sh tools/gen_api_docs.sh` | 生成 `site/api/`（已 gitignore） |
 | API 文档后处理 | `crystal run tools/fix_api_docs.cr` | 坏链归零 + 挂 `site/assets/*.css`；需先跑 gen_api_docs |

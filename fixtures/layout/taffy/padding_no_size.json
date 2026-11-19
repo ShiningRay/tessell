@@ -1,0 +1,1 @@
+{"name":"padding_no_size","source":{"repo":"DioxusLabs/taffy","commit":"1abd8ee","path":"tests/xml/flex/padding_no_size__content_box_ltr.xml","license":"MIT"},"viewport":{"width":null,"height":null},"tree":{"width":null,"height":null,"direction":"row","grow":0.0,"gap":0.0,"padding":[10.0,10.0,10.0,10.0],"children":[]},"expected":[{"x":0.0,"y":0.0,"w":20.0,"h":20.0}]}

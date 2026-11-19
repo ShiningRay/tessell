@@ -1,0 +1,36 @@
+{
+  "name": "local_text_nested_padding",
+  "source": {
+    "repo": "local",
+    "commit": "n/a",
+    "path": "fixtures/layout/local/local_text_nested_padding.json",
+    "license": "MIT",
+    "note": "文本测量代表用例（嵌套容器 + padding）：文本 96×19.2，容器 Auto + padding 10 → 116×39.2"
+  },
+  "viewport": { "width": 200.0, "height": null },
+  "tree": {
+    "width": 200.0, "height": null, "direction": "column", "grow": 0.0, "gap": 0.0,
+    "padding": [0.0, 0.0, 0.0, 0.0],
+    "text": null,
+    "children": [
+      {
+        "width": null, "height": null, "direction": "column", "grow": 0.0, "gap": 0.0,
+        "padding": [10.0, 10.0, 10.0, 10.0],
+        "text": null,
+        "children": [
+          {
+            "width": null, "height": null, "direction": "row", "grow": 0.0, "gap": 0.0,
+            "padding": [0.0, 0.0, 0.0, 0.0],
+            "text": { "content": "abcdefghij", "font_size": 16.0, "font_id": 0 },
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "expected": [
+    { "x": 0.0, "y": 0.0, "w": 200.0, "h": 39.2 },
+    { "x": 0.0, "y": 0.0, "w": 116.0, "h": 39.2 },
+    { "x": 10.0, "y": 10.0, "w": 96.0, "h": 19.2 }
+  ]
+}

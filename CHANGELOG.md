@@ -10,6 +10,11 @@
 - 弹性布局（#49）：Row/Column 子项 grow 权重（紧约束分享剩余主轴空间，
   Flutter Expanded 语义）与 Spacer 占位组件，「输入框占满剩余宽度 +
   固定宽度按钮」不再溢出。
+- 布局正确性 oracle（#64）：受控 Taffy fixtures 子集（commit 1abd8ee，
+  MIT）+ 本地文本测量用例，共 25 个——纯函数路径 pass=12 / known-fail=13
+  （交叉轴 stretch 与溢出钳制两类语义缺口，原因逐条登记），
+  缓存路径 25/25 与纯函数几何一致；豁免条目开始通过即强制报
+  EXPIRED-KNOWN-FAIL 要求清除。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

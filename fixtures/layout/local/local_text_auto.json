@@ -1,0 +1,28 @@
+{
+  "name": "local_text_auto",
+  "source": {
+    "repo": "local",
+    "commit": "n/a",
+    "path": "fixtures/layout/local/local_text_auto.json",
+    "license": "MIT",
+    "note": "文本测量代表用例：期望值由 StubMeasurer 确定性口径（width=chars*size*0.6，height=size*1.2）手工推导，是 harness/缓存路径一致性 oracle，不是 CSS 外部语义"
+  },
+  "viewport": { "width": 300.0, "height": null },
+  "tree": {
+    "width": 300.0, "height": null, "direction": "column", "grow": 0.0, "gap": 0.0,
+    "padding": [0.0, 0.0, 0.0, 0.0],
+    "text": null,
+    "children": [
+      {
+        "width": null, "height": null, "direction": "row", "grow": 0.0, "gap": 0.0,
+        "padding": [0.0, 0.0, 0.0, 0.0],
+        "text": { "content": "hello world", "font_size": 16.0, "font_id": 0 },
+        "children": []
+      }
+    ]
+  },
+  "expected": [
+    { "x": 0.0, "y": 0.0, "w": 300.0, "h": 19.2 },
+    { "x": 0.0, "y": 0.0, "w": 105.6, "h": 19.2 }
+  ]
+}

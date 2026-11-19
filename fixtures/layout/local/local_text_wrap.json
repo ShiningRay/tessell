@@ -1,0 +1,28 @@
+{
+  "name": "local_text_wrap",
+  "source": {
+    "repo": "local",
+    "commit": "n/a",
+    "path": "fixtures/layout/local/local_text_wrap.json",
+    "license": "MIT",
+    "note": "文本测量代表用例（换行）：12 字符 × 16px × 0.6 = 115.2 > 100 触发 StubMeasurer 换行（2 行 × 19.2，宽钳到 max_width）"
+  },
+  "viewport": { "width": 100.0, "height": null },
+  "tree": {
+    "width": 100.0, "height": null, "direction": "column", "grow": 0.0, "gap": 0.0,
+    "padding": [0.0, 0.0, 0.0, 0.0],
+    "text": null,
+    "children": [
+      {
+        "width": null, "height": null, "direction": "row", "grow": 0.0, "gap": 0.0,
+        "padding": [0.0, 0.0, 0.0, 0.0],
+        "text": { "content": "abcdefghijkl", "font_size": 16.0, "font_id": 0 },
+        "children": []
+      }
+    ]
+  },
+  "expected": [
+    { "x": 0.0, "y": 0.0, "w": 100.0, "h": 38.4 },
+    { "x": 0.0, "y": 0.0, "w": 100.0, "h": 38.4 }
+  ]
+}
