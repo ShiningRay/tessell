@@ -1,9 +1,14 @@
 require "./spec_helper"
+require "./support/fonts"
 
 module Tessell
   describe "Text::ColorRasterizer (COLR/CPAL)" do
     it "reports color glyph layers for seguiemj emoji" do
-      m = Text::FtMeasurer.open("C:/Windows/Fonts/seguiemj.ttf")
+      unless TestFonts.emoji_colr
+        pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+        next
+      end
+      m = Text::FtMeasurer.open(TestFonts.emoji_colr.not_nil!)
       begin
         cr = Text::ColorRasterizer.new(m)
         g_smile = Text::FT::Lib.get_char_index(m.ft_face_handle, 0x1F600_u32)
@@ -19,7 +24,11 @@ module Tessell
     end
 
     it "msyh has no color layers for emoji codepoints" do
-      m = Text::FtMeasurer.open("C:/Windows/Fonts/msyh.ttc", 0)
+      unless TestFonts.cjk
+        pending "SKIP: no platform CJK test font (TESSELL_TEST_CJK override available)"
+        next
+      end
+      m = Text::FtMeasurer.open(TestFonts.cjk.not_nil!, 0)
       begin
         cr = Text::ColorRasterizer.new(m)
         g_smile = Text::FT::Lib.get_char_index(m.ft_face_handle, 0x1F600_u32)
@@ -30,7 +39,11 @@ module Tessell
     end
 
     it "rasterizes 😀 at 32px with reasonable size and buffer" do
-      m = Text::FtMeasurer.open("C:/Windows/Fonts/seguiemj.ttf")
+      unless TestFonts.emoji_colr
+        pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+        next
+      end
+      m = Text::FtMeasurer.open(TestFonts.emoji_colr.not_nil!)
       begin
         cr = Text::ColorRasterizer.new(m)
         g_smile = Text::FT::Lib.get_char_index(m.ft_face_handle, 0x1F600_u32)
@@ -47,7 +60,11 @@ module Tessell
     end
 
     it "keeps premultiplied invariant r<=a g<=a b<=a for all pixels" do
-      m = Text::FtMeasurer.open("C:/Windows/Fonts/seguiemj.ttf")
+      unless TestFonts.emoji_colr
+        pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+        next
+      end
+      m = Text::FtMeasurer.open(TestFonts.emoji_colr.not_nil!)
       begin
         cr = Text::ColorRasterizer.new(m)
         g_smile = Text::FT::Lib.get_char_index(m.ft_face_handle, 0x1F600_u32)
@@ -70,7 +87,11 @@ module Tessell
     end
 
     it "produces colorful pixels and reports dominant color for 😀" do
-      m = Text::FtMeasurer.open("C:/Windows/Fonts/seguiemj.ttf")
+      unless TestFonts.emoji_colr
+        pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+        next
+      end
+      m = Text::FtMeasurer.open(TestFonts.emoji_colr.not_nil!)
       begin
         cr = Text::ColorRasterizer.new(m)
         g_smile = Text::FT::Lib.get_char_index(m.ft_face_handle, 0x1F600_u32)
@@ -111,7 +132,11 @@ module Tessell
     end
 
     it "handles boundary cases and 200 calls without leak/crash" do
-      m = Text::FtMeasurer.open("C:/Windows/Fonts/seguiemj.ttf")
+      unless TestFonts.emoji_colr
+        pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+        next
+      end
+      m = Text::FtMeasurer.open(TestFonts.emoji_colr.not_nil!)
       begin
         cr = Text::ColorRasterizer.new(m)
         g_smile = Text::FT::Lib.get_char_index(m.ft_face_handle, 0x1F600_u32)

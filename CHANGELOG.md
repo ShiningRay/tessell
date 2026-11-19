@@ -19,6 +19,11 @@
   manual clock + CompositeOnly 失效协议——稳态不重建声明、不重测文本，
   取消/替换/owner dispose/detach 全链路收口，reduced-motion、暂停/恢复、
   无动画停帧有 spec；布局动画不属于本协议（另立提交协议）。
+- 跨平台纵向切片（#61，X0–X3）：测试字体按平台解析（X0）；SDL2 提升
+  为可选平台宿主 `require "tessell/platform/sdl2"`，示例宿主改为装配
+  （X1）；三平台 CI + Linux Xvfb 真实窗口 L1（X2）；Windows 真机
+  SDL2 计算器/编辑器截图证据（X3）。支持矩阵按 L0–L3 更新，
+  macOS L1 待真机、L2/L3 未开始，不宣称 IME/屏幕阅读器/打包完成。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

@@ -1,8 +1,9 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/text/rasterizer"
 require "../src/tessell/text/glyph_atlas"
 
-SHAPED_RUN_FONT_PATH = "C:/Windows/Fonts/msyh.ttc"
+SHAPED_RUN_FONT_PATH = TestFonts.latin
 
 private def placements_equal?(a : Array(Tessell::Text::GlyphPlacement), b : Array(Tessell::Text::GlyphPlacement)) : Bool
   return false unless a.size == b.size
@@ -29,7 +30,11 @@ end
 
 describe "Shaped-run cache (M2-WP4 task-73)" do
   it "cache hit equals uncached rasterize_into field-by-field" do
-    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH, 0)
+    unless SHAPED_RUN_FONT_PATH
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(ft, atlas, 1, 256)
 
@@ -55,7 +60,11 @@ describe "Shaped-run cache (M2-WP4 task-73)" do
   end
 
   it "LRU upper bound: evicts least-recently-used when capacity exceeded" do
-    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH, 0)
+    unless SHAPED_RUN_FONT_PATH
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(ft, atlas, 1, 3)
     sink = [] of Tessell::Text::GlyphPlacement
@@ -85,7 +94,11 @@ describe "Shaped-run cache (M2-WP4 task-73)" do
   end
 
   it "frame eviction forbidden during begin_frame/end_frame" do
-    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH, 0)
+    unless SHAPED_RUN_FONT_PATH
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(ft, atlas, 1, 2)
     sink = [] of Tessell::Text::GlyphPlacement
@@ -107,7 +120,11 @@ describe "Shaped-run cache (M2-WP4 task-73)" do
   end
 
   it "evict_run_lru raises inside frame and works outside" do
-    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH, 0)
+    unless SHAPED_RUN_FONT_PATH
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    ft = Tessell::Text::FtMeasurer.open(SHAPED_RUN_FONT_PATH.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(ft, atlas, 1, 8)
     sink = [] of Tessell::Text::GlyphPlacement

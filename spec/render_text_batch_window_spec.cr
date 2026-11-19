@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/render/software_backend"
 require "../src/tessell/render/text_renderer"
 require "../src/tessell/text/ft_measurer"
@@ -12,20 +13,7 @@ require "../src/tessell/text/rasterizer"
 # 这里用纯 CPU 的 SoftwareBackend 做像素级判据（GL 路径同一处区间计算）。
 
 private def render_font_path : String?
-  candidates = [
-    "/usr/share/fonts/TTF/DejaVuSans.ttf",
-    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
-    "/usr/share/fonts/TTF/LiberationSans-Regular.ttf",
-    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-    "/System/Library/Fonts/Supplemental/Arial.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-    "/System/Library/Fonts/Helvetica.ttc",
-    "C:/Windows/Fonts/segoeui.ttf",
-    "C:/Windows/Fonts/arial.ttf",
-  ]
-  candidates.find { |path| File.exists?(path) }
+  TestFonts.latin
 end
 
 # 统计区域内与底色不同的像素数（有字形落屏的判据）

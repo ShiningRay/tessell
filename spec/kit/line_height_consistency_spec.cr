@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "../support/fonts"
 
 # issue #19：三套行高口径统一。
 # 任一 TextMetrics 实现下：ctx.line_height(fs) == measure_text("x",fs).height
@@ -6,12 +7,7 @@ require "./spec_helper"
 # 不再出现 fs*0.1 / top+fs 经验口径。
 
 private def real_font_path : String?
-  candidates = [
-    "C:/Windows/Fonts/arial.ttf",
-    "/System/Library/Fonts/Supplemental/Arial.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-  ]
-  candidates.find { |path| File.exists?(path) }
+  TestFonts.latin
 end
 
 describe "line height consistency (issue #19)" do

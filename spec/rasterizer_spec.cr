@@ -1,13 +1,18 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/text/rasterizer"
 require "../src/tessell/text/ffi/freetype"
 require "../src/tessell/text/ffi/harfbuzz"
 
-RASTER_FONT = "C:/Windows/Fonts/msyh.ttc"
+RASTER_FONT = TestFonts.latin
 
 describe Tessell::Text::Rasterizer do
   it "rasterizes 'A' size 16 with valid placement, uv, used_pixels and coverage" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -32,7 +37,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "reuses cached glyph on second rasterize: hits increase, rasters/used_pixels unchanged" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -53,7 +62,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "rasterizes \"Hello\" and advance sum approximates FtMeasurer.measure within 0.5px" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -68,7 +81,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "rasterizes CJK '你' size 24 with coverage > 0" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless TestFonts.cjk
+      pending "SKIP: no platform CJK test font (TESSELL_TEST_CJK override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(TestFonts.cjk.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -84,7 +101,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "returns empty for empty string without crashing" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
     placements = rast.rasterize("", 16)
@@ -96,7 +117,11 @@ describe Tessell::Text::Rasterizer do
   it "handles FT bitmap pitch correctly (negative-pitch evidence)" do
     # Evidence: read FT bitmap pitch for 'g' at 24px and verify copied atlas rows match
     # FT source rows in top-to-bottom image order (handles pitch >= 0 and pitch < 0).
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -145,7 +170,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "rasterize_into reuses sink array (same object_id) and produces same placements" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -163,7 +192,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "glyph_id 0 behavior: unmapped codepoint emits zero-bitmap placement preserving HB count/advance" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -184,7 +217,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "D1: whitespace glyphs with empty bitmap do not raise and keep correct advance" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 
@@ -202,7 +239,11 @@ describe Tessell::Text::Rasterizer do
   end
 
   it "D2: Arabic \"لا\" msyh placements count == HB glyph count and advance matches measure" do
-    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT, 0)
+    unless RASTER_FONT
+      pending "SKIP: no platform test font (TESSELL_TEST_FONT override available)"
+      next
+    end
+    meas = Tessell::Text::FtMeasurer.open(RASTER_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(meas, atlas, 1)
 

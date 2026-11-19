@@ -1,11 +1,16 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/text/ffi/freetype"
 
-EMOJI_FONT = "C:/Windows/Fonts/seguiemj.ttf"
+EMOJI_FONT = TestFonts.emoji_colr
 
 describe "Tessell::Text emoji (seguiemj.ttf)" do
   it "measures single emoji 😀 with glyphs>=1, advance>0, |measure-sum(adv)|<=0.5" do
-    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT, 0)
+    unless EMOJI_FONT
+      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      next
+    end
+    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
     begin
       text = "😀"
       size = 32.0_f32
@@ -25,7 +30,11 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
   end
 
   it "measures 😀👍 with glyphs>=1, advance>0, |measure-sum(adv)|<=0.5" do
-    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT, 0)
+    unless EMOJI_FONT
+      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      next
+    end
+    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
     begin
       text = "😀👍"
       size = 32.0_f32
@@ -45,7 +54,11 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
   end
 
   it "rasterizes 😀👍 with at least one placement w>0,h>0 and non-zero coverage (records ratio)" do
-    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT, 0)
+    unless EMOJI_FONT
+      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      next
+    end
+    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(m, atlas, 1)
     begin
@@ -68,7 +81,11 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
   end
 
   it "placements have UV in [0,1] and page>=0 for drawable glyphs" do
-    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT, 0)
+    unless EMOJI_FONT
+      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      next
+    end
+    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(m, atlas, 1)
     begin
@@ -92,7 +109,11 @@ describe "Tessell::Text emoji (seguiemj.ttf)" do
   end
 
   it "asserts seguiemj glyph pixel_mode (2=gray/7=BGRA) and records nonzero bitmap evidence" do
-    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT, 0)
+    unless EMOJI_FONT
+      pending "SKIP: no COLR emoji font on this platform (Windows seguiemj; TESSELL_TEST_EMOJI override)"
+      next
+    end
+    m = Tessell::Text::FtMeasurer.open(EMOJI_FONT.not_nil!, 0)
     atlas = Tessell::Text::GlyphAtlas.new(1024, 4096)
     rast = Tessell::Text::Rasterizer.new(m, atlas, 1)
     begin

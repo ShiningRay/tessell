@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/geometry"
 require "../src/tessell/text/measurer"
 
@@ -33,9 +34,9 @@ private class ShapeStubMeasurer < Measurer
 end
 
 private def msyh_path : String?
-  path = "C:/Windows/Fonts/msyh.ttc"
+  path = TestFonts.cjk
   {% if flag?(:windows) %}
-    File.exists?(path) && FtMeasurer.available? ? path : nil
+    path && FtMeasurer.available? ? path : nil
   {% else %}
     nil
   {% end %}

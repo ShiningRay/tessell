@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/render/software_backend"
 require "../src/tessell/render/canvas"
 
@@ -197,11 +198,5 @@ def canvas_list(emitters : Array(Proc(Tessell::Render::Canvas, Nil))) : Tessell:
 end
 
 def unix_font_path : String?
-  candidates = [
-    "/System/Library/Fonts/Supplemental/Arial.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-    "/System/Library/Fonts/Helvetica.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-  ]
-  candidates.find { |path| File.exists?(path) }
+  TestFonts.latin
 end

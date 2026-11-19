@@ -1,0 +1,104 @@
+# 三平台 L0 CI（issue #61 X2，cross-platform-plan §5.4）。
+# L0 = 编译核心/Kit/apps + 运行 spec + headless gallery。
+# Linux 额外跑 Xvfb 真实 X11 窗口 L1（Xvfb 是真实显示服务器 + Mesa GL，
+# 不是 dummy video driver）；Windows runner 同跑 SDL2 真实窗口；
+# macOS 按 plan 规则只做 L0——runner 不冒充真实窗口，L1 待真机证据。
+#
+# 产物（日志 + 截图）用 upload-artifact 保留失败证据。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  l0:
+    name: L0 ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: windows-2022
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Crystal (Linux/macOS)
+        if: runner.os != 'Windows'
+        uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: 1.22.1
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsdl2-dev libfreetype6-dev libharfbuzz-dev libgl1-mesa-dev \
+            xvfb fonts-dejavu-core fonts-noto-cjk
+
+      - name: Install system deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install sdl2 freetype harfbuzz
+
+      - name: Setup MSYS2 + Crystal (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          release: false
+          install: >-
+            mingw-w64-ucrt-x86_64-crystal
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-freetype
+            mingw-w64-ucrt-x86_64-harfbuzz
+
+      - name: Add MSYS2 to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Add-Content $env:GITHUB_PATH "C:\msys64\ucrt64\bin"
+
+      - name: L0 build
+        run: |
+          crystal build src/tessell.cr --no-codegen
+          crystal build src/tessell/kit.cr --no-codegen
+          crystal build src/tessell/platform/sdl2.cr --no-codegen
+          crystal build examples/app_calculator.cr --no-codegen
+          crystal build examples/app_text_editor.cr --no-codegen
+
+      - name: L0 spec (full, fonts resolved per platform)
+        run: crystal spec
+
+      - name: L0 headless gallery
+        run: crystal run examples/kit_gallery.cr -- --verify --frames=30
+
+      - name: L1 real window (Linux, Xvfb + Mesa)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" \
+            crystal run examples/app_calculator.cr -- \
+            --frames=5 --screenshot=shots/calculator_linux.png
+          test -s shots/calculator_linux.png
+
+      - name: L1 real window (Windows, SDL2)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          crystal run examples/app_calculator.cr -- `
+            --frames=5 --screenshot=shots/calculator_windows.png
+          if (-not (Test-Path shots/calculator_windows.png)) { exit 1 }
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ matrix.os }}
+          path: shots/
+          if-no-files-found: ignore

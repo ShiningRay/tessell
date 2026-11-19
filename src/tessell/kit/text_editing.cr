@@ -27,6 +27,23 @@ module Tessell
       end
     end
 
+    # 平台宿主剪贴板适配器（issue #61 X1，plan §3.3）：Kit 依赖平台宿主
+    # （依赖方向 Platform ← Kit），不产生 Platform→Kit 反向依赖。
+    class HostClipboard < Clipboard
+      @inner : Platform::Clipboard
+
+      def initialize(@inner : Platform::Clipboard)
+      end
+
+      def get : String?
+        @inner.get
+      end
+
+      def set(text : String) : Nil
+        @inner.set(text)
+      end
+    end
+
     # 编辑态 Tab 语义（issue #32）：真正在编辑文本的组件，Tab 是「插入制表
     # 宽度」还是「提交」由 API 声明，不再各自在 key_down 里手写分支。
     #   Reject —— 默认。insert 遇 \t 整体拒绝（返回 false），Tab 交给组件/

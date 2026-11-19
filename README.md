@@ -17,7 +17,26 @@ FreeType / HarfBuzz / OpenGL，**无第三方运行时绑定**，渲染与文本
 | M3 | S1 收口 | 后端抽象+脏矩形部分提交、DPI/主题、真实 GL 万行滚动、路径填充 stencil/cover（even-odd，五角星与 CPU 参考逐像素对拍）；macOS 已有 SDL2/OpenGL 示例证据，Linux 未验证 | [M3-iteration-log](docs/evidence/M3-iteration-log.md)、[M3-gate-r4](docs/evidence/M3-gate-r4.md) |
 | M4 | 完成 | UI DSL（S1）、打包 DLL 清单、真实示例应用+使用文档、一键质量门禁 | [M4-iteration-log](docs/evidence/M4-iteration-log.md)、[M4-WP4-gate](docs/evidence/M4-WP4-gate.md) |
 
-当前 Windows 全量 spec：263 examples / 0 failures（M3-WP4 stencil/cover 新增 17 例：polygon 9 + path_gl 6 + backend_protocol +2；M2 彩色 Emoji 历史新增 13 例）。macOS 因通用 spec 仍有 Windows 字体路径依赖，当前使用 `spec/apps + spec/text_unix_smoke_spec.cr + spec/kit` 共 100 examples / 0 failures；测试分层与字体解析是跨平台 X0 的首项工作。
+当前（issue #61 X0–X3 之后）：
+
+- 全量 spec（Windows 本机）：**656 examples / 0 failures / 0 errors**——
+  测试字体已按平台解析（`TESSELL_TEST_FONT`/`TESSELL_TEST_CJK`/
+  `TESSELL_TEST_EMOJI` 可覆盖），不再依赖硬编码 `C:/Windows/Fonts`；
+  平台特有项缺前置时以顶层 pending 打印 SKIP 原因。
+- 三平台 CI（`.github/workflows/ci.yml`）：L0 编译核心/Kit/SDL2 宿主/
+  apps + 全量 spec + headless gallery；Linux 额外跑 Xvfb 真实 X11 窗口
+  截图，Windows runner 跑 SDL2 真实窗口截图。以 CI 实际运行为准。
+- 支持级别（按 L0/L1/L2/L3 口径，证据见 docs/evidence/X3-*.md）：
+
+| 级别 | Windows | Linux | macOS |
+|---|---|---|---|
+| L0 构建/逻辑 | ✅ 本机 gate + CI | ✅ CI | ✅ CI |
+| L1 真实窗口 | ✅ SDL2 真机（计算器/编辑器截图） | ✅ CI Xvfb + Mesa（真实 X11 窗口） | ⏳ 待真机（runner 不冒充，见 plan §5.4） |
+| L2 可交付 | ❌ 打包/DPI 矩阵未做 | ❌ | ❌ |
+| L3 完整桌面 | ❌ IME 预编辑/UIA 未做 | ❌ | ❌ |
+
+> 不宣称完整 IME、屏幕阅读器或打包已完成。macOS 在 #61 之前已有
+> SDL2/OpenGL 真机证据（cross-platform-plan §1），本次未重复采集。
 
 > M2 Emoji 已完成（带限定）：Windows + `C:/Windows/Fonts/seguiemj.ttf` 单一样例 +
 > COLRv0/CPAL + glReadPixels 数值回读；R8 灰度路径保留；不得外推为

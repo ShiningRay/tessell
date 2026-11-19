@@ -58,6 +58,7 @@ Crystal 在 Windows 上位于 `C:\msys64\ucrt64\bin`（先 `PATH` 加入或用 `
 | API reference | `sh tools/gen_api_docs.sh` | 生成 `site/api/`（已 gitignore） |
 | API 文档后处理 | `crystal run tools/fix_api_docs.cr` | 坏链归零 + 挂 `site/assets/*.css`；需先跑 gen_api_docs |
 | 组件库消费者验证 | `sh tools/kit_consumer_verify.sh` | 退出码 0 |
+| 跨平台 L0 门禁 | `bash tools/gate.sh [--quick]` | 编译 0 退出 + spec 0 failures + `KIT_GALLERY_VERIFY verify=pass` |
 
 ## Conventions
 

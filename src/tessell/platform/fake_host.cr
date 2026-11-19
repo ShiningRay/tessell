@@ -28,6 +28,7 @@ module Tessell
       @viewport : Tessell::Rect
       @queue : Array(Tessell::Input::Event)
       @closed : Bool
+      @clipboard : Platform::MemoryClipboard
 
       def initialize(width : Float32 = 800.0_f32, height : Float32 = 600.0_f32,
                      @scale : Float32 = 1.0_f32)
@@ -41,6 +42,7 @@ module Tessell
         @event_log = [] of Tessell::Input::Event
         @pump_log = [] of Int32
         @closed = false
+        @clipboard = Platform::MemoryClipboard.new
       end
 
       def title : String
@@ -107,6 +109,15 @@ module Tessell
 
       def closed? : Bool
         @closed
+      end
+
+      # X1 契约实现：MemoryClipboard + committed text 能力如实上报。
+      def clipboard : Platform::Clipboard
+        @clipboard
+      end
+
+      def ime : Platform::ImeSupport
+        Platform::ImeSupport::CommittedText
       end
     end
   end

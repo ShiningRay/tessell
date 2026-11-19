@@ -1,14 +1,9 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/text/font_stack"
 
 private def unix_font_path : String?
-  candidates = [
-    "/System/Library/Fonts/Supplemental/Arial.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-    "/System/Library/Fonts/Helvetica.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-  ]
-  candidates.find { |path| File.exists?(path) }
+  TestFonts.latin
 end
 
 # issue #7：FontStack 真实 cmap 选脸与系统字体发现。

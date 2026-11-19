@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "./support/fonts"
 require "../src/tessell/text/ft_measurer"
 require "../src/tessell/text/glyph_atlas"
 require "../src/tessell/text/rasterizer"
@@ -8,12 +9,7 @@ require "../src/tessell/render/text_renderer"
 # keeps the existing Windows-font specs. This guards the FreeType LP64 layout
 # fix without making Windows CI depend on macOS paths.
 private def unix_font_path : String?
-  candidates = [
-    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-    "/System/Library/Fonts/Supplemental/Arial.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-  ]
-  candidates.find { |path| File.exists?(path) }
+  TestFonts.latin
 end
 
 describe "Text stack on LP64 (macOS/Linux smoke)" do
