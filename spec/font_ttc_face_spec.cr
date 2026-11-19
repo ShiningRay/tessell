@@ -10,12 +10,14 @@ require "../src/tessell/text/font_stack"
 # pending + next 说明原因（顶层 pending，不嵌套）。
 
 private def gothic_path : String?
-  path = "C:/Windows/Fonts/msgothic.ttc"
-  {% if flag?(:windows) %}
-    File.exists?(path) ? path : nil
-  {% else %}
-    nil
+  candidates = {% begin %}
+    {% if flag?(:windows) %}
+      ["C:/Windows/Fonts/msgothic.ttc"]
+    {% else %}
+      [] of String
+    {% end %}
   {% end %}
+  candidates.find { |path| File.exists?(path) }
 end
 
 # 通用：第一个 num_faces>1 且各 face family 可读且不全相同的 .ttc 候选

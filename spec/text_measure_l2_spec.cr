@@ -38,7 +38,7 @@ private def msyh_path : String?
   {% if flag?(:windows) %}
     path && FtMeasurer.available? ? path : nil
   {% else %}
-    nil
+    path
   {% end %}
 end
 

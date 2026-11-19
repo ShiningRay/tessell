@@ -86,6 +86,7 @@ describe "signal state snapshot/restore (issue #39 phase 1)" do
 
     path = ".spike/tessell-state-spec.json"
     begin
+      Dir.mkdir_p(".spike") unless Dir.exists?(".spike") # CI 全新 checkout 无该目录（issue #61）
       runner.save_state(path)
       counter.set(0)
       runner.load_state(path).should eq(1)
