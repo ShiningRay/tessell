@@ -43,3 +43,17 @@ crystal run examples/app_text_editor.cr -- --frames=3 --screenshot=docs/evidence
   不进核心默认依赖（`src/tessell.cr` 无该 require，spec 有编译期兜底）。
 - Linux L1 由 CI 的 Xvfb + Mesa（真实 X11 显示服务器 + GL）承担；
   macOS L1 待真机（GitHub runner 不冒充真实窗口，plan §5.4）。
+
+## CI 收口（2026-11-20 补记）
+
+- 三平台 CI 最终全绿：gh run 44633047314（Ubuntu 24.04 / windows-2022 /
+  macos-latest，L0 编译+全量 spec+headless gallery；Ubuntu 附加 Xvfb
+  真实窗口截图、Windows runner 附加 SDL2 真实窗口截图）。
+- 收口过程保留五轮真实失败证据：gh run 44599633172（Ubuntu 编译期
+  NoReturn + Windows 字体版本层数差异 + .spike 目录缺失）、44600688433
+  （Crystal 1.22 运行期 pending 嵌套 21 处 + kit_image 探针噪声）、
+  44603503981（Ubuntu GC 记账方差首轮）、44604986755（macOS Homebrew
+  keg 未进链接线）、44606785102（反斜杠字体路径漏扫 6 例）。
+- 运行期跳过语义：Crystal 1.22 的 `pending` DSL 宏不能在运行中的
+  example 内调用——统一 `pending_skip` helper（spec/spec_helper.cr），
+  三平台 24 个 SKIP 用例以 pending 状态呈现并打印原因。

@@ -42,7 +42,7 @@ Crystal 在 Windows 上位于 `C:\msys64\ucrt64\bin`（先 `PATH` 加入或用 `
 
 | 意图 | 命令 | 通过判据 |
 | --- | --- | --- |
-| 全量 spec | `crystal spec` | 0 failures；Windows 无 Unix 字体时允许 6 个预存门控错误（font_stack/software_backend 文本/text_unix_smoke），macOS/Linux 全绿 |
+| 全量 spec | `crystal spec` | 0 failures/0 errors（issue #61 X0 后三平台字体按平台解析，Windows 本机 656 examples 全绿，Linux/macOS CI 同口径；平台特有项缺前置时 pending_skip 打印 SKIP 原因）|
 | Kit 子集 | `crystal spec spec/kit` | 0 failures |
 | 门禁聚合（Windows） | `pwsh tools/gate.ps1` | 全部 [PASS] |
 | Kit gallery 自校验 | `crystal run examples/kit_gallery.cr -- --verify` | 输出含 `KIT_GALLERY_VERIFY verify=pass` |
