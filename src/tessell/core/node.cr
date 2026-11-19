@@ -31,11 +31,19 @@ module Tessell
     property clip : Rect?
     property parent : Node?
     getter children : Array(Node)
+    # 合成态（issue #63）：由 Anim::Runner 经 Applier 写入，变更标
+    # CompositeOnly（不触发 Layout/Paint）。GL 合成消费为后续工作。
+    property opacity : Float32
+    property scale : Float32
+    property composite_offset : Point
 
     def initialize(@id : String, @bounds : Rect = Rect.new)
       @clip = nil
       @parent = nil
       @children = [] of Node
+      @opacity = 1.0_f32
+      @scale = 1.0_f32
+      @composite_offset = Point.new(0.0_f32, 0.0_f32)
       @layout_dirty = false
       @paint_dirty = false
       @composite_dirty = false

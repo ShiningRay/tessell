@@ -47,6 +47,9 @@ module Tessell
       @current_components : Set(Component)
       # 连续二段提交深度：不收敛（回调每轮再失效）到上限即 raise——宁报勿挂
       @deferred_depth : Int32
+      # CompositeOnly 组合动画（issue #63）：轨注册表 + 节点写入器（各建一次）
+      @anim_runner : Anim::Runner(Component)
+      @anim_applier : AnimCompositeApplier
 
       def initialize(@content : Component, @theme : Theme = Theme.light,
                      @metrics : TextMetrics = StubTextMetrics.new,
@@ -75,6 +78,8 @@ module Tessell
         @applying = false
         @pending_build = false
         @deferred_depth = 0
+        @anim_runner = Anim::Runner(Component).new
+        @anim_applier = AnimCompositeApplier.new(@pool)
         @attached = [] of Component
         @current_components = Set(Component).new
         @router = Tessell::Input::Router.new do |target|
@@ -364,6 +369,53 @@ module Tessell
         @last_hover
       end
 
+      # ---------- CompositeOnly 组合动画（issue #63）----------
+      #
+      # 合成态（opacity/translate/scale）走三级失效里的 CompositeOnly：
+      # 不触发 Layout/Paint、不重建声明、不重测文本。布局动画（bounds 变化）
+      # 不属于本协议——会触发 Layout 传播，需另立提交协议。
+      # manual clock：宿主驱动 clock.advance + tick_animations；停止推进
+      # （离屏/最小化）即冻结。无活动动画时 animations_active? 为 false，
+      # 宿主据此停帧。
+
+      def animate_composite(key : UI::UiKey, start_ms : Int64,
+                            opacity_from : Float32 = 1.0_f32, opacity_to : Float32 = 1.0_f32,
+                            tx_from : Float32 = 0.0_f32, tx_to : Float32 = 0.0_f32,
+                            ty_from : Float32 = 0.0_f32, ty_to : Float32 = 0.0_f32,
+                            scale_from : Float32 = 1.0_f32, scale_to : Float32 = 1.0_f32,
+                            duration_ms : Int64 = 300_i64, delay_ms : Int64 = 0_i64,
+                            easing : Proc(Float32, Float32) = ->Anim::Easing.linear(Float32),
+                            owner : Component? = nil) : Anim::Track
+        @anim_runner.animate(Anim::Track(Component).new(key, start_ms,
+          opacity_from, opacity_to, tx_from, tx_to, ty_from, ty_to,
+          scale_from, scale_to, duration_ms, delay_ms, easing, owner))
+      end
+
+      def cancel_composite(key : UI::UiKey) : Bool
+        @anim_runner.cancel(key)
+      end
+
+      # owner（组件）dispose 收口：取消其名下全部轨。
+      def cancel_anim_owner(owner : Component) : Int32
+        @anim_runner.cancel_owner(owner)
+      end
+
+      # 推进一帧：闭式采样 + 写入 Node 合成态（变更标 CompositeOnly）。
+      # 返回是否仍有活动动画（宿主据此决定下一帧是否请求）。
+      def tick_animations(clock : Anim::Clock) : Bool
+        @anim_runner.tick(clock.now_ms, clock.reduced_motion?, @anim_applier) > 0
+      end
+
+      def animations_active? : Bool
+        @anim_runner.active?
+      end
+
+      # 观测面（issue #36 计数口径）：当前声明批大小——合成动画稳态下
+      # 逐帧不变（不重建声明），供 spec 计数断言使用。
+      def decl_count : Int32
+        @buf.size
+      end
+
       def component_for_node(target : Node) : Component?
         current : Node? = target
         while current
@@ -378,16 +430,47 @@ module Tessell
       # 移出树的组件 dispose（issue #44）：其 Signal Owner 同步销毁，
       # signal 写不再触发已卸载组件的 effect（泄漏契约）。
       # Reference 身份比较（无自定义 ==）；重挂树的组件需重建 watch。
+      # 动画轨同步收口（issue #63）：dispose 的组件名下合成轨全部取消。
       private def dispose_detached_components : Nil
         return if @attached.empty?
         @current_components.clear
         @component_buf.each { |c| @current_components.add(c) }
         @attached.each do |c|
-          c.dispose unless @current_components.includes?(c)
+          unless @current_components.includes?(c)
+            c.dispose
+            @anim_runner.cancel_owner(c)
+          end
         end
       ensure
         @attached.clear
         @attached.concat(@component_buf)
+      end
+
+      # Node 写入器：合成态变更才写 + 标 CompositeOnly（不改 Layout/Paint）。
+      # 目标不在树（组件 detach）返回 false，Runner 静默收口对应轨。
+      private class AnimCompositeApplier < Anim::Applier
+        def initialize(@pool : UI::Pool)
+        end
+
+        def apply(key : UI::UiKey, state : Anim::CompositeState) : Bool
+          node = @pool.map[key]?
+          return false if node.nil?
+          changed = false
+          if node.opacity != state.opacity
+            node.opacity = state.opacity
+            changed = true
+          end
+          if node.scale != state.scale
+            node.scale = state.scale
+            changed = true
+          end
+          if node.composite_offset.x != state.tx || node.composite_offset.y != state.ty
+            node.composite_offset = Point.new(state.tx, state.ty)
+            changed = true
+          end
+          node.mark_dirty(Invalidation::CompositeOnly) if changed
+          true
+        end
       end
 
       private def rebuild_node_map : Nil

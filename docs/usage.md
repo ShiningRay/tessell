@@ -245,6 +245,35 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
   调用顺序即绘制顺序，同 clip 内自动合批）。
 
+## 组合动画（issue #63）
+
+`Tessell::Anim` 覆盖**合成态**动画：opacity / translate / scale，走三级失效
+的 CompositeOnly（不触发 Layout/Paint、不重建声明、不重测文本）。
+
+- 采样全部**闭式**（时刻 → 值）：同一时刻的值与掉帧历史无关；spring 为
+  解析解（轻微过冲是弹簧语义，t≥duration 时终值精确）。
+- **manual clock**：宿主唯一时间来源——`clock.advance(ms)` +
+  `root.tick_animations(clock)`。宿主停止推进（离屏/最小化）即冻结；
+  无隐式 wall-clock，也不宣称 rAF 零开销。
+- 无活动动画：`root.animations_active?` 为 false——宿主据此停帧。
+- 生命周期：同 key `animate_composite` 替换旧轨（触发其 on_cancel）；
+  `cancel_composite(key)` 取消；组件移出树时 dispose 流程自动
+  `cancel_anim_owner` 收口；目标节点不在树的轨由 tick 静默收口（无回调）。
+- reduced-motion：`Clock.new(reduced_motion: true)` 时动画首 tick 直接
+  落到终值（无过渡）。
+- 布局动画（bounds 变化）不属于本协议——会触发 Layout 传播，需另立提交协议。
+- CompositeOnly 状态目前由提交层承载（Node 属性）；GL 层合成消费为后续工作。
+
+```crystal
+clock = Tessell::Anim::Clock.new
+root.animate_composite(text.key, clock.now_ms,
+  opacity_from: 0.0_f32, opacity_to: 1.0_f32, duration_ms: 200_i64,
+  owner: text)
+# 每帧：
+clock.advance(frame_ms)
+still_running = root.tick_animations(clock)
+```
+
 ## 外部纹理契约（issue #28/#45）
 
 位图内容（`Kit::Image`）走 `Backend` 外部纹理通道：

@@ -15,6 +15,10 @@
   （交叉轴 stretch 与溢出钳制两类语义缺口，原因逐条登记），
   缓存路径 25/25 与纯函数几何一致；豁免条目开始通过即强制报
   EXPIRED-KNOWN-FAIL 要求清除。
+- 组合动画（#63）：Tessell::Anim 闭式采样（opacity/translate/scale）+
+  manual clock + CompositeOnly 失效协议——稳态不重建声明、不重测文本，
+  取消/替换/owner dispose/detach 全链路收口，reduced-motion、暂停/恢复、
+  无动画停帧有 spec；布局动画不属于本协议（另立提交协议）。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`
