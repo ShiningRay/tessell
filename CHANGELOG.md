@@ -5,6 +5,8 @@
 - bug 修复（#50–#53），对应外部消费者 troupe-chat / tessell-todo 的真机报告。
 - 字体集合能力（#55）：.ttc 集合内按 sfnt family 选 face，多字面 CJK
   字体不再依赖应用硬编码 ttc_index。
+- 测量缓存两层化（#56）：L2 宽度无关 shaping 缓存 + 分段 LRU + 
+  shapes/reflows 计数，resize 期间不再整段重 shape。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`
@@ -19,6 +21,21 @@
   msgothic.ttc 三字面（MS Gothic/MS UI Gothic/MS PGothic）验证 family 读取、
   find_face 解析、未命中回退与「同集合两 index advance 不同」；其他平台发现
   任意多字面 .ttc 断言同机制。
+
+- **#56 测量缓存两层化：resize 期间整段重 shape**：旧 `CachingMeasurer`
+  的键含 max_width——窗口每变 1px 就是一条新键，且满 8192 整体 `clear`
+  （全有全无），拖拽 resize 时万行列表整段 re-shape、measure 调用数在
+  resize 场景不稳定。重构为两层：L1 结果缓存按 font_id 分段 LRU（段上限
+  2048、总量 8192），一次 resize 风暴只挤占该字体自己的段；L2 宽度无关
+  shaping 缓存 `(font_id, size, text_hash) → ShapeRun`（advance 序列 +
+  行高），宽度变化只重排断点（`reflows` 计数），不重 shape（`shapes`
+  计数）。断行口径收敛到唯一来源 `Text.reflow_run`（`FtMeasurer#measure`
+  与 L2 reflow 共用，几何一致有 spec 锁）；`shape_run` 是 Measurer 可选
+  接口，桩/计数桩自动走全量路径。回归判据：
+  spec/text_measure_l2_spec.cr（32 cluster 文本 320→360 连续 41 个宽度
+  shapes==1、回到原宽度 L1 命中 shapes 增量 0、分段隔离、总量有界、
+  FtMeasurer 缓存 reflow 与全量 measure 逐宽度相等）；门禁
+  counting_assertions/layout_cached/zero_alloc 不回退。
 
 - **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
 - **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的

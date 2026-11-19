@@ -260,17 +260,34 @@ module Tessell
       end
 
       # 实现 Measurer 接口：font_id 被忽略（本实例绑定单一 face）
+      # 断行口径唯一来源 Text.reflow_run（issue #56：与 CachingMeasurer L2
+      # reflow 共用，两条路径几何一致）。
       def measure(text : String, font_id : Int32, size : Float32, max_width : Float32) : Size
         @measure_calls += 1
         return Size.new(0.0_f32, 0.0_f32) if @closed
         return Size.new(0.0_f32, 0.0_f32) if text.empty?
+        run = shape_run(text, font_id, size)
+        return Size.new(0.0_f32, 0.0_f32) unless run
+        if max_width > 0.0_f32
+          Text.reflow_run(run.advances, run.line_height, max_width)
+        else
+          total = 0.0_f32
+          run.advances.each { |a| total += a }
+          Size.new(total, run.line_height)
+        end
+      end
 
+      # 宽度无关 shaping（issue #56 L2）：advance 序列（px，含与 measure
+      # 相同的零 advance 回退口径）+ 行高（px）。不支持/失败返回 nil。
+      def shape_run(text : String, font_id : Int32, size : Float32) : ShapeRun?
+        return nil if @closed
+        return nil if text.empty?
         px = size <= 0 ? 1_u32 : size.round.to_u32
         px = 1_u32 if px == 0
         err = FT::Lib.set_pixel_sizes(@ft_face, 0_u32, px)
         if err != 0
           @last_error = "FT_Set_Pixel_Sizes failed: #{err}"
-          return Size.new(0.0_f32, 0.0_f32)
+          return nil
         end
 
         # line height from FT size metrics (26.6)
@@ -311,10 +328,7 @@ module Tessell
           while i < glyph_count
             adv_hb = positions[i].x_advance
             if adv_hb == 0
-              # fallback for this glyph slot: try FT by glyph id/codepoint mapping is non-trivial;
-              # use FT advance of corresponding cluster char if possible, else 0
-              # easier: recompute per-char FT for whole text in fallback? keep simple:
-              # fallback per-glyph via codepoint from infos? not available; use FT_Get_Char_Index+load
+              # fallback for this glyph slot: FT advance of HB glyph id
               gid = infos[i].codepoint
               advances << ft_glyph_advance(gid.to_u32, scale)
             else
@@ -331,28 +345,7 @@ module Tessell
           end
         end
 
-        # wrapping
-        if max_width > 0.0_f32
-          lines = 1
-          line_w = 0.0_f32
-          max_line_w = 0.0_f32
-          advances.each do |adv|
-            if line_w > 0.0_f32 && (line_w + adv) > max_width
-              max_line_w = line_w if line_w > max_line_w
-              lines += 1
-              line_w = adv
-            else
-              line_w += adv
-            end
-          end
-          max_line_w = line_w if line_w > max_line_w
-          max_line_w = max_width if max_line_w > max_width
-          Size.new(max_line_w, line_height * lines)
-        else
-          total = 0.0_f32
-          advances.each { |a| total += a }
-          Size.new(total, line_height)
-        end
+        ShapeRun.new(advances, line_height)
       end
 
       # 字体度量（issue #6）：读 FT size metrics（26.6 定点 → px）。

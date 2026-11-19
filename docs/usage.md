@@ -230,6 +230,12 @@ root.handle(Tessell::Input::Event.text_input("hi"))
   缓存（key=(text,size,max_width)，文本集合变化时 `ctx.clear_text_cache`）；
   底层建议注入 `CoreTextMetrics.new(CachingMeasurer.new(ft))` 与渲染同走
   shaped-run 路径。
+- 测量缓存两层化（issue #56）：`CachingMeasurer` L1 结果缓存
+  `(font_id, size, text_hash, max_width)` 按 font_id 分段 LRU（段上限
+  2048、总量 8192），resize 风暴只挤占该字体自己的段；L2 宽度无关
+  shaping 缓存（advance 序列 + 行高），连续宽度变化只重排断点不计入
+  shape。`stats` 提供 `shapes`/`reflows` 计数供断言；底层实现
+  `shape_run`（`FtMeasurer` 已实现）才享受 L2，桩自动走全量路径。
 - 字体度量：`ctx.text_metrics(size)` 返回逻辑单位 ascent/descent/
   line_height；垂直居中用 `(rect.h - (ascent+descent))/2 + ascent`，不要
   再用 `0.36 * size` 之类的经验系数。
