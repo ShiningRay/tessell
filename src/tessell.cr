@@ -35,6 +35,7 @@ require "./tessell/platform/fake_host"
 require "./tessell/ui/builder"
 require "./tessell/a11y/tree"
 require "./tessell/app/runner"
+require "./tessell/app/perf"
 
 module Tessell
   # UI 主循环必须运行在独占系统线程的执行上下文中。

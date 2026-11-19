@@ -29,6 +29,11 @@
   text 的真实漏标（尺寸/padding/gap 变化不标脏复用旧缓存），update
   改按完整布局语义标脏（Layout.semantically_same? 单一真相）；
   oracle 仅 spec 工具不改热路径与门禁语义。
+- 帧分段观测（#60，借 NSGo 测量维度不借阈值）：App::PerfCollector
+  五段（input/build/layout/paint/present）op+调用计数、帧粒度失效→
+  呈现延迟、跨上下文 hop 计数；默认关闭零基线改变，p50/p95/p99 只进
+  F1 overlay 与人工 bench 管道（AGENTS #10 口径不变），文档写明与
+  NSGo 双线程模型数字不可直接比较。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

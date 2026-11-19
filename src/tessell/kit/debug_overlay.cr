@@ -22,6 +22,9 @@ module Tessell
       getter focus_name : String
       # 建树期未追踪 signal 读告警（issue #41 第一期）
       getter build_warnings : Array(String)
+      # 分段观测摘要（issue #60）：宿主从 PerfCollector 生成的一行文本，
+      # 空串 = 未启用。仅 F1 overlay 展示，不进门禁（AGENTS #10）。
+      getter perf_summary : String
 
       def initialize(@frame_ms : Float32 = 0.0_f32,
                      @quads : Int32 = 0, @scissor_calls : Int32 = 0,
@@ -30,7 +33,8 @@ module Tessell
                      @used_pixels : Int32 = 0, @evicted_total : Int32 = 0,
                      @dirty_rects : Array(Tessell::Rect) = [] of Tessell::Rect,
                      @hover_name : String = "", @focus_name : String = "",
-                     @build_warnings : Array(String) = [] of String)
+                     @build_warnings : Array(String) = [] of String,
+                     @perf_summary : String = "")
       end
 
       def fps : Float32
@@ -92,6 +96,8 @@ module Tessell
         end
         lines << "hover=#{i.hover_name.empty? ? "-" : i.hover_name}"
         lines << "focus=#{i.focus_name.empty? ? "-" : i.focus_name}"
+        # 分段观测（issue #60）：宿主 PerfCollector 摘要行，空串不占行
+        lines << i.perf_summary unless i.perf_summary.empty?
         # 建树期 signal 读告警（issue #41）：可视化计数 + 首条
         unless i.build_warnings.empty?
           first = i.build_warnings.first

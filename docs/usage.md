@@ -245,6 +245,42 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
   调用顺序即绘制顺序，同 clip 内自动合批）。
 
+## 帧/提交分段观测（issue #60）
+
+`Tessell::App::PerfCollector`——借 NSGo `internal/engine/perf.go` 的
+**测量维度**（分段计数分列），不借其性能阈值。
+
+- **默认关闭**：`PerfCollector.new` 不传 `enabled: true` 时全部记录
+  方法是单 Bool 判断的 no-op，热路径不改变现有分配/计数基线。
+- 分段：`Input`（事件泵+路由）/ `Build`（声明 emit + UI.apply）/
+  `Layout`（arrange）/ `Paint`（绘制命令产出）/ `Present`（swap），
+  每段记 op 数与调用数；`record`（宿主钟差）或 `record_ops`（纯计数）。
+- 失效→呈现延迟：帧粒度近似——失效帧 lag=0，此后每过一个未 present
+  的帧 +1，present 帧归零。跨 Isolated context 只记 `record_hop` 计数，
+  **不做跨钟差**（engine/UI 两钟不同源，硬凑数字是造假）。
+- 有界环形样本 256 帧（约 4 秒 @60fps），`percentile`/`to_json_string`
+  输出 p50/p95/p99——**只供 F1 overlay 文本行与人工 bench 管道**，
+  CI 门禁仍只看 op 流/命令数/分配字节（AGENTS #10：帧时间分布不进门禁）。
+- **不可与 NSGo 数字直接比较**：Tessell 是单进程 immediate-emit +
+  retained 失效树，NSGo 是 engine/main 双线程模型——两边的「分段」
+  边界（commit vs build+apply）、时钟来源与 hop 语义都不同；数字只能
+  和同机同版本的本仓历史样本比。
+
+```crystal
+perf = Tessell::App::PerfCollector.new(enabled: true)
+loop do
+  perf.frame_start
+  t0 = host.ticks_ms
+  events = host.poll_events(sink); perf.record_ops(:input, events.size)
+  root.build; perf.record_ops(:build, root.decl_count)
+  root.layout(w, h); perf.record_ops(:layout, node_count)
+  root.paint(painter); perf.record_ops(:paint, backend.stats.submitted_quads)
+  host.present; perf.record_ops(:present, 1)
+  perf.frame_end((host.ticks_ms - t0).to_f32)
+end
+# F1 overlay：把 "perf p50=…ms ops[…]=…" 一行塞进 DebugInfo(perf_summary:)
+```
+
 ## 增量提交的全量重放 oracle（issue #58）
 
 机制来源：NSGo `core/commit.go` 的 debug 全量重放校验——增量 commit 后
