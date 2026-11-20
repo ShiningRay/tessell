@@ -40,6 +40,12 @@
   FakeHost 管道与 Raw 直投（真实宿主）双后端一致，SDL2 真实窗口
   journey 附截图证据（spec/test_driver_spec.cr 7 例 +
   test_driver_sdl_spec.cr，无桌面环境 pending_skip 按平台分级）。
+- 内置组件可覆写切面（#66）：Button/Checkbox/Input 抽 protected
+  切面（resolve_colors/draw_background/draw_border/draw_focus_ring/
+  draw_content/inside?/activate/toggle 等），骨架保证焦点环与
+  disabled 分支、命中激活状态机与 emit key 契约；像素输出不变
+  （全量 spec 与既有 PaintList op 断言零回归），契约文档列出
+  每组件可覆写点清单（docs/kit/component-contract.md）。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

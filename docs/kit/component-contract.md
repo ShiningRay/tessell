@@ -89,3 +89,22 @@
 4. 键盘路径 spec；适用时覆盖指针进入/离开/取消。
 5. 主题 light/dark 与至少 1.0/1.5/2.0 scale 的纯逻辑验证。
 6. 真实窗口验证另记；未运行不得写成通过。
+
+## 内置组件可覆写切面（issue #66）
+
+扩展内置组件的**受控继承**路径：子类覆写单个 `protected` 切面，其余行为
+（焦点环 / disabled 分支 / 命中与激活状态机 / emit key 契约）由内置骨架
+保证。`emit` 始终由内置实现发自身 key；hook 只改绘制与行为，不改 op 流
+契约与 a11y 元数据来源。覆写是虚分派，不新增每帧分配（AGENTS #6）。
+
+| 组件 | 可覆写切面（protected） | 骨架保证 |
+|---|---|---|
+| Button | `resolve_colors` / `interaction_state` / `draw_background` / `draw_border` / `draw_focus_ring` / `draw_content` / `inside?` / `activate` | 绘制顺序（背景→边框→焦点环→内容）、焦点环条件（focused && enabled）、按压/键盘状态机 |
+| Checkbox | `checkbox_box_rect` / `resolve_colors` / `draw_box` / `draw_focus_ring` / `draw_mark` / `draw_label` / `inside?` / `toggle` | 焦点环条件、checked/indeterminate 分支顺序 |
+| Input | `draw_label` / `draw_field` / `draw_content` / `draw_caret` / `draw_error` / `inside?` | 光标条件（focused && enabled）、invalid/focus 边框选择、选择/preedit 固定调用 |
+
+组合优先（Container/Row/Column）仍是第一选择；受控继承用于「改外观或
+行为的一小步」。写新第三方组件的三条路径见 #67（extending.md）。
+
+示例：`spec/kit/override_hooks_spec.cr`（覆写 draw_background 叠加 op、
+inside? 收窄命中、toggle 计数——骨架分支不丢）。

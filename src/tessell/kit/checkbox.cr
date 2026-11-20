@@ -48,20 +48,46 @@ module Tessell
 
       def paint(p : Painter, ctx : Context) : Nil
         return unless @visible
-        box = box_size(ctx)
-        box_rect = Rect.new(@bounds.origin.x,
-          @bounds.origin.y + (@bounds.size.height - box) / 2.0_f32, box, box)
+        box_rect = checkbox_box_rect(ctx)
+        colors = resolve_colors(ctx)
         radius = ctx.theme.metrics.radius_sm
-        colors = ctx.theme.button_colors(Variant::Secondary, @size,
+        # 可覆写切面（issue #66）：骨架保证焦点环/disabled 分支与顺序
+        draw_box(p, ctx, box_rect, radius, colors)
+        draw_focus_ring(p, ctx, box_rect, radius)
+        draw_mark(p, ctx, box_rect, colors)
+        draw_label(p, ctx, box_rect)
+      end
+
+      # ---- 可覆写切面（issue #66 契约，见 docs/kit/component-contract.md）----
+      protected def checkbox_box_rect(ctx : Context) : Rect
+        box = box_size(ctx)
+        Rect.new(@bounds.origin.x,
+          @bounds.origin.y + (@bounds.size.height - box) / 2.0_f32, box, box)
+      end
+
+      protected def resolve_colors(ctx : Context) : ButtonColors
+        ctx.theme.button_colors(Variant::Secondary, @size,
           InteractionState.new(hovered: @hovered, pressed: @pressed,
             focused: @focused, disabled: !@enabled))
+      end
+
+      protected def draw_box(p : Painter, ctx : Context, box_rect : Rect,
+                             radius : Float32, colors : ButtonColors) : Nil
         p.fill_round_rect(box_rect, radius, @checked ? ctx.theme.palette.accent : colors.background)
         p.stroke_round_rect(box_rect, radius, colors.border, ctx.theme.metrics.border_width)
+      end
+
+      protected def draw_focus_ring(p : Painter, ctx : Context, box_rect : Rect,
+                                    radius : Float32) : Nil
         if @focused && @enabled
           p.stroke_round_rect(Geometry.inset(box_rect, 2.0_f32), radius,
             ctx.theme.palette.focus, ctx.theme.metrics.focus_ring_width)
         end
+      end
 
+      protected def draw_mark(p : Painter, ctx : Context, box_rect : Rect,
+                              colors : ButtonColors) : Nil
+        box = box_rect.size.width
         mark_color = @checked ? ctx.theme.palette.accent_foreground : colors.foreground
         if @checked
           p.line(box_rect.origin.x + box * 0.22_f32, box_rect.origin.y + box * 0.52_f32,
@@ -75,7 +101,9 @@ module Tessell
             box_rect.origin.x + box * 0.78_f32, box_rect.origin.y + box * 0.5_f32,
             mark_color, 2.0_f32)
         end
+      end
 
+      protected def draw_label(p : Painter, ctx : Context, box_rect : Rect) : Nil
         fs = ctx.theme.font_size(@size)
         color = @enabled ? ctx.theme.palette.foreground : ctx.theme.palette.muted
         baseline = TextDrawing.middle_baseline(@bounds, ctx.text_metrics(fs))
@@ -166,7 +194,8 @@ module Tessell
         end
       end
 
-      private def toggle : Nil
+      # 激活行为（issue #66 契约：子类可扩展翻转语义，状态机由 handle 骨架保证）
+      protected def toggle : Nil
         if @indeterminate
           @indeterminate = false
           @checked = true
@@ -180,7 +209,8 @@ module Tessell
         Math.max(16.0_f32, ctx.theme.font_size(@size) + 2.0_f32)
       end
 
-      private def inside?(x : Float32, y : Float32) : Bool
+      # 命中判定（issue #66 契约：子类可改命中区域）
+      protected def inside?(x : Float32, y : Float32) : Bool
         @bounds.contains?(Point.new(x, y))
       end
     end

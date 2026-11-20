@@ -76,12 +76,30 @@ module Tessell
       def paint(p : Painter, ctx : Context) : Nil
         return unless @visible
         field = field_rect(ctx)
+        draw_label(p, ctx, field)
+        draw_field(p, ctx, field)
+        area = text_area(ctx)
+        fs = ctx.theme.font_size(@size)
+        p.push_clip(area)
+        paint_selection(p, ctx, area, fs)
+        draw_content(p, ctx, field, area, fs)
+        draw_caret(p, ctx, field, area, fs)
+        p.pop_clip
+        draw_error(p, ctx, field)
+      end
+
+      # ---- 可覆写切面（issue #66 契约，见 docs/kit/component-contract.md）----
+      # 选择/preedit 仍是骨架固定调用（paint_selection/paint_preedit），
+      # 子类通常只需改背景/内容/光标之一
+      protected def draw_label(p : Painter, ctx : Context, field : Rect) : Nil
         label_fs = ctx.theme.font_size(ControlSize::Small)
         if !@label.empty?
           p.text(@bounds.origin.x, @bounds.origin.y + label_fs,
             @label, ctx.theme.palette.muted, label_fs)
         end
+      end
 
+      protected def draw_field(p : Painter, ctx : Context, field : Rect) : Nil
         radius = ctx.theme.metrics.radius_md
         bg = @enabled ? ctx.theme.palette.surface : ctx.theme.palette.surface_raised
         border = if @invalid
@@ -94,13 +112,12 @@ module Tessell
         p.fill_round_rect(field, radius, bg)
         p.stroke_round_rect(field, radius, border,
           @focused || @invalid ? ctx.theme.metrics.focus_ring_width : ctx.theme.metrics.border_width)
+      end
 
-        area = text_area(ctx)
-        fs = ctx.theme.font_size(@size)
-        p.push_clip(area)
-        paint_selection(p, ctx, area, fs)
+      protected def draw_content(p : Painter, ctx : Context, field : Rect,
+                                 area : Rect, fs : Float32) : Nil
         text_x = area.origin.x - @scroll_x
-        # 垂直居中走 text_metrics 口径（issue #19），不用 fs*0.1 经验系数
+        # 垂直居中走 text_metrics 口径（issue #19），不用 +fs 经验口径
         baseline = TextDrawing.middle_baseline(field, ctx.text_metrics(fs))
         if @editing.text.empty? && !@placeholder.empty?
           p.text(text_x, baseline, @placeholder, ctx.theme.palette.muted, fs)
@@ -108,13 +125,20 @@ module Tessell
           p.text(text_x, baseline, @editing.text, ctx.theme.palette.foreground, fs)
         end
         paint_preedit(p, ctx, area, fs)
+      end
+
+      # 光标由骨架条件调用（focused && enabled），disabled 分支不丢
+      protected def draw_caret(p : Painter, ctx : Context, field : Rect,
+                               area : Rect, fs : Float32) : Nil
         if @focused && @enabled
+          text_x = area.origin.x - @scroll_x
           caret_x = text_x + ctx.measure_text(prefix, fs).width
           p.line(caret_x, field.origin.y + 4.0_f32,
             caret_x, field.max_y - 4.0_f32, ctx.theme.palette.foreground, 1.0_f32)
         end
-        p.pop_clip
+      end
 
+      protected def draw_error(p : Painter, ctx : Context, field : Rect) : Nil
         if @invalid && !@error_text.empty?
           err_fs = ctx.theme.font_size(ControlSize::Small)
           # 错误行基线 = 区域 top + ascent（issue #19），不用 +fs 经验口径
