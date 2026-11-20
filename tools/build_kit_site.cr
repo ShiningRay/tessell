@@ -31,6 +31,8 @@ module KitSite
     Page.new("K6 复核", "docs/kit/K6-review.md", "k6-review.html"),
     Page.new("示例应用", "docs/kit/apps.md", "apps.html"),
     Page.new("自定义大控件", "docs/kit/cookbook-custom-widget.md", "cookbook-custom-widget.html"),
+    Page.new("扩展 Kit", "docs/kit/extending.md", "extending.html"),
+    Page.new("Row / Column", "docs/kit/components/row-column.md", "components/row-column.html"),
   ]
 
   # 导航分组：与 PAGES 的输出路径对应，渲染时据此高亮当前页。

@@ -52,6 +52,10 @@ crystal run tools/build_kit_site.cr
 - [自定义大控件 cookbook](cookbook-custom-widget.md)：表格/时间线类控件的
   滚动/命中/裁切/键盘/a11y 清单，复用 `Kit::ScrollModel`（issue #17）。
 
+## 扩展 Kit
+
+第三方自定义组件的三条路径、可覆写切面与常见坑见 [extending.md](extending.md)（#57/#66/#67）。
+
 ## 复核与反馈
 
 - [K6 复核（Go-with-conditions）](K6-review.md)
