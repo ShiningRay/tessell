@@ -416,6 +416,16 @@ module Tessell
         @buf.size
       end
 
+      # 遍历当前全部挂载组件（含 overlay，issue #59 TestDriver selector 用）。
+      def each_component(& : Component -> Nil) : Nil
+        @component_buf.clear
+        @content.collect_components(@component_buf)
+        @overlay_host.entries.each do |entry|
+          entry.component.collect_components(@component_buf)
+        end
+        @component_buf.each { |c| yield c }
+      end
+
       def component_for_node(target : Node) : Component?
         current : Node? = target
         while current

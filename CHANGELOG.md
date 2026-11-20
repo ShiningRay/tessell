@@ -34,6 +34,12 @@
   呈现延迟、跨上下文 hop 计数；默认关闭零基线改变，p50/p95/p99 只进
   F1 overlay 与人工 bench 管道（AGENTS #10 口径不变），文档写明与
   NSGo 双线程模型数字不可直接比较。
+- 用户操作测试驱动（#59，NSGo nsgotest 理念）：Kit::TestDriver 按
+  a11y 元数据 selector 定位（歧义/无匹配/禁用/不可见全部带诊断失败），
+  press/focus/type/key/scroll 有界推进（无 sleep）；同一 journey 定义
+  FakeHost 管道与 Raw 直投（真实宿主）双后端一致，SDL2 真实窗口
+  journey 附截图证据（spec/test_driver_spec.cr 7 例 +
+  test_driver_sdl_spec.cr，无桌面环境 pending_skip 按平台分级）。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

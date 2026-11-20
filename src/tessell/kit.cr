@@ -29,6 +29,7 @@ require "./kit/text_align"
 require "./kit/input"
 require "./kit/debug_overlay"
 require "./kit/root"
+require "./kit/test_driver"
 
 module Tessell
   module Kit

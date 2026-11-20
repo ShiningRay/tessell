@@ -245,6 +245,25 @@ root.handle(Tessell::Input::Event.text_input("hi"))
 - 多段异色/异字号文本：按顺序多次 `p.text(...)` 即可（issue #15 契约：
   调用顺序即绘制顺序，同 clip 内自动合批）。
 
+## 跨宿主用户操作测试（issue #59）
+
+`Tessell::Kit::TestDriver`——借 NSGo nsgotest 的理念：同一套用户操作
+测试定义，headless（FakeHost 完整管道）与真实宿主（合成输入直投组件层）
+两个后端执行。
+
+- selector 按组件现有 a11y 元数据（`a11y_role`/`a11y_name`）定位——
+  「按用户所见」；无匹配 / 多匹配（歧义）/ 禁用 / 不可见目标一律抛
+  `SelectorError`，诊断列出当前树全部可见组件的 role+name 与 bounds。
+- 操作：`press`（down+up 中心点）/ `focus` / `type` / `key` / `scroll`；
+  失败输出已执行步骤链（ok/FAIL 逐条）+ 首个差异，可定位到组件。
+- 后端：`:fake` 走 FakeHost `inject → pump_frame`（虚拟时钟，绝不
+  sleep）；`:raw` 直投 `root.handle`——真实宿主可用（合成输入不经 OS，
+  组件层行为与 headless 一致）。参考 `spec/test_driver_spec.cr`
+  （双后端一致性）与 `spec/test_driver_sdl_spec.cr`（真实 SDL2 窗口
+  journey + 截图证据；无交互桌面时 pending_skip，按平台分级报告，
+  不把 headless 执行当平台支持证据）。
+- 边界：不提供 OS 级输入注入与无界等待；真实平台行为仍按支持矩阵。
+
 ## 帧/提交分段观测（issue #60）
 
 `Tessell::App::PerfCollector`——借 NSGo `internal/engine/perf.go` 的
