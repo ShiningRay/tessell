@@ -1,12 +1,15 @@
 # Changelog
 
-## 未发布
+## 0.5.0 (2026-11-20)
 
-- bug 修复（#50–#53），对应外部消费者 troupe-chat / tessell-todo 的真机报告。
-- 字体集合能力（#55）：.ttc 集合内按 sfnt family 选 face，多字面 CJK
-  字体不再依赖应用硬编码 ttc_index。
-- 测量缓存两层化（#56）：L2 宽度无关 shaping 缓存 + 分段 LRU + 
-  shapes/reflows 计数，resize 期间不再整段重 shape。
+分配 issue 14 条清零后的功能版：外部消费者反馈 4 缺陷（#50–#53）、
+真机回归 2 项（#55 字体集合、#56 测量缓存）、跨平台 L0/L1 收口（#61，
+三平台 CI 全绿）、NSGo 借鉴三机制（#58 重放 oracle / #59 TestDriver /
+#60 分段观测）、组合动画（#63）、弹性布局（#49）、布局正确性 oracle
+（#64）、组件扩展性收口（#66/#67/#68）。全量 685 examples / 0 failures，
+三平台 CI（Ubuntu Xvfb 真实窗口 / macOS / Windows SDL 真实窗口）绿。
+
+### 新能力
 - 弹性布局（#49）：Row/Column 子项 grow 权重（紧约束分享剩余主轴空间，
   Flutter Expanded 语义）与 Spacer 占位组件，「输入框占满剩余宽度 +
   固定宽度按钮」不再溢出。
@@ -38,8 +41,7 @@
   a11y 元数据 selector 定位（歧义/无匹配/禁用/不可见全部带诊断失败），
   press/focus/type/key/scroll 有界推进（无 sleep）；同一 journey 定义
   FakeHost 管道与 Raw 直投（真实宿主）双后端一致，SDL2 真实窗口
-  journey 附截图证据（spec/test_driver_spec.cr 7 例 +
-  test_driver_sdl_spec.cr，无桌面环境 pending_skip 按平台分级）。
+  journey 附截图证据，无桌面环境 pending_skip 按平台分级。
 - 内置组件可覆写切面（#66）：Button/Checkbox/Input 抽 protected
   切面（resolve_colors/draw_background/draw_border/draw_focus_ring/
   draw_content/inside?/activate/toggle 等），骨架保证焦点环与
@@ -53,9 +55,6 @@
   （shard.yml + Badge 组件 + 契约 spec 五例）与
   tools/kit_template_verify.sh 一键验证（KIT_TEMPLATE_VERIFY
   verify=pass，exit 0）。
-- 保留 key fail-fast（#69）：content 直接用 UiKey.root 时 Root#build
-  死循环挂死——Root#initialize 构造期 raise（宁报勿挂）；孤立组件
-  （不经 Root 驱动）不受限（既有 scroll_model 用例口径保留）。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`
@@ -87,7 +86,6 @@
   counting_assertions/layout_cached/zero_alloc 不回退。
 
 - **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
-- **#50 / #52 `draw_text` 批次区间算错**：`draw_text(batch_count, from_batch)` 的
   `batch_count` 是「本次提交的批数量」，实现却当排他结束索引用
   （`while i < batch_count`）。交错提交（issue #15 口径，`delta` + `before`）时
   第 2 条起的文本整段不提交——只有第一个文本命令可见。区间语义收敛到
@@ -98,7 +96,6 @@
   （与 GLBackend 及 `Backend#draw_text` 契约一致，此前返回帧累计）。
   回归判据：spec/render_text_batch_window_spec.cr（SoftwareBackend 像素级，
   修复前第二段文本区域像素数为 0；含溢出边界与每次调用增量断言）。
-
 
 - **#53 `Kit::Text#truncate` 输出 Builder 对象**：`"#{builder}#{ellipsis}"` 插值的是
   `String::Builder` 本身，截断文本渲染为 `#<String::Builder:0x…>…`；改为
@@ -113,6 +110,11 @@
   宿主不再需要 `on_frame` 里手动 `root.layout`。`For#items=` 直接替换 `@children`
   （不经 add/remove），键序变化（增/删/重排）同样打标；键序不变的值更新不打
   ——动态列表稳态不重排。
+
+- **#69 content 误用保留 key 死循环**：组件直接以 `UiKey.root` 为 key 时
+  `Root#build` 挂死（reconcile 与 Root 自身 node 的 key 空间冲突）——
+  `Root#initialize` 构造期 raise（宁报勿挂）；孤立组件（不经 Root 驱动）
+  不受限。
 
 ## 0.4.1 (2026-11-15)
 
