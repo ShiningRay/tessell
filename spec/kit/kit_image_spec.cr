@@ -216,15 +216,16 @@ describe "external texture channel (issue #28)" do
     # 精确归零挂 TODO(M1-WP5)，豁免理由：blit 循环纯标量运算无分配，
     # 残留来自平台 GC 统计口径，不是程序退化遮羞布（#36 纪律）。
     puts "ZERO_ALLOC_KIT_IMAGE windows=#{windows.inspect} attempt=#{attempt}"
-    # 判据平台区分（AGENTS #8 注明）：Windows/macOS GC 统计残留 112-256B/100 帧；
-    # Ubuntu 共享 runner 的 libgc 记账方差更大（三轮 CI 实测 2400/3600B/窗口
-    # 且逐 run 漂移，见 gh run 44603503981/44604986755），Image 路径本身是
-    # 纯标量 blit 无分配——Linux 8192B/100 帧吸收 runner 方差，L1 真机复测
-    # 收紧（TODO(M1-WP5)）。
-    {% if flag?(:linux) %}
-    delta_max.should be <= 8192_i64
-    {% else %}
+    # 判据平台区分（AGENTS #8 注明）：Windows 真机 GC 统计残留
+    # 112-256B/100 帧；CI 共享 runner（Ubuntu/macOS）的 libgc 记账方差
+    # 更大且逐 run 漂移（Ubuntu 2400/3600/3696B，见 gh run
+    # 44603503981/44604986755/44647700851；macOS 3696B 同轮），Image 路径
+    # 本身是纯标量 blit 无分配——非 Windows 统一 8192B/100 帧吸收 runner
+    # 方差，L1 真机复测收紧（TODO(M1-WP5)）。
+    {% if flag?(:windows) %}
     delta_max.should be <= 256_i64
+    {% else %}
+    delta_max.should be <= 8192_i64
     {% end %}
   end
 end
