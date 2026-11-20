@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Row / Column — Tessell Kit</title>
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<div class="layout">
+<nav class="site-nav">
+<details class="nav-details" open>
+<summary>Tessell Kit</summary>
+<div class="nav-body">
+<a class="brand" href="../../index.html"><strong>Tessell Kit</strong><span>自绘组件库文档</span></a>
+<div class="nav-group">
+<div class="nav-group-title">开始</div>
+<a class="nav-link" href="../index.html">概览</a>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">组件</div>
+<a class="nav-link" href="../components/button.html">Button</a>
+<a class="nav-link" href="../components/checkbox.html">Checkbox</a>
+<a class="nav-link" href="../components/text.html">Text</a>
+<a class="nav-link" href="../components/input.html">Input</a>
+<a class="nav-link" href="../components/select.html">Select</a>
+<a class="nav-link" href="../components/tooltip.html">Tooltip</a>
+<a class="nav-link" href="../components/dialog.html">Dialog</a>
+<a class="nav-link" href="../components/scroll-view.html">ScrollView</a>
+<a class="nav-link" href="../components/virtual-list.html">VirtualList</a>
+<a class="nav-link" href="../components/row-column.html" aria-current="page">Row / Column</a>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">指南</div>
+<a class="nav-link" href="../design-tokens.html">设计 token</a>
+<a class="nav-link" href="../component-contract.html">组件契约</a>
+<a class="nav-link" href="../cookbook-custom-widget.html">自定义大控件</a>
+<a class="nav-link" href="../apps.html">示例应用</a>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">仓库</div>
+<a class="nav-link" href="../plan.html">计划</a>
+<a class="nav-link" href="../cross-platform.html">跨平台方案</a>
+<a class="nav-link" href="../execution.html">执行记录</a>
+<a class="nav-link" href="../repository-strategy.html">仓策略</a>
+<a class="nav-link" href="../k6-review.html">K6 复核</a>
+</div>
+<div class="nav-foot">
+<a class="nav-link" href="../../api/index.html">API 参考</a>
+<a class="nav-link" href="https://github.com/ShiningRay/tessell" rel="noopener">GitHub 仓库</a>
+</div>
+</div>
+</details>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/components/row-column.md · <a href="../../api/index.html">API 参考</a></div>
+<h1 id="row-column">Row / Column</h1>
+<h2 id="何时使用">何时使用</h2>
+<ul>
+<li>线性排列子组件：工具栏、表单行、列表行、操作区。</li>
+<li>Row 水平、Column 垂直；配合 padding/spacing/alignment。</li>
+<li>子组件需要分享剩余空间（输入框 + 按钮同排、分隔占位）时用 grow 权重。</li>
+<li>不替代核心 Layout 两遍内核；组件仍产出绝对 bounds。</li>
+</ul>
+<h2 id="最小示例">最小示例</h2>
+<pre><code class="language-crystal">row <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Row</span>.new(key, <span class="tok-type">Tessell</span>::<span class="tok-type">Insets</span>.all(<span class="tok-num">8.0_f32</span>), <span class="tok-num">8.0_f32</span>)
+row.add(input, grow: <span class="tok-num">1.0_f32</span>)   <span class="tok-com"># 输入框吃掉剩余宽度（issue #49）</span>
+row.add(button)                 <span class="tok-com"># 固定内容宽度，紧跟其后</span>
+</code></pre>
+<h2 id="参数">参数</h2>
+<ul>
+<li><code>padding</code>：Insets，四边内边距。</li>
+<li><code>spacing</code>：主轴子项间距。</li>
+<li><code>alignment</code>：<strong>交叉轴</strong>对齐——Start / Center / End / Stretch（默认 Stretch：交叉轴填满）。</li>
+</ul>
+<h2 id="弹性布局-grow-issue-49">弹性布局（grow，issue #49）</h2>
+<ul>
+<li><code>container.add(child, grow: weight)</code> 或 <code>container.set_grow(child, weight)</code>（weight ≤ 0 取消）登记弹性权重。</li>
+<li>主轴有界时：固定子项先按内容测量，剩余主轴空间 （<code>inner − 固定子项 − spacing</code>）按权重紧约束分配给弹性子项 （min=max=share，Flutter Expanded 语义；最后一个弹性子项吃浮点余数， 恰好填满）。</li>
+<li>剩余空间不足时弹性子项塌缩为 0，固定子项优先。</li>
+<li>主轴无界（内在尺寸测量）时不做分配：弹性子项不参与内在尺寸。</li>
+<li>权重变化与 <code>add</code>/<code>remove</code> 一样打结构脏标记，<code>root.build</code> 自动补重排。</li>
+<li><code>Spacer</code>：弹性占位组件——<code>row.add(Tessell::Kit::Spacer.new(key), grow: 1.0)</code>； 不进命中树、不绘制。单独使用为 0×0。</li>
+<li>限制：不做 flex-wrap 换行、不做交叉轴多行、不解析 CSS；比例分配是 Float32 直算，不保证跨平台逐位一致。</li>
+</ul>
+<h2 id="键盘-无障碍">键盘 / 无障碍</h2>
+<ul>
+<li>Container 自身不聚焦、不拦截键盘事件；子组件按各自契约处理。</li>
+<li>emit 为 <code>Group</code>（visible 时）；不可见子树整棵跳过。</li>
+<li><code>Spacer</code> 不 emit（不可命中、无角色）。</li>
+</ul>
+<h2 id="主题-token">主题 token</h2>
+<ul>
+<li>不消费颜色 token；布局数值来自组件参数与父级约束，不受主题影响。</li>
+</ul>
+<h2 id="限制">限制</h2>
+<ul>
+<li>一个方向一个用途：需要嵌套组合（Row 套 Column）表达复杂布局。</li>
+<li><code>alignment</code> 只作用交叉轴；主轴始终按顺序排布，不留白。</li>
+</ul>
+
+</main>
+</div>
+<script>
+  // 窄屏默认折叠整站导航（桌面保持展开）；纯渐进增强，无脚本时导航仍可见。
+  (function () {
+    var d = document.querySelector(".nav-details");
+    if (d && window.matchMedia("(max-width: 820px)").matches) d.open = false;
+  })();
+</script>
+</body>
+</html>

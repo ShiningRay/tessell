@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>扩展 Tessell Kit：第三方组件的三条路径 — Tessell Kit</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<div class="layout">
+<nav class="site-nav">
+<details class="nav-details" open>
+<summary>Tessell Kit</summary>
+<div class="nav-body">
+<a class="brand" href="../index.html"><strong>Tessell Kit</strong><span>自绘组件库文档</span></a>
+<div class="nav-group">
+<div class="nav-group-title">开始</div>
+<a class="nav-link" href="index.html">概览</a>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">组件</div>
+<a class="nav-link" href="components/button.html">Button</a>
+<a class="nav-link" href="components/checkbox.html">Checkbox</a>
+<a class="nav-link" href="components/text.html">Text</a>
+<a class="nav-link" href="components/input.html">Input</a>
+<a class="nav-link" href="components/select.html">Select</a>
+<a class="nav-link" href="components/tooltip.html">Tooltip</a>
+<a class="nav-link" href="components/dialog.html">Dialog</a>
+<a class="nav-link" href="components/scroll-view.html">ScrollView</a>
+<a class="nav-link" href="components/virtual-list.html">VirtualList</a>
+<a class="nav-link" href="components/row-column.html">Row / Column</a>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">指南</div>
+<a class="nav-link" href="design-tokens.html">设计 token</a>
+<a class="nav-link" href="component-contract.html">组件契约</a>
+<a class="nav-link" href="cookbook-custom-widget.html">自定义大控件</a>
+<a class="nav-link" href="apps.html">示例应用</a>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">仓库</div>
+<a class="nav-link" href="plan.html">计划</a>
+<a class="nav-link" href="cross-platform.html">跨平台方案</a>
+<a class="nav-link" href="execution.html">执行记录</a>
+<a class="nav-link" href="repository-strategy.html">仓策略</a>
+<a class="nav-link" href="k6-review.html">K6 复核</a>
+</div>
+<div class="nav-foot">
+<a class="nav-link" href="../api/index.html">API 参考</a>
+<a class="nav-link" href="https://github.com/ShiningRay/tessell" rel="noopener">GitHub 仓库</a>
+</div>
+</div>
+</details>
+</nav>
+<main>
+<div class="meta">来源：docs/kit/extending.md · <a href="../api/index.html">API 参考</a></div>
+<h1 id="扩展-tessell-kit-第三方组件的三条路径">扩展 Tessell Kit：第三方组件的三条路径</h1>
+<blockquote>目标读者：想在 Tessell Kit 之上写自己的组件/包装内置组件的应用开发者。</blockquote>
+<blockquote>本文是操作指引；机制调研与取舍见</blockquote>
+<blockquote><a href="../research/component-extension-survey.html">component-extension-survey.md</a></blockquote>
+<blockquote>（#57，七家对照），可覆写点清单见</blockquote>
+<blockquote><a href="component-contract.html">component-contract.md</a>（#66）。</blockquote>
+<h2 id="三条路径-按优先级选择">三条路径（按优先级选择）</h2>
+<h3 id="路径一-组合-首选">路径一：组合（首选）</h3>
+<p>用 <code>Column</code> / <code>Row</code> / <code>Container</code> 把内置组件拼成复合结构。不写新组件类， 状态归属应用，交互回调走内置组件的 <code>on_click</code>/<code>on_change</code>。</p>
+<pre><code class="language-crystal"><span class="tok-com"># 表单行：输入框吃掉剩余宽度 + 固定宽度按钮（issue #49 grow 语义）</span>
+row <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Row</span>.new(key, <span class="tok-type">Tessell</span>::<span class="tok-type">Insets</span>.all(<span class="tok-num">4.0_f32</span>), <span class="tok-num">4.0_f32</span>)
+input <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Input</span>.new(key.child(<span class="tok-num">1_u64</span>), label: <span class="tok-str">&quot;New item&quot;</span>)
+row.add(input, grow: <span class="tok-num">1.0_f32</span>)
+add_btn <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Button</span>.new(key.child(<span class="tok-num">2_u64</span>), <span class="tok-str">&quot;Add&quot;</span>)
+add_btn.on_click <span class="tok-op">=</span> <span class="tok-op">-&gt;</span> { app.add_item(input.text) }
+row.add(add_btn)
+</code></pre>
+<p>适用：布局与事件全部能用内置组件表达时（大多数表单/工具栏/列表）。</p>
+<h3 id="路径二-包装-改外观或行为的一小步">路径二：包装（改外观或行为的一小步）</h3>
+<p>继承内置组件，覆写<strong>单个 <code>protected</code> 切面</strong>（#66 契约）——骨架保证焦点环、 disabled 分支、命中/激活状态机与 emit key 契约不变。每组件可覆写点清单见 <a href="component-contract.html">component-contract.md</a>。</p>
+<pre><code class="language-crystal"><span class="tok-com"># 按钮&quot;按下时多画一圈&quot;：只覆写背景切面，其余走内置</span>
+<span class="tok-kw">class</span> <span class="tok-type">AccentButton</span> <span class="tok-op">&lt;</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Button</span>
+  <span class="tok-kw">def</span> draw_background(p : <span class="tok-type">Painter</span>, ctx : <span class="tok-type">Context</span>,
+                      colors : <span class="tok-type">ButtonColors</span>, radius : <span class="tok-type">Float32</span>) : <span class="tok-type">Nil</span>
+    <span class="tok-kw">super</span>
+    p.fill_rect(@bounds, <span class="tok-num">0x2200ff00_u32</span>)
+  <span class="tok-kw">end</span>
+<span class="tok-kw">end</span>
+</code></pre>
+<p>适用：改外观的一小步、换色/换形状、收窄命中区域、扩展激活语义。 完整可运行示例：<code>spec/kit/override_hooks_spec.cr</code>。</p>
+<h3 id="路径三-自绘-leaf-内置没有的控件">路径三：自绘 leaf（内置没有的控件）</h3>
+<p>继承 <code>Component</code>，实现 <code>measure</code>/<code>arrange</code>/<code>emit</code>/<code>paint</code> 四件套， 配合 <code>ScrollModel</code> 做滚动（见 <a href="cookbook-custom-widget.html">cookbook-custom-widget.md</a>）。</p>
+<pre><code class="language-crystal"><span class="tok-kw">class</span> <span class="tok-type">Badge</span> <span class="tok-op">&lt;</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">Component</span>
+  <span class="tok-kw">def</span> measure(ctx : <span class="tok-type">Context</span>, constraints : <span class="tok-type">Constraints</span>) : <span class="tok-type">Size</span>
+    s <span class="tok-op">=</span> ctx.measure_text(@text, <span class="tok-num">12.0_f32</span>)
+    constraints.constrain(<span class="tok-type">Size</span>.new(s.width <span class="tok-op">+</span> <span class="tok-num">8.0_f32</span>, <span class="tok-num">18.0_f32</span>))
+  <span class="tok-kw">end</span>
+
+  <span class="tok-kw">def</span> paint(p : <span class="tok-type">Painter</span>, ctx : <span class="tok-type">Context</span>) : <span class="tok-type">Nil</span>
+    <span class="tok-kw">return</span> <span class="tok-kw">unless</span> @visible
+    p.fill_round_rect(@bounds, <span class="tok-num">4.0_f32</span>, ctx.theme.palette.accent)
+    <span class="tok-com"># 文本基线用 text_metrics 口径（issue #19），不用 fs*0.1 经验系数</span>
+    baseline <span class="tok-op">=</span> <span class="tok-type">Tessell</span>::<span class="tok-type">Kit</span>::<span class="tok-type">TextDrawing</span>.middle_baseline(@bounds, ctx.text_metrics(<span class="tok-num">12.0_f32</span>))
+    p.text(@bounds.origin.x <span class="tok-op">+</span> <span class="tok-num">4.0_f32</span>, baseline, @text,
+      ctx.theme.palette.accent_foreground, <span class="tok-num">12.0_f32</span>)
+  <span class="tok-kw">end</span>
+
+  <span class="tok-kw">def</span> a11y_role : <span class="tok-type">A11y</span>::<span class="tok-type">Role</span>
+    <span class="tok-type">A11y</span>::<span class="tok-type">Role</span>::<span class="tok-type">Text</span>
+  <span class="tok-kw">end</span>
+
+  <span class="tok-kw">def</span> a11y_name : <span class="tok-type">String</span>
+    @text
+  <span class="tok-kw">end</span>
+<span class="tok-kw">end</span>
+</code></pre>
+<p>适用：表格/时间线/徽章等内置没有的控件；复杂交互参考 <a href="cookbook-custom-widget.html">cookbook-custom-widget.md</a> 的清单 （滚动/命中/裁切/键盘/a11y）。</p>
+<h2 id="最小可运行验证">最小可运行验证</h2>
+<p>三种路径的真实可运行模板都在本仓 spec 里（非伪代码）：</p>
+<table>
+<thead><tr><th>路径</th><th>参考文件</th></tr></thead>
+<tbody>
+<tr><td>组合 + grow</td><td><code>spec/kit/flex_grow_spec.cr</code></td></tr>
+<tr><td>受控继承切面</td><td><code>spec/kit/override_hooks_spec.cr</code></td></tr>
+<tr><td>自绘 leaf</td><td><code>spec/kit/cookbook</code> 用例与 <code>docs/kit/cookbook-custom-widget.md</code></td></tr>
+<tr><td>用户路径测试</td><td><code>spec/test_driver_spec.cr</code>（TestDriver 双后端）</td></tr>
+</tbody></table>
+<p>外部消费者验证：<code>bash tools/kit_consumer_verify.sh</code> （临时目录 + Shards path 依赖，退出码 0）；分发约定见 #68。</p>
+<h2 id="六个坑-每个都有真实-spec-锁">六个坑（每个都有真实 spec 锁）</h2>
+<p>1. <strong>UiKey 必须显式且唯一</strong>：同一逻辑组件跨帧同一 key；重复 key fail-fast （#43）。<strong>保留 key</strong>：<code>UiKey.root</code> 本身不能当组件 key（会 build 死循环，</p>
+<h1 id="69-永远从-root-child-派生">69）——永远从 <code>root.child(...)</code> 派生。</h1>
+<p>2. <strong>visible 双守卫</strong>：<code>paint</code> 与 <code>emit</code> 都要 <code>return unless @visible</code> ——emit 即存在（不可见组件不进命中树），只守卫一边会出现&quot;看得见点不到&quot; 或&quot;点得到看不见&quot;。 3. <strong>dispose/watch 生命周期</strong>：持有 Signal watch 的组件实现 <code>dispose</code> 停 Owner（Root#build 对移出树的组件自动调用，#44）；重挂树后重建 watch，不自动恢复。 4. <strong>a11y 元数据</strong>：<code>a11y_role/name/value/focusable/enabled</code> 随 emit 同步； 无可见文本的控件必须给 name；本库只产出进程内树，不可被屏幕阅读器 读取（不要宣称平台 provider）。 5. <strong>Painter 边界</strong>：组件不得读窗口/GPU/平台 API（AGENTS #3）—— 只经 <code>Context</code>（主题/度量/DPI/时间）与 <code>Painter</code>（绘制原语）看世界； GL 只在 <code>render/gl/</code> 与宿主。 6. <strong>主题 token</strong>：第三方组件从 <code>ctx.theme</code> 取语义 token（accent/danger/ surface…），不要硬编码颜色；light/dark 与 scale 用纯逻辑 spec 验证。</p>
+<h2 id="语义边界-诚实口径">语义边界（诚实口径）</h2>
+<ul>
+<li>不做组件 registry / 插件系统（#57 结论：七家参考框架均无）。</li>
+<li>不做 Tailwind 式任意样式覆盖；主题只能整套注入（per-subtree 作用域 等 plan.md 后续立项）。</li>
+<li>叶组件通用 slot/children 协议暂不排期（等真实第三方需求）。</li>
+</ul>
+
+</main>
+</div>
+<script>
+  // 窄屏默认折叠整站导航（桌面保持展开）；纯渐进增强，无脚本时导航仍可见。
+  (function () {
+    var d = document.querySelector(".nav-details");
+    if (d && window.matchMedia("(max-width: 820px)").matches) d.open = false;
+  })();
+</script>
+</body>
+</html>

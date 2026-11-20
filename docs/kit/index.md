@@ -55,6 +55,7 @@ crystal run tools/build_kit_site.cr
 ## 扩展 Kit
 
 第三方自定义组件的三条路径、可覆写切面与常见坑见 [extending.md](extending.md)（#57/#66/#67）。
+分发约定与模板脚手架见 [distribution.md](distribution.md)（#68）。
 
 ## 复核与反馈
 

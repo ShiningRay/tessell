@@ -46,6 +46,13 @@
   disabled 分支、命中激活状态机与 emit key 契约；像素输出不变
   （全量 spec 与既有 PaintList op 断言零回归），契约文档列出
   每组件可覆写点清单（docs/kit/component-contract.md）。
+- 第三方组件文档与脚手架（#67/#68）：docs/kit/extending.md 三条路径
+  （组合/受控继承/自绘 leaf）+ 六个坑（各带 spec 锁）；
+  distribution.md 分发约定（tessell-<name> 命名、shards ~> 约束、
+  发布清单，不建 registry）；templates/kit-component 可运行模板
+  （shard.yml + Badge 组件 + 契约 spec 五例）与
+  tools/kit_template_verify.sh 一键验证（KIT_TEMPLATE_VERIFY
+  verify=pass，exit 0）。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

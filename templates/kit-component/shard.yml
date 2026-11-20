@@ -1,0 +1,9 @@
+name: tessell-badge
+version: 0.1.0
+crystal: ">= 1.21.0"
+# 分发约定（#68）：第三方组件包命名 `tessell-<name>`；依赖本仓时
+# 发布到 GitHub 后用 `github: ShiningRay/tessell` + `version: ~> 0.4`，
+# 本地开发用 path 依赖（见 tools/kit_template_verify.sh 生成的写法）。
+dependencies:
+  tessell:
+    path: ../..

@@ -28,6 +28,7 @@
 <a class="nav-link" href="components/dialog.html">Dialog</a>
 <a class="nav-link" href="components/scroll-view.html">ScrollView</a>
 <a class="nav-link" href="components/virtual-list.html">VirtualList</a>
+<a class="nav-link" href="components/row-column.html">Row / Column</a>
 </div>
 <div class="nav-group">
 <div class="nav-group-title">指南</div>
@@ -67,6 +68,7 @@
 <li>尺寸档位只有 <code>Small / Medium / Large</code>；间距、圆角、边框、焦点环、控件高度来自 <code>Theme::Metrics</code>，组件不得另造一套尺寸。</li>
 <li><code>measure</code> 只依赖 <code>Context</code>（主题、文本度量、DPI scale）与组件自身状态；不得读窗口或 GPU 状态。</li>
 <li><code>arrange</code> 接收绝对 bounds，递归给子组件分配绝对 bounds。热路径可以复用组件对象，但不得复用上一帧的错误几何。</li>
+<li>运行期增删子组件（issue #51）：<code>Container#add/remove</code>（以及任何改 <code>children</code> 的 自定义组件）必须调用 <code>mark_structure_dirty</code>，它沿父链把脏标记打到树根； <code>Root#build</code> 消费标记并补一次 <code>layout(@viewport)</code>。宿主因此<strong>不需要</strong>在动态 树变化后手动 <code>root.layout</code>——新组件不会再停在零 bounds 上（结构未变化时 不重排，稳态零成本，spec/kit/structure_relayout_spec.cr 锁住两个方向）。</li>
 <li>文本尺寸统一经 <code>Context#measure_text</code>；组件不得自行按字符数猜宽度。</li>
 </ul>
 <h2 id="失效最小化">失效最小化</h2>
@@ -105,6 +107,17 @@
 <h2 id="测试门槛">测试门槛</h2>
 <p>每个组件至少具备：</p>
 <p>1. 状态迁移与事件次数 spec（含 disabled/read_only 反例）。 2. measure/arrange 与声明/a11y 元数据 spec。 3. <code>PaintList</code> 命令与裁切成对 spec。 4. 键盘路径 spec；适用时覆盖指针进入/离开/取消。 5. 主题 light/dark 与至少 1.0/1.5/2.0 scale 的纯逻辑验证。 6. 真实窗口验证另记；未运行不得写成通过。</p>
+<h2 id="内置组件可覆写切面-issue-66">内置组件可覆写切面（issue #66）</h2>
+<p>扩展内置组件的<strong>受控继承</strong>路径：子类覆写单个 <code>protected</code> 切面，其余行为 （焦点环 / disabled 分支 / 命中与激活状态机 / emit key 契约）由内置骨架 保证。<code>emit</code> 始终由内置实现发自身 key；hook 只改绘制与行为，不改 op 流 契约与 a11y 元数据来源。覆写是虚分派，不新增每帧分配（AGENTS #6）。</p>
+<table>
+<thead><tr><th>组件</th><th>可覆写切面（protected）</th><th>骨架保证</th></tr></thead>
+<tbody>
+<tr><td>Button</td><td><code>resolve_colors</code> / <code>interaction_state</code> / <code>draw_background</code> / <code>draw_border</code> / <code>draw_focus_ring</code> / <code>draw_content</code> / <code>inside?</code> / <code>activate</code></td><td>绘制顺序（背景→边框→焦点环→内容）、焦点环条件（focused &amp;&amp; enabled）、按压/键盘状态机</td></tr>
+<tr><td>Checkbox</td><td><code>checkbox_box_rect</code> / <code>resolve_colors</code> / <code>draw_box</code> / <code>draw_focus_ring</code> / <code>draw_mark</code> / <code>draw_label</code> / <code>inside?</code> / <code>toggle</code></td><td>焦点环条件、checked/indeterminate 分支顺序</td></tr>
+<tr><td>Input</td><td><code>draw_label</code> / <code>draw_field</code> / <code>draw_content</code> / <code>draw_caret</code> / <code>draw_error</code> / <code>inside?</code></td><td>光标条件（focused &amp;&amp; enabled）、invalid/focus 边框选择、选择/preedit 固定调用</td></tr>
+</tbody></table>
+<p>组合优先（Container/Row/Column）仍是第一选择；受控继承用于「改外观或 行为的一小步」。写新第三方组件的三条路径见 #67（extending.md）。</p>
+<p>示例：<code>spec/kit/override_hooks_spec.cr</code>（覆写 draw_background 叠加 op、 inside? 收窄命中、toggle 计数——骨架分支不丢）。</p>
 
 </main>
 </div>
