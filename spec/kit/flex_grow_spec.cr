@@ -180,3 +180,19 @@ end
 private def root_ctx : Tessell::Kit::Context
   Tessell::Kit::Context.new(Tessell::Kit::Theme.light, Tessell::Kit::StubTextMetrics.new)
 end
+
+describe "保留 key fail-fast（issue #69）" do
+  it "content 误用 UiKey.root 在 Root 构造期 raise，不进 build 挂死" do
+    col = Tessell::Kit::Column.new(Tessell::UI::UiKey.root)
+    expect_raises(ArgumentError, "保留 key") do
+      Tessell::Kit::Root.new(col)
+    end
+    # 正常派生 key 不受影响；孤立组件（不经 Root）仍可用 UiKey.root
+    col_ok = Tessell::Kit::Column.new(Tessell::UI::UiKey.root.child(900_u64))
+    root_ok = Tessell::Kit::Root.new(col_ok)
+    root_ok.layout(100.0_f32, 50.0_f32)
+    root_ok.build
+    orphan = Tessell::Kit::Column.new(Tessell::UI::UiKey.root) # 孤立用法合法
+    orphan.add(Tessell::Kit::Button.new(Tessell::UI::UiKey.root.child(901_u64), "x"))
+  end
+end

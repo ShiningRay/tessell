@@ -53,6 +53,9 @@
   （shard.yml + Badge 组件 + 契约 spec 五例）与
   tools/kit_template_verify.sh 一键验证（KIT_TEMPLATE_VERIFY
   verify=pass，exit 0）。
+- 保留 key fail-fast（#69）：content 直接用 UiKey.root 时 Root#build
+  死循环挂死——Root#initialize 构造期 raise（宁报勿挂）；孤立组件
+  （不经 Root 驱动）不受限（既有 scroll_model 用例口径保留）。
 
 ### Bug 修复
 - **#55 .ttc 集合内选 face 缺失**：`SystemFonts` 只按文件名匹配，`FontStack.open`

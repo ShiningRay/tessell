@@ -55,6 +55,14 @@ module Tessell
                      @metrics : TextMetrics = StubTextMetrics.new,
                      viewport : Rect = Rect.new(0.0_f32, 0.0_f32, 800.0_f32, 600.0_f32),
                      scale : Float32 = 1.0_f32)
+        # 保留 key fail-fast（issue #69）：content 直接用 UiKey.root 会让
+        # build 内部失效循环挂死（reconcile 与 Root 自身 node 的 key 空间
+        # 冲突）——构造期 raise，宁报勿挂。孤立组件（不经 Root 驱动）不受限。
+        if content.key.parent == 0_u64 && content.key.local == 0_u64
+          raise ArgumentError.new(
+            "content 组件误用保留 key UiKey.root；请改用 UiKey.root.child(<local>) 派生 " \
+            "(#{content.class.name})——否则 Root#build 会死循环（issue #69）")
+        end
         @node = Node.new("kit-root", viewport)
         @pool = UI::Pool.new
         @buf = [] of UI::Decl
